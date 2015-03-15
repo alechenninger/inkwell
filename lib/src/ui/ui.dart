@@ -26,7 +26,8 @@ class Ui extends Actor {
         .listen((e) => new OptionElement(e.option, game, _optionsPanel));
 
     game.on[RemoveOption]
-        .listen((e) => _optionsPanel.children.remove(e.option));
+        .listen((e) => _optionsPanel.children
+            .removeWhere((c) => c.innerHtml == e.option.title));
   }
 }
 
