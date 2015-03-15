@@ -24,12 +24,40 @@ class DialogEvent extends Event {
       "DialogEvent(speaker: $speaker, target: $target, what: $what)";
 }
 
-/// Changes the global options available to a current player.
-class OptionsEvent extends Event {
+class AddOption extends Event {
+  final Option option;
 
+  AddOption(this.option) {
+    checkNotNull(option, message: "Option cannot be null.");
+  }
+
+  @override
+  String toString() => "$timeStamp > AddOption(option: $option)";
+}
+
+class RemoveOption extends Event {
+  final Option option;
+
+  RemoveOption(this.option) {
+    checkNotNull(option, message: "Option cannot be null.");
+  }
+
+  @override
+  String toString() => "$timeStamp > RemoveOption(option: $option)";
 }
 
 /// Changes the inventory content of an actor.
 class InventoryEvent extends Event {
 
+}
+
+class AddActor extends Event {
+  final Actor actor;
+
+  AddActor(this.actor) {
+    checkNotNull(actor, message: 'Actor cannot be null.');
+  }
+
+  @override
+  String toString() => "$timeStamp > AddActor(actor: $actor)";
 }

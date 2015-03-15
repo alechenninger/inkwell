@@ -6,7 +6,6 @@ library august.ui;
 import 'package:august/core.dart';
 
 import 'dart:html';
-
 export 'dart:html';
 
 part 'src/ui/ui.dart';

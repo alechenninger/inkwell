@@ -3,8 +3,9 @@
 
 library august.core;
 
-import 'dart:async';
+import 'package:quiver/check.dart';
 
+import 'dart:async';
 export 'dart:async';
 
 part 'src/core/actor.dart';
@@ -12,4 +13,3 @@ part 'src/core/game.dart';
 part 'src/core/event.dart';
 part 'src/core/journal.dart';
 part 'src/core/option.dart';
-part 'src/core/story.dart';

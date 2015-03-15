@@ -22,5 +22,5 @@ class Journal implements Actor {
   void action(Game director) {}
 
   /// Takes a snapshot copy of the current journal.
-  List<Event> get toList => new List.from(_journal);
+  List<Event> toList() => new List.from(_journal);
 }

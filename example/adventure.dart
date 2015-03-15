@@ -6,32 +6,49 @@ library august.example;
 import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
-var director = new Game();
+import 'dart:math';
+
+Game game = new Game();
+
 var self = new Self();
 var adventurer = new Adventurer();
 var ui = new Ui(document.body);
-var journal = new Journal(shouldLog: true);
 
 main() {
-  new Story([self, adventurer, journal, ui], director).begin();
+  game
+    ..addActors([self, adventurer, ui])
+    ..begin();
 }
 
 talkToAdventurer(String words) {
-  director.broadcast(new DialogEvent(self, words, target: adventurer));
+  game.broadcast(new DialogEvent(self, words, target: adventurer));
 }
 
 class Self extends Actor {
   @override
-  void prepare(Game d) {}
+  void prepare(Game game) {}
 }
 
 class Adventurer extends Actor {
+  static const List _thingsToSay = const [
+    "A mighty fine day, isn't it?",
+    "What in the world could that be!",
+    "Buffalo buffalo Buffalo buffalo buffalo."
+  ];
+
+  final Random _random = new Random();
+
   @override
-  void prepare(Game d) {
-    d.on[DialogEvent]
+  void prepare(Game game) {
+    game.on[DialogEvent]
         .where((e) => e.target == this)
         .listen((e) {
-          d.broadcast(new DialogEvent(this, "Hi there!", target: e.speaker));
+          game.broadcast(new DialogEvent(this, _randomThingToSay(),
+              target: e.speaker));
         });
+  }
+
+  String _randomThingToSay() {
+    return _thingsToSay[_random.nextInt(_thingsToSay.length)];
   }
 }

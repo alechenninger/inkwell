@@ -5,13 +5,28 @@ part of august.ui;
 
 class Ui extends Actor {
   final HtmlElement _container;
+  final HtmlElement _mainPanel = new DivElement()
+    ..classes.add('event-panel');
 
-  Ui(this._container);
+  final HtmlElement _optionsPanel = new DivElement()
+    ..classes.add('options-panel');
+
+  final List<Option> options = new List();
+
+  Ui(this._container) {
+    _container.children.addAll([_mainPanel, _optionsPanel]);
+  }
 
   @override
   void prepare(Game game) {
     game.on[DialogEvent]
-        .listen((e) => new DialogElement(e, _container));
+        .listen((e) => new DialogElement(e, _mainPanel));
+
+    game.on[AddOption]
+        .listen((e) => new OptionElement(e.option, game, _optionsPanel));
+
+    game.on[RemoveOption]
+        .listen((e) => _optionsPanel.children.remove(e.option));
   }
 }
 
@@ -34,6 +49,15 @@ class DialogElement {
       ..children.addAll([speaker, target, what]);
 
     container.children.add(dialog);
+  }
+}
+
+class OptionElement {
+  OptionElement(Option o, Game game, HtmlElement container) {
+    container.children.add(new DivElement()
+      ..classes.add('option')
+      ..innerHtml = o.title
+      ..onClick.listen((e) => o.trigger(game)));
   }
 }
 
