@@ -1,0 +1,39 @@
+@import url(http://fonts.googleapis.com/css?family=Slabo+27px);
+
+* {
+    font-family: 'Slabo 27px', serif;
+}
+
+body {
+    background-color: darkgray;
+}
+
+.dialog {
+    width: 40em;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1em;
+    background-color: gainsboro;
+    padding: .5em;
+    border-radius: .1em;
+    box-shadow: 2px 2px 5px 0px rgba(0,0,0,0.4);
+}
+
+.dialog .speaker {
+    float: left;
+    margin-bottom: .5em;
+}
+
+.dialog .speaker:after {
+    content: " to...";
+    margin-right: .5em;
+}
+
+.dialog .target {
+    margin-bottom: .5em;
+    float: right;
+}
+
+.dialog .what {
+    clear: both;
+}
