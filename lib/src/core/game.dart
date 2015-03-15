@@ -21,6 +21,8 @@ class Game {
   /// Before game is started, actors may not broadcast events.
   bool _hasBegun = false;
 
+  Completer _doneBroadcasting = new Completer()..complete();
+
   /// Ordered log of all immutable [Event]s.
   final Journal journal;
 
@@ -29,7 +31,7 @@ class Game {
 
   Game([Journal journal])
       : this.journal = (journal != null) ? journal : _newDefaultJournal()  {
-    _ctrl = new StreamController.broadcast();
+    _ctrl = new StreamController.broadcast(sync: true);
     _events = new Events(events);
 
     _registerHandlers();
@@ -52,7 +54,14 @@ class Game {
       throw new StateError("Event broadcast before game started: $e");
     }
 
-    _ctrl.add(e);
+    // I can't believe this actually works?
+    _doneBroadcasting.future.then((_) {
+      _doneBroadcasting = new Completer();
+
+      _ctrl.add(e);
+
+      _doneBroadcasting.complete();
+    });
   }
 
   /// Allows [Event]s to be broadcast and [broadcast]s a [BeginEvent].
@@ -69,7 +78,7 @@ class Game {
       if (_hasBegun) {
         e.actor.action(this);
       } else {
-        on[BeginEvent].listen((e) => e.actor.action(this));
+        on[BeginEvent].listen((_) => e.actor.action(this));
       }
     });
   }

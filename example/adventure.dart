@@ -20,10 +20,6 @@ main() {
     ..begin();
 }
 
-talkToAdventurer(String words) {
-  game.broadcast(new DialogEvent(self, words, target: adventurer));
-}
-
 class Self extends Actor {
   @override
   void prepare(Game game) {}
@@ -46,6 +42,14 @@ class Adventurer extends Actor {
           game.broadcast(new DialogEvent(this, _randomThingToSay(),
               target: e.speaker));
         });
+  }
+
+  @override
+  void action(Game game) {
+    game.broadcast(
+        new AddOption(
+            new Option.singleUse("Talk to Adventurer",
+                new DialogEvent(self, "Hi there!", target: this))));
   }
 
   String _randomThingToSay() {
