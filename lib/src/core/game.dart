@@ -21,7 +21,7 @@ class Game {
   /// Before game is started, actors may not broadcast events.
   bool _hasBegun = false;
 
-  Completer _doneBroadcasting = new Completer()..complete();
+  Completer _broadcasting = new Completer()..complete();
 
   /// Ordered log of all immutable [Event]s.
   final Journal journal;
@@ -55,12 +55,12 @@ class Game {
     }
 
     // I can't believe this actually works?
-    _doneBroadcasting.future.then((_) {
-      _doneBroadcasting = new Completer();
+    _broadcasting.future.then((_) {
+      _broadcasting = new Completer();
 
       _ctrl.add(e);
 
-      _doneBroadcasting.complete();
+      _broadcasting.complete();
     });
   }
 

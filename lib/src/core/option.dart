@@ -21,7 +21,7 @@ class Option {
   }
 
   void trigger(Game game) {
-    game.broadcast(_event);
     game.broadcast(new RemoveOption(this));
+    game.broadcast(_event);
   }
 }
