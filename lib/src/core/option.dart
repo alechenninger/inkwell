@@ -24,4 +24,7 @@ class Option {
     game.broadcast(new RemoveOption(this));
     game.broadcast(_event);
   }
+
+  @override
+  String toString() => "Option(title: $title, _event: $_event)";
 }
