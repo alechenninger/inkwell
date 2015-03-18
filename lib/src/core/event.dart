@@ -4,7 +4,8 @@
 part of august.core;
 
 abstract class Event {
-  final DateTime timeStamp = new DateTime.now();
+  DateTime _timeStamp = null;
+  DateTime get timeStamp => _timeStamp;
 }
 
 class BeginEvent extends Event {

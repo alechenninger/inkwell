@@ -11,10 +11,10 @@ class Journal implements Actor {
 
   @override
   void prepare(Game game) {
-    game.events.listen(_journal.add);
+    game.stream.listen(_journal.add);
 
     if (shouldLog) {
-      game.events.listen(print);
+      game.stream.listen(print);
     }
   }
 
