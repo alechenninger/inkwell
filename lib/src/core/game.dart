@@ -15,9 +15,9 @@ abstract class Game {
     return new _Game((journal != null) ? journal : _newDefaultJournal());
   }
 
-  Future addActor(Actor actor);
+  Future<Event> addActor(Actor actor);
 
-  Future addActors(List<Actor> actors);
+  Future<List<Event>> addActors(List<Actor> actors);
 
   /// Schedule a new event to be broadcast to all registered listeners. The
   /// event will not be broadcast immediately, but some time after the current
@@ -27,7 +27,7 @@ abstract class Game {
   ///
   /// Returns a [Future] that completes with the event when it is broadcast to
   /// all listeners.
-  Future broadcast(Event event);
+  Future<Event> broadcast(Event event);
 
   /// Schedule a new event to be broadcast to all registered listeners after
   /// the provided [Duration]. If it is 0 or less, it behaves as [broadcast].
@@ -36,7 +36,7 @@ abstract class Game {
   ///
   /// Returns a [Future] that completes with the event when it is broadcast to
   /// all listeners.
-  Future broadcastDelayed(Duration delay, Event event);
+  Future<Event> broadcastDelayed(Duration delay, Event event);
 
   void begin();
 }
@@ -124,9 +124,10 @@ class _Game implements Game {
     }
   }
 
-  _addEvent(Event e) {
+  Event _addEvent(Event e) {
     e._timeStamp = new DateTime.now();
     _ctrl.add(e);
+    return e;
   }
 }
 
