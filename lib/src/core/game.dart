@@ -11,6 +11,8 @@ abstract class Game {
 
   Stream<Event> get stream;
 
+  bool get hasBegun;
+
   factory Game([Journal journal]) {
     return new _Game((journal != null) ? journal : _newDefaultJournal());
   }
@@ -64,6 +66,8 @@ class _Game implements Game {
   Events get on => _events;
 
   Stream<Event> get stream => _ctrl.stream;
+
+  bool get hasBegun => _hasBegun;
 
   _Game(this.journal) {
     _events = new Events(stream);
