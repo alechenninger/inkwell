@@ -10,7 +10,7 @@ class Journal implements Actor {
   Journal({this.shouldLog: false});
 
   @override
-  void prepare(Game game) {
+  void beforeBegin(Game game) {
     game.stream.listen(_journal.add);
 
     if (shouldLog) {
@@ -19,7 +19,7 @@ class Journal implements Actor {
   }
 
   @override
-  void action(Game director) {}
+  void onBegin(Game director) {}
 
   /// Takes a snapshot copy of the current journal.
   List<Event> toList() => new List.from(_journal);

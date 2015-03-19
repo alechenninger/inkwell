@@ -22,7 +22,7 @@ main() {
 
 class Self extends Actor {
   @override
-  prepare(Game game) {}
+  beforeBegin(Game game) {}
 }
 
 class Adventurer extends Actor {
@@ -41,7 +41,7 @@ class Adventurer extends Actor {
   }
 
   @override
-  prepare (Game game) {
+  beforeBegin(Game game) {
     game.on[DialogEvent]
         .where((e) => e.target == this)
         .listen((e) async {
@@ -54,7 +54,7 @@ class Adventurer extends Actor {
   }
 
   @override
-  action(Game game) {
+  onBegin(Game game) {
     game.broadcast(new AddOption(_talkToMe));
   }
 

@@ -18,7 +18,7 @@ class Ui extends Actor {
   }
 
   @override
-  void prepare(Game game) {
+  void beforeBegin(Game game) {
     game.on[DialogEvent]
         .listen((e) => new DialogElement(e, _mainPanel));
 

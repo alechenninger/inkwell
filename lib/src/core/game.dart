@@ -108,12 +108,12 @@ class _Game implements Game {
 
   void _registerHandlers() {
     on[AddActor].listen((e) {
-      e.actor.prepare(this);
+      e.actor.beforeBegin(this);
 
       if (_hasBegun) {
-        e.actor.action(this);
+        e.actor.onBegin(this);
       } else {
-        on[BeginEvent].listen((_) => e.actor.action(this));
+        on[BeginEvent].listen((_) => e.actor.onBegin(this));
       }
     });
   }

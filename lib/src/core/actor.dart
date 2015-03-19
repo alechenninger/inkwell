@@ -4,16 +4,16 @@
 part of august.core;
 
 abstract class Actor {
-  /// Called before [action]. Use to register event handlers prior to the start
-  /// of the [Game]. Broadcasting events from [prepare] is considered an error.
-  prepare(Game game);
+  /// Called before [onBegin]. Use to register event handlers prior to the start
+  /// of the [Game]. Broadcasting events from [beforeBegin] is considered an error.
+  beforeBegin(Game game);
 
   /// > Lights, camera... action!
   ///
   /// Called when the [Game] begins. By default, does nothing. Some [Actor]s
   /// may want to broadcast [Event]s. [Event] listeners should be registered
-  /// in [prepare].
-  action(Game game) {}
+  /// in [beforeBegin].
+  onBegin(Game game) {}
 
   String toString() => this.runtimeType.toString();
 }
