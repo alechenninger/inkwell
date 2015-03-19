@@ -22,7 +22,7 @@ main() {
 
 class Self extends Actor {
   @override
-  void prepare(Game game) {}
+  prepare(Game game) {}
 }
 
 class Adventurer extends Actor {
@@ -41,20 +41,20 @@ class Adventurer extends Actor {
   }
 
   @override
-  void prepare(Game game) {
+  prepare (Game game) {
     game.on[DialogEvent]
         .where((e) => e.target == this)
-        .listen((e) {
-          game
-            .broadcastDelayed(new Duration(milliseconds: 300),
-                new DialogEvent(this, "...", target: e.speaker))
-            .thenBroadcastDelayed(new Duration(seconds: 2),
-                _saySomethingRandomTo(e.speaker));
+        .listen((e) async {
+          await game.broadcastDelayed(new Duration(seconds: 1),
+                new DialogEvent(this, "...", target: e.speaker));
+
+          game.broadcastDelayed(new Duration(seconds: 3),
+              _saySomethingRandomTo(e.speaker));
         });
   }
 
   @override
-  void action(Game game) {
+  action(Game game) {
     game.broadcast(new AddOption(_talkToMe));
   }
 
