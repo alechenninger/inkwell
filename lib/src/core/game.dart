@@ -30,7 +30,12 @@ abstract class Game {
     return broadcast(new AddActor(a));
   }
 
-  Future<List<Event>> addActors(List<Actor> actors);
+  Future addActors(List<Actor> actors) {
+    var addActors = actors
+        .map((a) => broadcast(new AddActor(a)));
+
+    return Future.wait(addActors);
+  }
 
   Future addOption(Option option) {
     return broadcast(new AddOption(option));
@@ -85,13 +90,6 @@ class _Game extends Game {
     _hasBegun = true;
 
     broadcast(new BeginEvent());
-  }
-
-  Future addActors(List<Actor> actors) {
-    var addActors = actors
-        .map((a) => new Future(() => _addEvent(new AddActor(a))));
-
-    return Future.wait(addActors);
   }
 
   Future broadcast(Event e) {
