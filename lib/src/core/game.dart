@@ -31,10 +31,10 @@ abstract class Game {
   }
 
   Future addActors(List<Actor> actors) {
-    var addActors = actors
+    var broadcastActors = actors
         .map((a) => broadcast(new AddActor(a)));
 
-    return Future.wait(addActors);
+    return Future.wait(broadcastActors);
   }
 
   Future addOption(Option option) {
