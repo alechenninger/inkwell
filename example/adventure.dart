@@ -8,16 +8,12 @@ import 'package:august/ui.dart';
 
 import 'dart:math';
 
-Game game = new Game();
-
 var self = new Self();
 var adventurer = new Adventurer();
 var ui = new Ui(document.body);
 
 main() {
-  game
-    ..addActors([self, adventurer, ui])
-    ..begin();
+  Game.begin([self, adventurer, ui]);
 }
 
 class Self extends Actor {

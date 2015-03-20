@@ -7,19 +7,34 @@ abstract class Game {
   /// Ordered log of all immutable [Event]s.
   Journal get journal;
 
+  /// Provides syntactic sugar for listening to events of a specific type.
+  ///
+  /// Example:
+  ///
+  /// ```
+  /// game.on[DialogEvent].listen((e) => ...);
+  /// ```
   Events get on;
 
   Stream<Event> get stream;
 
-  bool get hasBegun;
-
-  factory Game([Journal journal]) {
-    return new _Game((journal != null) ? journal : _newDefaultJournal());
+  /// Adds [actors] to the game, calling their [Actor.beforeBegin] callbacks
+  /// before firing off a [BeginEvent]. Actors should use `beforeBegin` to
+  /// register event handlers, and `onBegin` to fire events if necessary.
+  static Game begin(List<Actor> actors, [Journal getJournal(Game)]) {
+    getJournal = (getJournal != null) ? getJournal : _newDefaultJournal;
+    return new _Game(actors, getJournal);
   }
 
-  Future<Event> addActor(Actor actor);
+  Future addActor(Actor a) {
+    return broadcast(new AddActor(a));
+  }
 
   Future<List<Event>> addActors(List<Actor> actors);
+
+  Future addOption(Option option) {
+    return broadcast(new AddOption(option));
+  }
 
   /// Schedule a new event to be broadcast to all registered listeners. The
   /// event will not be broadcast immediately, but some time after the current
@@ -39,44 +54,37 @@ abstract class Game {
   /// Returns a [Future] that completes with the event when it is broadcast to
   /// all listeners.
   Future<Event> broadcastDelayed(Duration delay, Event event);
-
-  void begin();
 }
 
-class _Game implements Game {
+class _Game extends Game {
   /// Main broadcast stream controller which serves an [Event] sink as well as
   /// the [Stream] of [Event]s. Listening and broadcasting events is the
   /// central mechanic of communicating between actors and changing state.
   final StreamController<Event> _ctrl = new StreamController.broadcast(sync: true);
 
-  /// Provides syntactic sugar for listening to events of a specific type.
-  ///
-  /// Example:
-  ///
-  /// ```
-  /// game.on[DialogEvent].listen((e) => ...);
-  /// ```
   Events _events;
 
-  /// Before game is started, actors may not broadcast events.
+  Journal _journal;
+
   bool _hasBegun = false;
 
-  final Journal journal;
+  Journal get journal => _journal;
 
   Events get on => _events;
 
   Stream<Event> get stream => _ctrl.stream;
 
-  bool get hasBegun => _hasBegun;
-
-  _Game(this.journal) {
+  _Game(List<Actor> actors, Journal getJournal(Game)) {
+    _journal = getJournal(this);
     _events = new Events(stream);
-    _registerHandlers();
-    addActor(this.journal);
-  }
 
-  Future addActor(Actor a) {
-    return new Future(() => _addEvent(new AddActor(a)));
+    _registerHandlers();
+
+    actors.forEach((a) => _addEvent(new AddActor(a)));
+
+    _hasBegun = true;
+
+    broadcast(new BeginEvent());
   }
 
   Future addActors(List<Actor> actors) {
@@ -87,30 +95,15 @@ class _Game implements Game {
   }
 
   Future broadcast(Event e) {
-    _checkReadyToBroadcast(e);
-
     // Thanks, Günter! http://stackoverflow.com/a/29070144/2216134
     return new Future(() => _addEvent(e));
   }
 
   Future broadcastDelayed(Duration delay, Event e) {
-    _checkReadyToBroadcast(e);
-
     return new Future.delayed(delay, () => _addEvent(e));
   }
 
-  /// Allows [Event]s to be broadcast and [broadcast]s a [BeginEvent].
-  void begin() {
-    if (_hasBegun) {
-      throw new StateError("Game has already begun!");
-    }
-
-    _hasBegun = true;
-
-    _addEvent(new BeginEvent());
-  }
-
-  void _registerHandlers() {
+  _registerHandlers() {
     on[AddActor].listen((e) {
       e.actor.beforeBegin(this);
 
@@ -122,12 +115,7 @@ class _Game implements Game {
     });
   }
 
-  _checkReadyToBroadcast(Event e) {
-    if (!_hasBegun) {
-      throw new StateError("Event broadcast before game started: $e");
-    }
-  }
-
+  /// Synchronously add an event to the broadcast stream
   Event _addEvent(Event e) {
     e._timeStamp = new DateTime.now();
     _ctrl.add(e);
@@ -144,6 +132,6 @@ class Events {
       _events.where((e) => e.runtimeType == eventType);
 }
 
-Journal _newDefaultJournal() {
-  return new Journal(shouldLog: true);
+Journal _newDefaultJournal(game) {
+  return new Journal(game, shouldLog: true);
 }

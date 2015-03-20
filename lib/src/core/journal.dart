@@ -3,23 +3,16 @@
 
 part of august.core;
 
-class Journal implements Actor {
+class Journal {
   final List<Event> _journal = new List();
-  final bool shouldLog;
 
-  Journal({this.shouldLog: false});
-
-  @override
-  void beforeBegin(Game game) {
+  Journal(Game game, {shouldLog: false}) {
     game.stream.listen(_journal.add);
 
     if (shouldLog) {
       game.stream.listen(print);
     }
   }
-
-  @override
-  void onBegin(Game director) {}
 
   /// Takes a snapshot copy of the current journal.
   List<Event> toList() => new List.from(_journal);

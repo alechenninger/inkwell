@@ -13,6 +13,9 @@ abstract class Actor {
   /// Called when the [Game] begins. By default, does nothing. Some [Actor]s
   /// may want to broadcast [Event]s. [Event] listeners should be registered
   /// in [beforeBegin].
+  ///
+  /// If an actor is added to a game after it has already begun, onBegin is
+  /// called immediately.
   onBegin(Game game) {}
 
   String toString() => this.runtimeType.toString();
