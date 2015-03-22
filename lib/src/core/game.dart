@@ -126,8 +126,14 @@ class Events {
 
   Events(this._events);
 
-  Stream<Event> operator [](Type eventType) =>
-      _events.where((e) => e.runtimeType == eventType);
+  /// [eventType] may be a [Type] or an instance of a specific event.
+  Stream<Event> operator [](dynamic eventOrType) {
+      if (eventOrType is Type) {
+        return _events.where((e) => e.runtimeType == eventOrType);
+      }
+
+      return _events.where((e) => e == eventOrType);
+  }
 }
 
 Journal _newDefaultJournal(game) {

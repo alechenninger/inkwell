@@ -6,14 +6,18 @@ part of august.core;
 abstract class Event {
   DateTime _timeStamp = null;
   DateTime get timeStamp => _timeStamp;
+  bool get hasOccurred => timeStamp == null;
+
+  String toString() => "$timeStamp > ${this.runtimeType}()";
 }
 
-class BeginEvent extends Event {
-  @override
-  String toString() => "$timeStamp > BeginEvent()";
+abstract class TargetedEvent extends Event {
+  Actor get target;
 }
 
-class DialogEvent extends Event {
+class BeginEvent extends Event {}
+
+class DialogEvent extends TargetedEvent {
   final Actor speaker;
   final Actor target;
   final String what;
@@ -23,6 +27,20 @@ class DialogEvent extends Event {
   @override
   String toString() => "$timeStamp > "
       "DialogEvent(speaker: $speaker, target: $target, what: $what)";
+}
+
+class ModalDialogEvent extends TargetedEvent {
+  final Actor speaker;
+  final Actor target;
+  final String what;
+  final Iterable<Reply> replies;
+
+  ModalDialogEvent(this.speaker, this.what, this.target, this.replies);
+
+  @override
+  String toString() => "$timeStamp > "
+      "ModalDialogEvent(speaker: $speaker, target: $target, what: $what, "
+      "replies: $replies";
 }
 
 class AddOption extends Event {
@@ -48,7 +66,7 @@ class RemoveOption extends Event {
 }
 
 /// Changes the inventory content of an actor.
-class InventoryEvent extends Event {
+class InventoryEvent extends TargetedEvent {
 
 }
 

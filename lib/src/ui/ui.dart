@@ -28,6 +28,9 @@ class Ui extends Actor {
     game.on[RemoveOption]
         .listen((e) => _optionsPanel.children
             .removeWhere((c) => c.innerHtml == e.option.title));
+
+    game.on[ModalDialogEvent]
+        .listen((e) => new ModalDialogElement(e, game, _mainPanel));
   }
 }
 
@@ -52,6 +55,39 @@ class DialogElement {
     container.children.add(dialog);
   }
 }
+
+class ModalDialogElement {
+  ModalDialogElement(ModalDialogEvent e, Game game, HtmlElement container) {
+    var speaker = new DivElement()
+      ..classes.add('speaker')
+      ..innerHtml = "${e.speaker}";
+
+    var target = new DivElement()
+      ..classes.add('target')
+      ..innerHtml = "${e.target}";
+
+    var what = new DivElement()
+      ..classes.add('what')
+      ..innerHtml = '${e.what}';
+
+    var replies = e.replies
+        .map((r) => new DivElement()
+          ..classes.add('reply')
+          ..innerHtml = '${r.title}'
+          ..onClick.first.then((e) => game.broadcast(r.event)));
+
+    var replyContainer = new DivElement()
+      ..classes.add('replies')
+      ..children.addAll(replies);
+
+    var dialog = new DivElement()
+      ..classes.add('dialog')
+      ..children.addAll([speaker, target, what, replyContainer]);
+
+    container.children.add(dialog);
+  }
+}
+
 
 class OptionElement {
   OptionElement(Option o, Game game, HtmlElement container) {

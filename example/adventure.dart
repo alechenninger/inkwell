@@ -29,6 +29,7 @@ class Adventurer extends Actor {
   ];
 
   Random _random = new Random();
+
   Option _talkToMe;
 
   Adventurer() {
@@ -39,13 +40,28 @@ class Adventurer extends Actor {
   @override
   beforeBegin(Game game) {
     game.on[DialogEvent]
-        .where((e) => e.target == this)
-        .listen((e) async {
+        .firstWhere((e) => e.target == this)
+        .then((e) async {
           await game.broadcastDelayed(new Duration(seconds: 1),
                 new DialogEvent(this, "...", target: e.speaker));
 
+          var punchMe = new Reply('Punch $Adventurer', new PunchEvent(e.speaker, this));
+          var hugMe = new Reply('Hug $Adventurer', new HugEvent(e.speaker, this));
+
+          game.on[punchMe.event]
+              .first
+              .then((e) {
+                game.broadcast(new DialogEvent(this, "Ow!", target: e.puncher));
+              });
+
+          game.on[hugMe.event]
+              .first
+              .then((e) {
+                game.broadcast(new DialogEvent(this, "How kind of you.", target: e.hugger));
+              });
+
           game.broadcastDelayed(new Duration(seconds: 3),
-              _saySomethingRandomTo(e.speaker));
+              _saySomethingRandomTo(e.speaker, [punchMe, hugMe]));
         });
   }
 
@@ -54,8 +70,22 @@ class Adventurer extends Actor {
     game.broadcast(new AddOption(_talkToMe));
   }
 
-  DialogEvent _saySomethingRandomTo(Actor target) {
+  ModalDialogEvent _saySomethingRandomTo(target, replies) {
     var thingToSay = _thingsToSay[_random.nextInt(_thingsToSay.length)];
-    return new DialogEvent(this, thingToSay, target: target);
+    return new ModalDialogEvent(this, thingToSay, target, replies);
   }
+}
+
+class PunchEvent extends TargetedEvent {
+  final Actor puncher;
+  final Actor target;
+
+  PunchEvent(this.puncher, this.target);
+}
+
+class HugEvent extends TargetedEvent {
+  final Actor hugger;
+  final Actor target;
+
+  HugEvent(this.hugger, this.target);
 }

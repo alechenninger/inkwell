@@ -3,6 +3,7 @@
 
 part of august.core;
 
+/// Global "option" that represents a decision point for a player.
 abstract class Option {
   String get title;
 
@@ -11,6 +12,18 @@ abstract class Option {
   }
 
   void trigger(Game game);
+}
+
+/// Single use "option" as a result of a specific event.
+class Reply {
+  final String title;
+
+  /// The event that should be triggered as a result of replying with this
+  /// [Reply].
+  final Event event;
+
+  /// See [event]
+  Reply(this.title, this.event);
 }
 
 /// Options present [Event]s that are triggerable by an intelligent [Actor]
