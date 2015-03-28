@@ -33,36 +33,42 @@ class Adventurer extends Actor {
   Option _talkToMe;
 
   Adventurer() {
-    _talkToMe = new Option.singleUse("Talk to Adventurer",
-          new DialogEvent(self, "Hi there!", target: this));
+    _talkToMe = new Option.singleUse(
+        "Talk to Adventurer", new DialogEvent(self, "Hi there!", target: this));
   }
 
   @override
   beforeBegin(Game game) {
-    game.on[DialogEvent]
-        .firstWhere((e) => e.target == this)
-        .then((e) async {
-          await game.broadcastDelayed(new Duration(seconds: 1),
-                new DialogEvent(this, "...", target: e.speaker));
+    StreamSubscription onDialog;
+    onDialog = game.on[DialogEvent]
+        .where((e) => e.target == this)
+        .listen((e) async {
+      onDialog.cancel();
 
-          var punchMe = new Reply('Punch $Adventurer', new PunchEvent(e.speaker, this));
-          var hugMe = new Reply('Hug $Adventurer', new HugEvent(e.speaker, this));
+      await game.broadcastDelayed(new Duration(seconds: 1),
+          new DialogEvent(this, "...", target: e.speaker));
 
-          game.on[punchMe.event]
-              .first
-              .then((e) {
-                game.broadcast(new DialogEvent(this, "Ow!", target: e.puncher));
-              });
+      var punchMe =
+          new Reply('Punch $Adventurer', new PunchEvent(e.speaker, this));
+      var hugMe = new Reply('Hug $Adventurer', new HugEvent(e.speaker, this));
 
-          game.on[hugMe.event]
-              .first
-              .then((e) {
-                game.broadcast(new DialogEvent(this, "How kind of you.", target: e.hugger));
-              });
+      StreamSubscription onPunchMe, onHugMe;
+      onPunchMe = game.on[punchMe.event].listen((e) {
+        onPunchMe.cancel();
+        onHugMe.cancel();
+        game.broadcast(new DialogEvent(this, "Ow!", target: e.puncher));
+      });
 
-          game.broadcastDelayed(new Duration(seconds: 3),
-              _saySomethingRandomTo(e.speaker, [punchMe, hugMe]));
-        });
+      onHugMe = game.on[hugMe.event].listen((e) {
+        onPunchMe.cancel();
+        onHugMe.cancel();
+        game.broadcast(
+            new DialogEvent(this, "How kind of you.", target: e.hugger));
+      });
+
+      game.broadcastDelayed(new Duration(seconds: 3),
+          _saySomethingRandomTo(e.speaker, [punchMe, hugMe]));
+    });
   }
 
   @override

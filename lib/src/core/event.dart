@@ -40,7 +40,7 @@ class ModalDialogEvent extends TargetedEvent {
   @override
   String toString() => "$timeStamp > "
       "ModalDialogEvent(speaker: $speaker, target: $target, what: $what, "
-      "replies: $replies";
+      "replies: $replies)";
 }
 
 class AddOption extends Event {
@@ -63,11 +63,6 @@ class RemoveOption extends Event {
 
   @override
   String toString() => "$timeStamp > RemoveOption(option: $option)";
-}
-
-/// Changes the inventory content of an actor.
-class InventoryEvent extends TargetedEvent {
-
 }
 
 class AddActor extends Event {

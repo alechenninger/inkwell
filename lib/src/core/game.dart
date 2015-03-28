@@ -31,8 +31,7 @@ abstract class Game {
   }
 
   Future addActors(List<Actor> actors) {
-    var broadcastActors = actors
-        .map((a) => broadcast(new AddActor(a)));
+    var broadcastActors = actors.map((a) => broadcast(new AddActor(a)));
 
     return Future.wait(broadcastActors);
   }
@@ -65,7 +64,8 @@ class _Game extends Game {
   /// Main broadcast stream controller which serves an [Event] sink as well as
   /// the [Stream] of [Event]s. Listening and broadcasting events is the
   /// central mechanic of communicating between actors and changing state.
-  final StreamController<Event> _ctrl = new StreamController.broadcast(sync: true);
+  final StreamController<Event> _ctrl =
+      new StreamController.broadcast(sync: true);
 
   Events _events;
 
@@ -128,11 +128,11 @@ class Events {
 
   /// [eventType] may be a [Type] or an instance of a specific event.
   Stream<Event> operator [](dynamic eventOrType) {
-      if (eventOrType is Type) {
-        return _events.where((e) => e.runtimeType == eventOrType);
-      }
+    if (eventOrType is Type) {
+      return _events.where((e) => e.runtimeType == eventOrType);
+    }
 
-      return _events.where((e) => e == eventOrType);
+    return _events.where((e) => e == eventOrType);
   }
 }
 

@@ -63,6 +63,4 @@ class Inventory {
   }
 }
 
-class Item {
-
-}
+class Item {}
