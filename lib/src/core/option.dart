@@ -32,22 +32,28 @@ class Reply {
 /// "trigger" an option is to broadcast its associated [Event].
 class _SingleUseOption implements Option {
   final String title;
-  final Event _event;
+  final Event event;
+
+  final Map _state;
+  UnmodifiableMapView get state => new UnmodifiableMapView(_state);
 
   // TODO: Need to keep track of 'triggered' status?
   // In other words, is it possible that trigger can be called >1 time before
   // RemoveOption event is handled?
 
-  _SingleUseOption(this.title, this._event) {
+  _SingleUseOption(String title, Event event)
+      : this.title = title,
+        this.event = event,
+        _state = {'title': title, 'event': event} {
     checkNotNull(title);
-    checkNotNull(_event);
+    checkNotNull(event);
   }
 
   void trigger(Game game) {
     game.broadcast(new RemoveOption(this));
-    game.broadcast(_event);
+    game.broadcast(event);
   }
 
   @override
-  String toString() => "_SingleUseOption(title: $title, _event: $_event)";
+  String toString() => "_SingleUseOption(title: $title, _event: $event)";
 }

@@ -6,92 +6,72 @@ library august.example;
 import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
-import 'dart:math';
-
-var self = new Self();
-var adventurer = new Adventurer();
-var ui = new Ui(document.body);
-
 main() {
-  Game.begin([self, adventurer, ui]);
+  var registry = new Registry()
+    ..registerActor(Jack, () => new Jack(), (m) => new Jack.fromJson(m))
+    ..registerActor(Jill, () => new Jill(), (m) => new Jill.fromJson(m));
+
+  registry.registerListener("jackSaysHi", Jill,
+      (DialogEvent event, Jill jill, Game game) {
+    game.broadcast(new DialogEvent(jill, "Would you like to fetch some water "
+        "from the top of that hill?", target: event.speaker));
+    game.subscribe("agreeToFetchWater", Jill,
+        filter: new EventTypeEq(DialogEvent));
+  });
+
+  registry.registerListener(
+      "agreeToFetchWater", Jill, (DialogEvent event, Jill jill, Game game) {
+    game.broadcast(new DialogEvent(jill, "Great!", target: event.speaker));
+  });
 }
 
-class Self extends Actor {
-  @override
-  beforeBegin(Game game) {}
-}
+class Jack implements JsonEncodable {
+  bool hasWater = false;
+  bool isBruised = false;
+  bool isCrownBroken = false;
 
-class Adventurer extends Actor {
-  static const List _thingsToSay = const [
-    "A mighty fine day, isn't it?",
-    "What in the world could that be!",
-    "Buffalo buffalo Buffalo buffalo buffalo."
-  ];
+  Jack();
 
-  Random _random = new Random();
-
-  Option _talkToMe;
-
-  Adventurer() {
-    _talkToMe = new Option.singleUse(
-        "Talk to Adventurer", new DialogEvent(self, "Hi there!", target: this));
+  Jack.fromJson(Map json) {
+    hasWater = json['hasWater'];
+    isBruised = json['isBruised'];
+    isCrownBroken = json['isCrownBroken'];
   }
 
   @override
-  beforeBegin(Game game) {
-    StreamSubscription onDialog;
-    onDialog = game.on[DialogEvent]
-        .where((e) => e.target == this)
-        .listen((e) async {
-      onDialog.cancel();
+  Map toJson() => {
+    "hasWater": hasWater,
+    "isBruised": isBruised,
+    "isCrownBroken": isCrownBroken
+  };
+}
 
-      await game.broadcastDelayed(new Duration(seconds: 1),
-          new DialogEvent(this, "...", target: e.speaker));
+class Jill implements JsonEncodable {
+  bool hasWater = false;
+  bool isBruised = false;
+  Mood mood = Mood.happy;
 
-      var punchMe =
-          new Reply('Punch $Adventurer', new PunchEvent(e.speaker, this));
-      var hugMe = new Reply('Hug $Adventurer', new HugEvent(e.speaker, this));
+  Jill();
 
-      StreamSubscription onPunchMe, onHugMe;
-      onPunchMe = game.on[punchMe.event].listen((e) {
-        onPunchMe.cancel();
-        onHugMe.cancel();
-        game.broadcast(new DialogEvent(this, "Ow!", target: e.puncher));
-      });
-
-      onHugMe = game.on[hugMe.event].listen((e) {
-        onPunchMe.cancel();
-        onHugMe.cancel();
-        game.broadcast(
-            new DialogEvent(this, "How kind of you.", target: e.hugger));
-      });
-
-      game.broadcastDelayed(new Duration(seconds: 3),
-          _saySomethingRandomTo(e.speaker, [punchMe, hugMe]));
-    });
+  Jill.fromJson(Map json) {
+    hasWater = json['hasWater'];
+    isBruised = json['isBruised'];
+    mood = new Mood.fromJson(json['mood']);
   }
 
   @override
-  onBegin(Game game) {
-    game.broadcast(new AddOption(_talkToMe));
-  }
-
-  ModalDialogEvent _saySomethingRandomTo(target, replies) {
-    var thingToSay = _thingsToSay[_random.nextInt(_thingsToSay.length)];
-    return new ModalDialogEvent(this, thingToSay, target, replies);
-  }
+  Map toJson() => {"hasWater": hasWater, "isBruised": isBruised, "mood": mood};
 }
 
-class PunchEvent extends TargetedEvent {
-  final Actor puncher;
-  final Actor target;
+class Mood implements JsonEncodable {
+  static const Mood happy = const Mood("happy");
+  static const Mood unhappy = const Mood("unhappy");
 
-  PunchEvent(this.puncher, this.target);
-}
+  final String mood;
 
-class HugEvent extends TargetedEvent {
-  final Actor hugger;
-  final Actor target;
+  const Mood(this.mood);
+  Mood.fromJson(Map json) : mood = json['mood'];
 
-  HugEvent(this.hugger, this.target);
+  @override
+  Map toJson() => {"name": mood};
 }

@@ -3,44 +3,32 @@
 
 part of august.core;
 
-abstract class Event {
-  DateTime _timeStamp = null;
-  DateTime get timeStamp => _timeStamp;
-  bool get hasOccurred => timeStamp == null;
-
-  String toString() => "$timeStamp > ${this.runtimeType}()";
+abstract class Event implements JsonEncodable {
+  void set _timeStamp(Duration timeStamp);
+  Duration get timeStamp;
 }
 
-abstract class TargetedEvent extends Event {
-  Actor get target;
+abstract class EventSupport extends Event {
+  final Map<String, dynamic> _state;
+
+  EventSupport([this._state = const {}]);
+
+  UnmodifiableMapView get state => new UnmodifiableMapView(_state);
 }
 
-class BeginEvent extends Event {}
+class BeginEvent extends EventSupport {}
 
-class DialogEvent extends TargetedEvent {
-  final Actor speaker;
-  final Actor target;
-  final String what;
+class DialogEvent extends EventSupport {
+  Actor get speaker => state['speaker'];
+  Actor get target => state['target'];
+  String get what => state['what'];
 
-  DialogEvent(this.speaker, this.what, {this.target});
+  DialogEvent(speaker, what, {target})
+      : super({'speaker': speaker, 'what': what, 'target': target});
 
   @override
   String toString() => "$timeStamp > "
       "DialogEvent(speaker: $speaker, target: $target, what: $what)";
-}
-
-class ModalDialogEvent extends TargetedEvent {
-  final Actor speaker;
-  final Actor target;
-  final String what;
-  final Iterable<Reply> replies;
-
-  ModalDialogEvent(this.speaker, this.what, this.target, this.replies);
-
-  @override
-  String toString() => "$timeStamp > "
-      "ModalDialogEvent(speaker: $speaker, target: $target, what: $what, "
-      "replies: $replies)";
 }
 
 class AddOption extends Event {
