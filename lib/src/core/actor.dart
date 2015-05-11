@@ -3,18 +3,47 @@
 
 part of august.core;
 
-abstract class SimpleActor implements JsonEncodable {
-  final Map<String, dynamic> _attributes;
+abstract class Actor extends JsonEncodable with ActorSupport {
+  final Game game;
 
-  SimpleActor.fromJson(this._attributes);
+  Actor(this.game);
 
-  dynamic operator [](String attribute) => _attributes[attribute];
-  void operator []=(String attribute, JsonEncodable value) {
-    _attributes[attribute] = value;
+  Map<String, Listener> get listeners;
+
+  void onAdd();
+
+  void load(Map json);
+}
+
+abstract class ActorSupport {
+  Game get game;
+
+  SubscriptionBuilder on(Type eventType) =>
+      new SubscriptionBuilder(this.runtimeType, eventType, game);
+
+  void broadcast(Event event) => game.broadcast(event);
+}
+
+/// Responds to an [Event] occurrence. [Listener]s are actor-specific.
+typedef void Listener<T>(Event event);
+
+class SubscriptionBuilder {
+  final Type actorType;
+  final Type eventType;
+  final Game game;
+
+  EventFilter filter;
+
+  SubscriptionBuilder(this.actorType, this.eventType, this.game) {
+    filter = new EventTypeEq(eventType);
   }
 
-  String toString() => toJson().toString();
+  void listen(String listener) {
+    game.subscribe(listener, actorType, filter: filter);
+  }
+}
 
-  @override
-  Map toJson() => new Map.from(_attributes);
+abstract class ListenerType {
+  String get name;
+  Listener get listener;
 }

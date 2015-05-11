@@ -54,7 +54,7 @@ class RemoveOption extends Event {
 }
 
 class AddActor extends Event {
-  final Actor actor;
+  final String actor;
 
   AddActor(this.actor) {
     checkNotNull(actor, message: 'Actor cannot be null.');

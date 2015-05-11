@@ -10,8 +10,8 @@ class Subscription implements JsonEncodable {
   final String listener;
 
   Subscription(this.filter, this.listener, this.actor);
-  Subscription.fromJson(Map json)
-      : this(json["filter"], json["listener"], json["listener"]);
+  Subscription.fromJson(Map json, Script script) : this(
+          script.getFilter(json["filter"]), json["listener"], json["actor"]);
 
   Map toJson() => {"filter": filter, "listener": listener, "actor": actor};
 }

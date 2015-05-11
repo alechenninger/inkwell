@@ -3,104 +3,98 @@
 
 part of august.core;
 
-abstract class Game implements JsonEncodable {
-  /// Adds [actors] to the game, calling their [Actor.beforeBegin] callbacks
-  /// before firing off a [BeginEvent]. Actors should use `beforeBegin` to
-  /// register event handlers, and `onBegin` to fire events if necessary.
-  // TODO: use a factory constructor instead of static factory method
-  static Game newGame(Registry registry) {
-    return new _Game(registry);
-  }
+abstract class Game {
+  void begin();
 
-  Future begin();
-
-  Future addActor(dynamic a) {
+  void addActor(Actor a) {
     return broadcast(new AddActor(a));
   }
 
-  Future addActors(List actors) {
-    var broadcastActors = actors.map((a) => broadcast(new AddActor(a)));
+  void addOption(Option option) => broadcast(new AddOption(option));
 
-    return Future.wait(broadcastActors);
-  }
+  void broadcast(Event event);
 
-  Future addOption(Option option) {
-    return broadcast(new AddOption(option));
-  }
-
-  /// Schedule a new event to be broadcast to all registered listeners. The
-  /// event will not be broadcast immediately, but some time after the current
-  /// event loop cycle is done.
-  ///
-  /// It is an error to broadcast an [Event] before [begin] is called.
-  ///
-  /// Returns a [Future] that completes with the event when it is broadcast to
-  /// all listeners.
-  Future<Event> broadcast(Event event);
-
-  /// Schedule a new event to be broadcast to all registered listeners after
-  /// the provided [Duration]. If it is 0 or less, it behaves as [broadcast].
-  ///
-  /// It is an error to broadcast an [Event] before [begin] is called.
-  ///
-  /// Returns a [Future] that completes with the event when it is broadcast to
-  /// all listeners.
-  Future<Event> broadcastDelayed(Duration delay, Event event);
+  void broadcastDelayed(Duration delay, Event event);
 
   void subscribe(String listenerName, Type actorType,
       {EventFilter filter: const AllEvents()});
 }
 
 class _Game extends Game {
-  final Registry _registry;
+  // Current state
+  List<Option> _options;
+  List<Subscription> _subscriptions;
+  List<PendingEvent> _pendingEvents;
 
-  /// Main broadcast stream controller which serves an [Event] sink as well as
-  /// the [Stream] of [Event]s. Listening and broadcasting events is the
-  /// central mechanic of communicating between actors and changing state.
+  final Duration _offset;
+  final Stopwatch _stopwatch = new Stopwatch();
+
   final StreamController<Event> _ctrl =
       new StreamController.broadcast(sync: true);
 
-  final Stopwatch _stopwatch = new Stopwatch();
+  final Script _script;
 
-  final Map<String, JsonEncodable> _actors = {};
+  _Game(this._script) : _offset = new Duration() {
+    _ctrl.stream
+        .firstWhere((e) => e is BeginEvent)
+        .then((e) => _stopwatch.start());
 
-  bool _hasBegun = false;
+    _addListeners();
+  }
 
-  _Game(this._registry);
+  _Game.fromJson(Map json, this._script)
+      : _offset = new Duration(microseconds: json["offset"]) {
+    _options =
+        json["options"].map((o) => new Option.fromJson(o, _script)).toList();
 
-  Future begin() {
-    _hasBegun = true;
+    _subscriptions = json["subscriptions"]
+        .map((s) => new Subscription.fromJson(s, _script))
+        .toList();
+
+    _pendingEvents = json["pendingEvents"]
+        .map((s) => new PendingEvent.fromJson(s, _script))
+        .toList();
+
+    _addListeners();
+
+    _pendingEvents.forEach((e) => broadcastDelayed(e.offset, e.event));
+
     _stopwatch.start();
-    return broadcast(new BeginEvent());
   }
 
-  Future broadcast(Event e) {
-    if (_hasBegun) {
-      // Thanks, Günter! http://stackoverflow.com/a/29070144/2216134
-      return new Future(() => _addEvent(e));
-    } else {
-      // TODO: should `then` broadcast or _addEvent?
-      return on[BeginEvent].first.then((_) => broadcast(e));
-    }
+  void _addListeners() {
+    _ctrl.stream.where((e) => e is AddActor)
+        .listen((AddActor e) => _script.getActor(e.actor, this).onAdd());
   }
 
-  Future broadcastDelayed(Duration delay, Event e) {
-    return new Future.delayed(delay, () => _addEvent(e));
+  void begin() {
+    broadcast(new BeginEvent());
+  }
+
+  void broadcast(Event event) {
+    new Future(() => _ctrl.add(event));
+  }
+
+  void broadcastDelayed(Duration delay, Event event) {
+    new Future.delayed(delay, () => _ctrl.add(event));
   }
 
   void subscribe(String listenerName, Type actorType,
       {EventFilter filter: const AllEvents()}) {
-    filter.filter(_ctrl.stream).listen((e) {
-      var actor = _actors["$actorType"];
-      _registry.getListener(listenerName, actorType)(e, actor, this);
-    });
+    filter.filter(_ctrl.stream).listen(
+        (e) => _script.getActor("$actorType", this).listeners[listenerName](e));
   }
+}
 
-  /// Synchronously add an event to the broadcast stream. All subscriptions will
-  /// receive the event before this method is finished.
-  Event _addEvent(Event e) {
-    e._timeStamp = _stopwatch.elapsed;
-    _ctrl.add(e);
-    return e;
-  }
+class PendingEvent extends JsonEncodable {
+  final Duration offset;
+  final Event event;
+
+  PendingEvent(this.offset, this.event);
+
+  PendingEvent.fromJson(Map json, Script script)
+      : offset = new Duration(microseconds: json["schedule"]),
+        event = script.getEvent(json["event"]);
+
+  Map toJson() => {"schedule": offset.inMicroseconds, "event": event};
 }

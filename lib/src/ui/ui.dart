@@ -17,13 +17,13 @@ class Ui {
   }
 
   void beforeBegin(Game game) {
-    game.on[DialogEvent].listen((e) => new DialogElement(e, _mainPanel));
-
-    game.on[AddOption]
-        .listen((e) => new OptionElement(e.option, game, _optionsPanel));
-
-    game.on[RemoveOption].listen((e) => _optionsPanel.children
-        .removeWhere((c) => c.innerHtml == e.option.title));
+//    game.on[DialogEvent].listen((e) => new DialogElement(e, _mainPanel));
+//
+//    game.on[AddOption]
+//        .listen((e) => new OptionElement(e.option, game, _optionsPanel));
+//
+//    game.on[RemoveOption].listen((e) => _optionsPanel.children
+//        .removeWhere((c) => c.innerHtml == e.option.title));
 
 //    game.on[ModalDialogEvent]
 //        .listen((e) => new ModalDialogElement(e, game, _mainPanel));

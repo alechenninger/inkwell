@@ -7,35 +7,33 @@ import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
 main() {
-  var registry = new Registry()
-    ..registerActor(Jack, () => new Jack(), (m) => new Jack.fromJson(m))
-    ..registerActor(Jill, () => new Jill(), (m) => new Jill.fromJson(m));
-
-  registry.registerListener("jackSaysHi", Jill,
-      (DialogEvent event, Jill jill, Game game) {
-    game.broadcast(new DialogEvent(jill, "Would you like to fetch some water "
-        "from the top of that hill?", target: event.speaker));
-    game.subscribe("agreeToFetchWater", Jill,
-        filter: new EventTypeEq(DialogEvent));
-  });
-
-  registry.registerListener(
-      "agreeToFetchWater", Jill, (DialogEvent event, Jill jill, Game game) {
-    game.broadcast(new DialogEvent(jill, "Great!", target: event.speaker));
-  });
+  Script registry;
 }
 
-class Jack implements JsonEncodable {
+class Jack extends Actor {
+  static const String _jillSaysHi = "jillSaysHi";
+
   bool hasWater = false;
   bool isBruised = false;
   bool isCrownBroken = false;
 
-  Jack();
+  @override
+  Map get listeners => {_jillSaysHi: (DialogEvent event) {}};
 
-  Jack.fromJson(Map json) {
-    hasWater = json['hasWater'];
-    isBruised = json['isBruised'];
-    isCrownBroken = json['isCrownBroken'];
+  Jack(Game game) : super(game);
+
+  @override
+  onAdd() {
+    on(DialogEvent)
+      //..where(eventTarget.is(this))
+      ..listen(_jillSaysHi);
+  }
+
+  @override
+  void load(Map json) {
+    hasWater = json["hasWater"];
+    isBruised = json["isBruised"];
+    isCrownBroken = json["isCrownBroken"];
   }
 
   @override
@@ -46,17 +44,25 @@ class Jack implements JsonEncodable {
   };
 }
 
-class Jill implements JsonEncodable {
+class Jill extends Actor {
   bool hasWater = false;
   bool isBruised = false;
   Mood mood = Mood.happy;
 
-  Jill();
+  Jill(Game game) : super(game);
 
-  Jill.fromJson(Map json) {
-    hasWater = json['hasWater'];
-    isBruised = json['isBruised'];
-    mood = new Mood.fromJson(json['mood']);
+  @override
+  Map<String, Listener> get listeners => {};
+
+  @override
+  void onAdd() {
+  }
+
+  @override
+  void load(Map json) {
+    hasWater = json["hasWater"];
+    isBruised = json["isBruised"];
+    mood = new Mood.fromJson(json["mood"]);
   }
 
   @override
@@ -70,8 +76,9 @@ class Mood implements JsonEncodable {
   final String mood;
 
   const Mood(this.mood);
+
   Mood.fromJson(Map json) : mood = json['mood'];
 
   @override
-  Map toJson() => {"name": mood};
+  Map toJson() => {"mood": mood};
 }
