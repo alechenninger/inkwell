@@ -63,7 +63,8 @@ class _Game extends Game {
   }
 
   void _addListeners() {
-    _ctrl.stream.where((e) => e is AddActor)
+    _ctrl.stream
+        .where((e) => e is AddActor)
         .listen((AddActor e) => _script.getActor(e.actor, this).onAdd());
   }
 
@@ -72,17 +73,22 @@ class _Game extends Game {
   }
 
   void broadcast(Event event) {
-    new Future(() => _ctrl.add(event));
+    new Future(() => _addEvent(event));
   }
 
   void broadcastDelayed(Duration delay, Event event) {
-    new Future.delayed(delay, () => _ctrl.add(event));
+    new Future.delayed(delay, () => _addEvent(event));
   }
 
   void subscribe(String listenerName, Type actorType,
       {EventFilter filter: const AllEvents()}) {
     filter.filter(_ctrl.stream).listen(
         (e) => _script.getActor("$actorType", this).listeners[listenerName](e));
+  }
+
+  void _addEvent(Event event) {
+    event._timeStamp = _stopwatch.elapsed;
+    _ctrl.add(event);
   }
 }
 
