@@ -5,3 +5,4 @@ environment:
 dependencies:
   browser: any
   quiver: any
+  uuid: any

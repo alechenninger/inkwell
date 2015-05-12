@@ -14,6 +14,9 @@ JsonCodec getJsonCodec(Script registry) {
 }
 
 abstract class Script {
+  String get name;
+  String get version;
+
   Actor getActor(String typeName, Game game);
   EventFilter getFilter(Map json);
   Event getEvent(Map json);
@@ -25,26 +28,6 @@ abstract class Script {
 
 abstract class JsonEncodable {
   Map toJson();
-}
-
-class _Registry extends Script {
-  Map<String, Deserializer> _deserializers = {};
-
-  Deserializer getDeserializer(String typeName) => _deserializers[typeName];
-
-  bool hasType(String typeName) => _deserializers.containsKey(typeName);
-
-  void addActor(ActorFactory actor) {
-
-  }
-
-  void addEvent(Type event, EventDeserializer eventFactory) {
-    _deserializers["$event"] = eventFactory;
-  }
-
-  void addFilter(Type type, FilterDeserializer filterFactory) {
-    _deserializers["$type"] = filterFactory;
-  }
 }
 
 class _RegistryReviver {

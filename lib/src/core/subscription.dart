@@ -4,6 +4,7 @@
 part of august.core;
 
 class Subscription implements JsonEncodable {
+  final String id = _uuid.v4();
   final EventFilter filter;
   // TODO: lister name / actor name combo is really a type
   final String actor;
@@ -12,6 +13,10 @@ class Subscription implements JsonEncodable {
   Subscription(this.filter, this.listener, this.actor);
   Subscription.fromJson(Map json, Script script) : this(
           script.getFilter(json["filter"]), json["listener"], json["actor"]);
+
+  Listener getListener(Game game, Script script) {
+    return script.getActor(actor, game).listeners[listener];
+  }
 
   Map toJson() => {"filter": filter, "listener": listener, "actor": actor};
 }

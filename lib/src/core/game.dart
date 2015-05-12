@@ -6,13 +6,11 @@ part of august.core;
 abstract class Game {
   void begin();
 
-  void addActor(Actor a) {
-    return broadcast(new AddActor(a));
-  }
+  void addActor(Type a) => broadcast(new AddActor(a.toString()));
 
   void addOption(Option option) => broadcast(new AddOption(option));
 
-  void broadcast(Event event);
+  void broadcast(Event event) => broadcastDelayed(const Duration(), event);
 
   void broadcastDelayed(Duration delay, Event event);
 
@@ -26,7 +24,7 @@ class _Game extends Game {
   List<Subscription> _subscriptions;
   List<PendingEvent> _pendingEvents;
 
-  final Duration _offset;
+  final Duration _offset = const Duration();
   final Stopwatch _stopwatch = new Stopwatch();
 
   final StreamController<Event> _ctrl =
@@ -34,35 +32,41 @@ class _Game extends Game {
 
   final Script _script;
 
-  _Game(this._script) : _offset = new Duration() {
+  _Game(this._script) {
     _ctrl.stream
         .firstWhere((e) => e is BeginEvent)
         .then((e) => _stopwatch.start());
 
-    _addListeners();
+    _options = [];
+    _subscriptions = [];
+    _pendingEvents = [];
+
+    _addGameEventHandlers();
   }
 
   _Game.fromJson(Map json, this._script)
       : _offset = new Duration(microseconds: json["offset"]) {
+    if (!_isCompatible(json, _script)) {
+      throw new ArgumentError("Json is not compatible with script.");
+    }
+
     _options =
         json["options"].map((o) => new Option.fromJson(o, _script)).toList();
 
-    _subscriptions = json["subscriptions"]
+    json["subscriptions"]
         .map((s) => new Subscription.fromJson(s, _script))
-        .toList();
+        .forEach(_addSubscription);
 
-    _pendingEvents = json["pendingEvents"]
+    _addGameEventHandlers();
+
+    json["pendingEvents"]
         .map((s) => new PendingEvent.fromJson(s, _script))
-        .toList();
-
-    _addListeners();
-
-    _pendingEvents.forEach((e) => broadcastDelayed(e.offset, e.event));
+        .forEach((e) => broadcastDelayed(e.offset, e.event));
 
     _stopwatch.start();
   }
 
-  void _addListeners() {
+  void _addGameEventHandlers() {
     _ctrl.stream
         .where((e) => e is AddActor)
         .listen((AddActor e) => _script.getActor(e.actor, this).onAdd());
@@ -72,21 +76,34 @@ class _Game extends Game {
     broadcast(new BeginEvent());
   }
 
-  void broadcast(Event event) {
-    new Future(() => _addEvent(event));
-  }
-
   void broadcastDelayed(Duration delay, Event event) {
+    _pendingEvents.add(event);
     new Future.delayed(delay, () => _addEvent(event));
   }
 
+  /// Subscribes to the next (and only the next) event that matches filter.
+  // TODO: Handle long-running subscriptions? (Not just first matching)
   void subscribe(String listenerName, Type actorType,
       {EventFilter filter: const AllEvents()}) {
-    filter.filter(_ctrl.stream).listen(
-        (e) => _script.getActor("$actorType", this).listeners[listenerName](e));
+    // TODO: Review use of String vs Type
+    _addSubscription(new Subscription(filter, listenerName, "$actorType"));
+  }
+
+  /// Adds a [Stream] listener based on the [subscription]. The `subscription`
+  /// is added to [_subscriptions] and removed from when the first relevant
+  /// event is fired.
+  void _addSubscription(Subscription subscription) {
+    _subscriptions.add(subscription);
+
+    subscription.filter.filter(_ctrl.stream).first.then((e) {
+      _subscriptions.remove((s) => s.id == subscription.id);
+      subscription.getListener(this, _script)(e);
+    });
   }
 
   void _addEvent(Event event) {
+    _pendingEvents.removeWhere((e) => e.id == event.id);
+    // TODO: Do we need timestamps?
     event._timeStamp = _stopwatch.elapsed;
     _ctrl.add(event);
   }
@@ -103,4 +120,13 @@ class PendingEvent extends JsonEncodable {
         event = script.getEvent(json["event"]);
 
   Map toJson() => {"schedule": offset.inMicroseconds, "event": event};
+}
+
+/// Tests that the json representation of this game is compatible with the
+/// provided [script].
+bool _isCompatible(Map json, Script script) {
+  var scriptInfo = json["script"];
+  var name = scriptInfo["name"];
+  var version = scriptInfo["version"];
+  return name == script.name && version == script.version;
 }

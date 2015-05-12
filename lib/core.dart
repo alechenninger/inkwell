@@ -9,6 +9,9 @@ import 'package:quiver/check.dart';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:async';
+
+import 'package:uuid/uuid.dart';
+
 export 'dart:async';
 
 part 'src/core/actor.dart';
@@ -17,3 +20,5 @@ part 'src/core/event.dart';
 part 'src/core/option.dart';
 part 'src/core/script.dart';
 part 'src/core/subscription.dart';
+
+Uuid _uuid = new Uuid();

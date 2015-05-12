@@ -4,8 +4,8 @@
 part of august.core;
 
 abstract class Event implements JsonEncodable {
-  void set _timeStamp(Duration timeStamp);
-  Duration get timeStamp;
+  Duration _timeStamp;
+  final String id = _uuid.v4();
 }
 
 abstract class EventSupport extends Event {
@@ -13,15 +13,15 @@ abstract class EventSupport extends Event {
 
   EventSupport([this._state = const {}]);
 
-  UnmodifiableMapView get state => new UnmodifiableMapView(_state);
+  Map toJson() => new Map.from(_state);
 }
 
 class BeginEvent extends EventSupport {}
 
 class DialogEvent extends EventSupport {
-  Actor get speaker => state['speaker'];
-  Actor get target => state['target'];
-  String get what => state['what'];
+  Actor get speaker => _state['speaker'];
+  Actor get target => _state['target'];
+  String get what => _state['what'];
 
   DialogEvent(speaker, what, {target})
       : super({'speaker': speaker, 'what': what, 'target': target});
