@@ -121,7 +121,7 @@ class _Game extends Game {
   void _addEvent(Event event) {
     _pendingEvents.removeWhere((pending) => pending.event.id == event.id);
     // TODO: Do we need timestamps?
-    event._timeStamp = _stopwatch.elapsed;
+    event._timeStamp = _stopwatch.elapsed + _offset;
     _ctrl.add(event);
   }
 }
