@@ -3,74 +3,61 @@
 
 part of august.core;
 
-typedef Actor ActorFactory(Game game);
+typedef Actor ActorFactory(Game game, [Map json]);
 typedef EventFilter FilterDeserializer(Map json);
 typedef Event EventDeserializer(Map json);
-typedef dynamic Deserializer(Map json);
-
-JsonCodec getJsonCodec(Script registry) {
-  return new JsonCodec(
-      reviver: new _RegistryReviver(registry), toEncodable: _toEncodable);
-}
 
 abstract class Script {
   String get name;
   String get version;
 
-  Actor getActor(String typeName, Game game);
-  EventFilter getFilter(Map json);
-  Event getEvent(Map json);
+  factory Script(String name, String version) {
+    return new _Script(name, version);
+  }
 
-  void addActor(ActorFactory actor);
-  void addFilter(Type type, FilterDeserializer filterFactory);
+  Map<String, Actor> getActors(Game game, [Map<String, Map> typesToJson]);
+  EventFilter getFilter(String type, Map json);
+  Event getEvent(String type, Map json);
+
+  void addActor(Type actor, ActorFactory actorFactory);
+  void addFilter(Type filter, FilterDeserializer filterFactory);
   void addEvent(Type event, EventDeserializer eventFactory);
 }
 
-abstract class JsonEncodable {
-  Map toJson();
-}
+class _Script implements Script {
+  Map<String, ActorFactory> _actors;
+  Map<String, EventDeserializer> _events;
+  Map<String, FilterDeserializer> _filters;
 
-class _RegistryReviver {
-  final Script registry;
+  final String name;
+  final String version;
 
-  _RegistryReviver(this.registry);
+  _Script(this.name, this.version);
 
-  JsonEncodable call(key, value) {
-    if (value is Map && _JsonDecodable.isDecodable(value)) {
-      var decable = new _JsonDecodable.fromJson(value);
-      if (registry.hasType(decable.type)) {
-        return registry.getDeserializer(decable.type)(decable.json);
-      }
-    }
-
-    return value;
-  }
-}
-
-Map _toEncodable(value) {
-  if (value is JsonEncodable) {
-    return new _JsonDecodable.fromJsonEncodable(value).toJson();
+  void addActor(Type actor, ActorFactory actorFactory) {
+    _actors[actor.toString()] = actorFactory;
   }
 
-  return value.toJson();
-}
-
-// TODO: better name
-class _JsonDecodable {
-  static bool isDecodable(Map json) {
-    return json.containsKey(_typeKey) && json.containsKey(_jsonKey);
+  void addEvent(Type event, EventDeserializer eventFactory) {
+    _events[event.toString()] = eventFactory;
   }
 
-  final String type;
-  final Map json;
+  void addFilter(Type filter, FilterDeserializer filterFactory) {
+    _filters[filter.toString()] = filterFactory;
+  }
 
-  _JsonDecodable(this.type, this.json);
-  _JsonDecodable.fromJson(Map json) : this(json[_typeKey], json[_jsonKey]);
-  _JsonDecodable.fromJsonEncodable(JsonEncodable encable)
-      : this("$encable.runtimeType", encable.toJson());
+  Map<String, Actor> getActors(Game game, [Map<String, Map> typesToJson]) {
+    Map actors = {};
+    _actors.forEach(
+        (type, factory) => actors[type] = factory(game, typesToJson[type]));
+    return actors;
+  }
 
-  Map toJson() => {_typeKey: type, _jsonKey: json};
+  Event getEvent(String type, Map json) {
+    return _events[type](json);
+  }
 
-  static const String _typeKey = "_type_";
-  static const String _jsonKey = "_json_";
+  EventFilter getFilter(String type, Map json) {
+    return _filters[type](json);
+  }
 }

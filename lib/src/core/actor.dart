@@ -3,7 +3,7 @@
 
 part of august.core;
 
-abstract class Actor extends JsonEncodable with ActorSupport {
+abstract class Actor extends Object with ActorSupport {
   final Game game;
 
   Actor(this.game);

@@ -16,15 +16,18 @@ abstract class Game {
 
   void subscribe(String listenerName, Type actorType,
       {EventFilter filter: const AllEvents()});
+
+  Actor getActor(String type);
 }
 
 class _Game extends Game {
   // Current state
+  Map<String, Actor> _actors;
   List<Option> _options;
   List<Subscription> _subscriptions;
   List<PendingEvent> _pendingEvents;
 
-  final Duration _offset = const Duration();
+  final Duration _offset;
   final Stopwatch _stopwatch = new Stopwatch();
 
   final StreamController<Event> _ctrl =
@@ -32,11 +35,12 @@ class _Game extends Game {
 
   final Script _script;
 
-  _Game(this._script) {
+  _Game(this._script) : _offset = const Duration() {
     _ctrl.stream
         .firstWhere((e) => e is BeginEvent)
         .then((e) => _stopwatch.start());
 
+    _actors = _script.getActors(this);
     _options = [];
     _subscriptions = [];
     _pendingEvents = [];
@@ -64,12 +68,14 @@ class _Game extends Game {
         .forEach((e) => broadcastDelayed(e.offset, e.event));
 
     _stopwatch.start();
+
+    _actors = _script.getActors(this, json["actors"]);
   }
 
   void _addGameEventHandlers() {
     _ctrl.stream
         .where((e) => e is AddActor)
-        .listen((AddActor e) => _script.getActor(e.actor, this).onAdd());
+        .listen((AddActor e) => _actors[e.actor].onAdd());
   }
 
   void begin() {
@@ -89,6 +95,17 @@ class _Game extends Game {
     _addSubscription(new Subscription(filter, listenerName, "$actorType"));
   }
 
+  Actor getActor(String type) => _actors[type];
+
+  Map toJson() => {
+    "script": {"name": _script.name, "version": _script.version},
+    "offset": _offset.inMicroseconds,
+    "actors": _actors.values,
+    "options": _options,
+    "subscriptions": _subscriptions,
+    "pendingEvents": _pendingEvents
+  };
+
   /// Adds a [Stream] listener based on the [subscription]. The `subscription`
   /// is added to [_subscriptions] and removed from when the first relevant
   /// event is fired.
@@ -97,19 +114,19 @@ class _Game extends Game {
 
     subscription.filter.filter(_ctrl.stream).first.then((e) {
       _subscriptions.remove((s) => s.id == subscription.id);
-      subscription.getListener(this, _script)(e);
+      subscription.getListener(this)(e);
     });
   }
 
   void _addEvent(Event event) {
-    _pendingEvents.removeWhere((e) => e.id == event.id);
+    _pendingEvents.removeWhere((pending) => pending.event.id == event.id);
     // TODO: Do we need timestamps?
     event._timeStamp = _stopwatch.elapsed;
     _ctrl.add(event);
   }
 }
 
-class PendingEvent extends JsonEncodable {
+class PendingEvent {
   final Duration offset;
   final Event event;
 
@@ -117,9 +134,12 @@ class PendingEvent extends JsonEncodable {
 
   PendingEvent.fromJson(Map json, Script script)
       : offset = new Duration(microseconds: json["schedule"]),
-        event = script.getEvent(json["event"]);
+        event = script.getEvent(json["event"]["type"], json["event"]["data"]);
 
-  Map toJson() => {"schedule": offset.inMicroseconds, "event": event};
+  Map toJson() => {
+    "schedule": offset.inMicroseconds,
+    "event": {"type": event.runtimeType, "data": event}
+  };
 }
 
 /// Tests that the json representation of this game is compatible with the

@@ -3,7 +3,7 @@
 
 part of august.core;
 
-class Subscription implements JsonEncodable {
+class Subscription {
   final String id = _uuid.v4();
   final EventFilter filter;
   // TODO: lister name / actor name combo is really a type
@@ -12,16 +12,21 @@ class Subscription implements JsonEncodable {
 
   Subscription(this.filter, this.listener, this.actor);
   Subscription.fromJson(Map json, Script script) : this(
-          script.getFilter(json["filter"]), json["listener"], json["actor"]);
+          script.getFilter(json["filter"]["type"], json["filter"]["data"]),
+          json["listener"], json["actor"]);
 
-  Listener getListener(Game game, Script script) {
-    return script.getActor(actor, game).listeners[listener];
+  Listener getListener(Game game) {
+    return game.getActor(actor).listeners[listener];
   }
 
-  Map toJson() => {"filter": filter, "listener": listener, "actor": actor};
+  Map toJson() => {
+    "filter": {"type": filter.runtimeType, "data": filter},
+    "listener": listener,
+    "actor": actor
+  };
 }
 
-abstract class EventFilter implements JsonEncodable {
+abstract class EventFilter {
   Stream<Event> filter(Stream<Event> stream);
 }
 
@@ -32,7 +37,6 @@ class AllEvents implements EventFilter {
     return stream;
   }
 
-  @override
   Map toJson() => {};
 }
 

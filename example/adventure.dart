@@ -36,7 +36,6 @@ class Jack extends Actor {
     isCrownBroken = json["isCrownBroken"];
   }
 
-  @override
   Map toJson() => {
     "hasWater": hasWater,
     "isBruised": isBruised,
@@ -65,11 +64,10 @@ class Jill extends Actor {
     mood = new Mood.fromJson(json["mood"]);
   }
 
-  @override
   Map toJson() => {"hasWater": hasWater, "isBruised": isBruised, "mood": mood};
 }
 
-class Mood implements JsonEncodable {
+class Mood {
   static const Mood happy = const Mood("happy");
   static const Mood unhappy = const Mood("unhappy");
 
@@ -79,6 +77,5 @@ class Mood implements JsonEncodable {
 
   Mood.fromJson(Map json) : mood = json['mood'];
 
-  @override
   Map toJson() => {"mood": mood};
 }

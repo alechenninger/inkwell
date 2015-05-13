@@ -4,7 +4,7 @@
 part of august.core;
 
 /// Global "option" that represents a decision point for a player.
-class Option extends JsonEncodable {
+class Option {
   final String title;
   final Event _event;
   int _available;
@@ -15,7 +15,7 @@ class Option extends JsonEncodable {
 
   Option.fromJson(Map json, Script script)
       : title = json["title"],
-        _event = script.getEvent(json["event"]) {
+        _event = script.getEvent(json["event"]["type"], json["event"]["data"]) {
     _available = json["available"];
   }
 
@@ -31,11 +31,15 @@ class Option extends JsonEncodable {
     game.broadcast(_event);
   }
 
-  Map toJson() => {"title": title, "available": available, "event": _event};
+  Map toJson() => {
+    "title": title,
+    "available": available,
+    "event": {"type": _event.runtimeType, "data": _event}
+  };
 }
 
 /// Single use "option" as a result of a specific event.
-class Reply extends JsonEncodable {
+class Reply {
   final String title;
 
   /// The event that should be triggered as a result of replying with this

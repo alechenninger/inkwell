@@ -3,7 +3,7 @@
 
 part of august.core;
 
-abstract class Event implements JsonEncodable {
+abstract class Event {
   Duration _timeStamp;
   final String id = _uuid.v4();
 }
