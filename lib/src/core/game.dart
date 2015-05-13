@@ -100,7 +100,7 @@ class _Game extends Game {
   Map toJson() => {
     "script": {"name": _script.name, "version": _script.version},
     "offset": _offset.inMicroseconds,
-    "actors": _actors.values,
+    "actors": _actors,
     "options": _options,
     "subscriptions": _subscriptions,
     "pendingEvents": _pendingEvents
