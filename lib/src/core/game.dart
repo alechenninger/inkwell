@@ -77,7 +77,7 @@ class _Game extends Game {
   }
 
   void broadcastDelayed(Duration delay, Event event) {
-    _pendingEvents.add(event);
+    _pendingEvents.add(new PendingEvent(delay, event));
     new Future.delayed(delay, () => _addEvent(event));
   }
 
