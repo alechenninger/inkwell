@@ -10,9 +10,7 @@ abstract class Actor extends Object with ActorSupport {
 
   Map<String, Listener> get listeners;
 
-  void onAdd();
-
-  void load(Map json);
+  void onBegin();
 }
 
 abstract class ActorSupport {

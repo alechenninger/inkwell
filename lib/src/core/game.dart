@@ -4,13 +4,21 @@
 part of august.core;
 
 abstract class Game {
+  factory Game(Script script) {
+    return new _Game(script);
+  }
+
+  factory Game.fromJson(Map json, Script script) {
+    return new _Game.fromJson(json, script);
+  }
+
   void begin();
 
-  void addActor(Type a) => broadcast(new AddActor(a.toString()));
+  void addActor(Type a);
 
-  void addOption(Option option) => broadcast(new AddOption(option));
+  void addOption(Option option);
 
-  void broadcast(Event event) => broadcastDelayed(const Duration(), event);
+  void broadcast(Event event);
 
   void broadcastDelayed(Duration delay, Event event);
 
@@ -20,7 +28,17 @@ abstract class Game {
   Actor getActor(String type);
 }
 
-class _Game extends Game {
+abstract class _GameBase implements Game {
+  void begin() => broadcast(new BeginEvent());
+
+  void addActor(Type a) => broadcast(new AddActor(a.toString()));
+
+  void addOption(Option option) => broadcast(new AddOption(option));
+
+  void broadcast(Event event) => broadcastDelayed(const Duration(), event);
+}
+
+class _Game extends _GameBase {
   // Current state
   Map<String, Actor> _actors;
   List<Option> _options;
@@ -36,16 +54,15 @@ class _Game extends Game {
   final Script _script;
 
   _Game(this._script) : _offset = const Duration() {
-    _ctrl.stream
-        .firstWhere((e) => e is BeginEvent)
-        .then((e) => _stopwatch.start());
-
     _actors = _script.getActors(this);
     _options = [];
     _subscriptions = [];
     _pendingEvents = [];
 
-    _addGameEventHandlers();
+    _ctrl.stream
+        .firstWhere((e) => e is BeginEvent)
+        .then((e) => _stopwatch.start())
+        .then((e) => _actors.values.forEach((a) => a.onBegin()));
   }
 
   _Game.fromJson(Map json, this._script)
@@ -61,8 +78,6 @@ class _Game extends Game {
         .map((s) => new Subscription.fromJson(s, _script))
         .forEach(_addSubscription);
 
-    _addGameEventHandlers();
-
     json["pendingEvents"]
         .map((s) => new PendingEvent.fromJson(s, _script))
         .forEach((e) => broadcastDelayed(e.offset, e.event));
@@ -70,16 +85,6 @@ class _Game extends Game {
     _stopwatch.start();
 
     _actors = _script.getActors(this, json["actors"]);
-  }
-
-  void _addGameEventHandlers() {
-    _ctrl.stream
-        .where((e) => e is AddActor)
-        .listen((AddActor e) => _actors[e.actor].onAdd());
-  }
-
-  void begin() {
-    broadcast(new BeginEvent());
   }
 
   void broadcastDelayed(Duration delay, Event event) {
@@ -133,11 +138,11 @@ class PendingEvent {
   PendingEvent(this.offset, this.event);
 
   PendingEvent.fromJson(Map json, Script script)
-      : offset = new Duration(microseconds: json["schedule"]),
+      : offset = new Duration(microseconds: json["offset"]),
         event = script.getEvent(json["event"]["type"], json["event"]["data"]);
 
   Map toJson() => {
-    "schedule": offset.inMicroseconds,
+    "offset": offset.inMicroseconds,
     "event": {"type": event.runtimeType, "data": event}
   };
 }

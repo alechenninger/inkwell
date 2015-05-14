@@ -7,7 +7,11 @@ import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
 main() {
-  Script registry;
+  Script script = new Script("adventure", "1.0.0")
+    ..addActor(Jack, (game, [json]) => new Jack(game, json))
+    ..addActor(Jill, (game, [json]) => new Jill(game, json));
+
+  Game game = new Game(script)..begin();
 }
 
 class Jack extends Actor {
@@ -20,20 +24,19 @@ class Jack extends Actor {
   @override
   Map get listeners => {_jillSaysHi: (DialogEvent event) {}};
 
-  Jack(Game game) : super(game);
-
-  @override
-  onAdd() {
-    on(DialogEvent)
-      //..where(eventTarget.is(this))
-      ..listen(_jillSaysHi);
+  Jack(Game game, Map json) : super(game) {
+    if (json != null) {
+      hasWater = json["hasWater"];
+      isBruised = json["isBruised"];
+      isCrownBroken = json["isCrownBroken"];
+    }
   }
 
   @override
-  void load(Map json) {
-    hasWater = json["hasWater"];
-    isBruised = json["isBruised"];
-    isCrownBroken = json["isCrownBroken"];
+  onBegin() {
+    on(DialogEvent)
+      //..where(eventTarget.is(this))
+      ..listen(_jillSaysHi);
   }
 
   Map toJson() => {
@@ -48,21 +51,19 @@ class Jill extends Actor {
   bool isBruised = false;
   Mood mood = Mood.happy;
 
-  Jill(Game game) : super(game);
+  Jill(Game game, Map json) : super(game) {
+    if (json != null) {
+      hasWater = json["hasWater"];
+      isBruised = json["isBruised"];
+      mood = new Mood.fromJson(json["mood"]);
+    }
+  }
 
   @override
   Map<String, Listener> get listeners => {};
 
   @override
-  void onAdd() {
-  }
-
-  @override
-  void load(Map json) {
-    hasWater = json["hasWater"];
-    isBruised = json["isBruised"];
-    mood = new Mood.fromJson(json["mood"]);
-  }
+  void onBegin() {}
 
   Map toJson() => {"hasWater": hasWater, "isBruised": isBruised, "mood": mood};
 }
