@@ -21,14 +21,14 @@ class Option {
 
   int get available => _available;
 
-  void trigger(Game game) {
+  void trigger(void broadcast(Event e)) {
     if (_available < 1) {
       throw new StateError("Cannot use an option if it is not available.");
     }
 
     _available = _available--;
 
-    game.broadcast(_event);
+    broadcast(_event);
   }
 
   Map toJson() => {

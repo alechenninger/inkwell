@@ -4,8 +4,8 @@
 library august.ui;
 
 import 'package:august/core.dart';
+import 'dart:html' hide Event;
 
-import 'dart:html';
 export 'dart:html';
 
 part 'src/ui/ui.dart';

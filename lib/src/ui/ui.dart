@@ -3,27 +3,34 @@
 
 part of august.ui;
 
-class Ui {
+abstract class Ui {
+  void listenTo(Stream<Event> events, void broadcast(Event event));
+}
+
+class SimpleHtmlUi implements Ui {
   final HtmlElement _container;
   final HtmlElement _mainPanel = new DivElement()..classes.add('event-panel');
 
   final HtmlElement _optionsPanel = new DivElement()
     ..classes.add('options-panel');
 
-  final List<Option> options = new List();
+  final List<Option> options = [];
 
-  Ui(this._container) {
+  SimpleHtmlUi(this._container) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
   }
 
-  void beforeBegin(Game game) {
-//    game.on[DialogEvent].listen((e) => new DialogElement(e, _mainPanel));
-//
-//    game.on[AddOption]
-//        .listen((e) => new OptionElement(e.option, game, _optionsPanel));
-//
-//    game.on[RemoveOption].listen((e) => _optionsPanel.children
-//        .removeWhere((c) => c.innerHtml == e.option.title));
+  void listenTo(Stream<Event> events, void broadcast(Event event)) {
+    events
+        .where((e) => e is DialogEvent)
+        .listen((e) => new DialogElement(e, _mainPanel));
+
+    events
+        .where((e) => e is AddOption)
+        .listen((e) => new OptionElement(e.option, broadcast, _optionsPanel));
+
+    events.where((e) => e is RemoveOption).listen((e) => _optionsPanel.children
+        .removeWhere((c) => c.innerHtml == e.option.title));
 
 //    game.on[ModalDialogEvent]
 //        .listen((e) => new ModalDialogElement(e, game, _mainPanel));
@@ -84,10 +91,10 @@ class DialogElement {
 //}
 
 class OptionElement {
-  OptionElement(Option o, Game game, HtmlElement container) {
+  OptionElement(Option o, void broadcast(Event e), HtmlElement container) {
     container.children.add(new DivElement()
       ..classes.add('option')
       ..innerHtml = o.title
-      ..onClick.listen((e) => o.trigger(game)));
+      ..onClick.listen((e) => o.trigger(broadcast)));
   }
 }
