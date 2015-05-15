@@ -11,7 +11,7 @@ main() {
     ..addActor(Jack, (game, [json]) => new Jack(game, json))
     ..addActor(Jill, (game, [json]) => new Jill(game, json));
 
-  Game game = new Game(script)..begin();
+  new Game(script)..begin();
 }
 
 class Jack extends Actor {

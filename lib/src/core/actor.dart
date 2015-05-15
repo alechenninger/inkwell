@@ -33,7 +33,7 @@ class SubscriptionBuilder {
   EventFilter filter;
 
   SubscriptionBuilder(this.actorType, this.eventType, this.game) {
-    filter = new EventTypeEq(eventType);
+    filter = new EventTypeEq(eventType.toString());
   }
 
   void listen(String listener) {

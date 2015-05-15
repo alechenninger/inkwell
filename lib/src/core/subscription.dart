@@ -45,12 +45,13 @@ class AllEvents implements EventFilter {
 // new EventType().eq(DialogEvent);
 
 class EventTypeEq implements EventFilter {
-  final Type _type;
+  final String _type;
 
   EventTypeEq(this._type);
+  EventTypeEq.fromJson(Map json) : _type = json["type"];
 
   Stream<Event> filter(Stream<Event> stream) {
-    return stream.where((e) => e.runtimeType == _type);
+    return stream.where((e) => e.runtimeType.toString() == _type);
   }
 
   Map toJson() => {"type": _type};
@@ -60,6 +61,7 @@ class EventTargetEq implements EventFilter {
   final String _target;
 
   EventTargetEq(this._target);
+  EventTargetEq.fromJson(Map json) : _target = json["target"];
 
   Stream<Event> filter(Stream<Event> stream) {
     return stream.where((e) => e.target == _target);
@@ -67,3 +69,9 @@ class EventTargetEq implements EventFilter {
 
   Map toJson() => {"target": _target};
 }
+
+Map<Type, FilterDeserializer> _defaultFilters = {
+  AllEvents: (json) => new AllEvents(),
+  EventTypeEq: (json) => new EventTypeEq.fromJson(json),
+  EventTargetEq: (json) => new EventTargetEq.fromJson(json)
+};

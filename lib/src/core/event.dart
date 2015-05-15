@@ -7,58 +7,63 @@ abstract class Event {
   final String id = _uuid.v4();
 }
 
-abstract class EventSupport extends Event {
-  final Map<String, dynamic> _state;
+class BeginEvent extends Event {}
 
-  EventSupport([this._state = const {}]);
+class DialogEvent extends Event {
+  final String speaker;
+  final String target;
+  final String dialog;
 
-  Map toJson() => new Map.from(_state);
-}
+  DialogEvent(this.speaker, this.dialog, {this.target});
+  DialogEvent.fromJson(Map json)
+      : speaker = json["speaker"],
+        target = json["target"],
+        dialog = json["dialog"];
 
-class BeginEvent extends EventSupport {}
-
-class DialogEvent extends EventSupport {
-  Actor get speaker => _state['speaker'];
-  Actor get target => _state['target'];
-  String get what => _state['what'];
-
-  DialogEvent(speaker, what, {target})
-      : super({'speaker': speaker, 'what': what, 'target': target});
-
-  @override
   String toString() => "$id > "
-      "DialogEvent(speaker: $speaker, target: $target, what: $what)";
+      "DialogEvent(speaker: $speaker, target: $target, dialog: $dialog)";
+
+  Map toJson() => {"speaker": speaker, "target": target, "dialog": dialog};
 }
 
 class AddOption extends Event {
   final Option option;
 
-  AddOption(this.option) {
-    checkNotNull(option, message: "Option cannot be null.");
-  }
+  AddOption(this.option);
+  AddOption.fromJson(Map json, Script script)
+      : option = new Option.fromJson(json["option"], script);
 
-  @override
   String toString() => "$id > AddOption(option: $option)";
+
+  Map toJson() => {"option": option};
 }
 
 class RemoveOption extends Event {
   final Option option;
 
-  RemoveOption(this.option) {
-    checkNotNull(option, message: "Option cannot be null.");
-  }
+  RemoveOption(this.option);
+  RemoveOption.fromJson(Map json, Script script)
+      : option = new Option.fromJson(json["option"], script);
 
-  @override
   String toString() => "$id > RemoveOption(option: $option)";
+
+  Map toJson() => {"option": option};
 }
 
 class AddActor extends Event {
   final String actor;
 
-  AddActor(this.actor) {
-    checkNotNull(actor, message: 'Actor cannot be null.');
-  }
+  AddActor(this.actor);
+  AddActor.fromJson(Map json) : actor = json["actor"];
 
-  @override
   String toString() => "$id > AddActor(actor: $actor)";
+
+  Map toJson() => {"actor": actor};
 }
+
+Map<Type, EventDeserializer> _defaultEvents(Script script) => {
+  DialogEvent: (json) => new DialogEvent.fromJson(json),
+  AddActor: (json) => new AddActor.fromJson(json),
+  AddOption: (json) => new AddOption.fromJson(json, script),
+  RemoveOption: (json) => new RemoveOption.fromJson(json, script)
+};

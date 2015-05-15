@@ -41,8 +41,8 @@ class DialogElement {
       ..innerHtml = "${e.target}";
 
     var what = new DivElement()
-      ..classes.add('what')
-      ..innerHtml = '${e.what}';
+      ..classes.add('dialog')
+      ..innerHtml = '${e.dialog}';
 
     var dialog = new DivElement()
       ..classes.add('dialog')

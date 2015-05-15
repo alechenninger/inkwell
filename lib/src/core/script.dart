@@ -32,7 +32,10 @@ class _Script implements Script {
   final String name;
   final String version;
 
-  _Script(this.name, this.version);
+  _Script(this.name, this.version) {
+    _defaultEvents(this).forEach(addEvent);
+    _defaultFilters.forEach(addFilter);
+  }
 
   void addActor(Type actor, ActorFactory actorFactory) {
     _actors[actor.toString()] = actorFactory;
