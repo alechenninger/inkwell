@@ -4,7 +4,6 @@
 part of august.core;
 
 abstract class Event {
-  Duration _timeStamp;
   final String id = _uuid.v4();
 }
 
@@ -27,7 +26,7 @@ class DialogEvent extends EventSupport {
       : super({'speaker': speaker, 'what': what, 'target': target});
 
   @override
-  String toString() => "$timeStamp > "
+  String toString() => "$id > "
       "DialogEvent(speaker: $speaker, target: $target, what: $what)";
 }
 
@@ -39,7 +38,7 @@ class AddOption extends Event {
   }
 
   @override
-  String toString() => "$timeStamp > AddOption(option: $option)";
+  String toString() => "$id > AddOption(option: $option)";
 }
 
 class RemoveOption extends Event {
@@ -50,7 +49,7 @@ class RemoveOption extends Event {
   }
 
   @override
-  String toString() => "$timeStamp > RemoveOption(option: $option)";
+  String toString() => "$id > RemoveOption(option: $option)";
 }
 
 class AddActor extends Event {
@@ -61,5 +60,5 @@ class AddActor extends Event {
   }
 
   @override
-  String toString() => "$timeStamp > AddActor(actor: $actor)";
+  String toString() => "$id > AddActor(actor: $actor)";
 }

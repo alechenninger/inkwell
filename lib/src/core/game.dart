@@ -82,9 +82,9 @@ class _Game extends _GameBase {
         .map((s) => new PendingEvent.fromJson(s, _script))
         .forEach((e) => broadcastDelayed(e.offset, e.event));
 
-    _stopwatch.start();
-
     _actors = _script.getActors(this, json["actors"]);
+
+    _stopwatch.start();
   }
 
   void broadcastDelayed(Duration delay, Event event) {
@@ -125,8 +125,6 @@ class _Game extends _GameBase {
 
   void _addEvent(Event event) {
     _pendingEvents.removeWhere((pending) => pending.event.id == event.id);
-    // TODO: Do we need timestamps?
-    event._timeStamp = _stopwatch.elapsed + _offset;
     _ctrl.add(event);
   }
 }
