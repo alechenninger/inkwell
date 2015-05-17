@@ -3,38 +3,60 @@
 
 part of august.ui;
 
-abstract class Ui {
-  void listenTo(Stream<Event> events, void broadcast(Event event));
-}
-
-class SimpleHtmlUi implements Ui {
+class SimpleHtmlUi extends ActorSupport {
   final HtmlElement _container;
   final HtmlElement _mainPanel = new DivElement()..classes.add('event-panel');
 
   final HtmlElement _optionsPanel = new DivElement()
     ..classes.add('options-panel');
 
-  final List<Option> options = [];
+  final List<DialogEvent> _dialog = [];
+  final List<Option> _options = [];
 
-  SimpleHtmlUi(this._container) {
+  SimpleHtmlUi(this._container, Script script, Game game, [Map json])
+      : super(game) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
+
+    if (json != null) {
+      json["dialog"]
+          .map((d) => new DialogEvent.fromJson(d))
+          .forEach(_addDialog);
+      json["options"]
+          .map((o) => new AddOption.fromJson(o, script))
+          .forEach(_addOption);
+    }
   }
 
-  void listenTo(Stream<Event> events, void broadcast(Event event)) {
-    events
-        .where((e) => e is DialogEvent)
-        .listen((e) => new DialogElement(e, _mainPanel));
+  @override
+  Map<String, Listener> get listeners => {
+    "addDialog": _addDialog,
+    "addOption": _addOption,
+    "removeOption:": _removeOption
+  };
 
-    events
-        .where((e) => e is AddOption)
-        .listen((e) => new OptionElement(e.option, broadcast, _optionsPanel));
-
-    events.where((e) => e is RemoveOption).listen((e) => _optionsPanel.children
-        .removeWhere((c) => c.innerHtml == e.option.title));
-
-//    game.on[ModalDialogEvent]
-//        .listen((e) => new ModalDialogElement(e, game, _mainPanel));
+  @override
+  void onBegin() {
+    on(DialogEvent).listen("addDialog");
+    on(AddOption).listen("addOption");
+    on(RemoveOption).listen("removeOption");
   }
+
+  _addOption(AddOption e) {
+    _options.add(e.option);
+    new OptionElement(e.option, broadcast, _optionsPanel);
+  }
+
+  _addDialog(DialogEvent e) {
+    _dialog.add(e);
+    new DialogElement(e, _mainPanel);
+  }
+
+  _removeOption(RemoveOption e) {
+    _options.removeWhere((o) => o.title == e.option.title);
+    _optionsPanel.children.removeWhere((c) => c.innerHtml == e.option.title);
+  }
+
+  Map toJson() => {"options": _options, "dialog": _dialog};
 }
 
 class DialogElement {

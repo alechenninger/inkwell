@@ -4,6 +4,14 @@
 part of august.core;
 
 abstract class Game {
+  static void start(Script script) {
+    new Game(script).begin();
+  }
+
+  static void startExisting(Script script, Map json) {
+    new Game.fromJson(json, script);
+  }
+
   factory Game(Script script) {
     return new _Game(script);
   }

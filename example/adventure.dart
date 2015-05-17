@@ -7,22 +7,33 @@ import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
 main() {
-  Script script = new Script("adventure", "1.0.0")
-    ..addActor(Jack, (game, [json]) => new Jack(game, json))
-    ..addActor(Jill, (game, [json]) => new Jill(game, json));
+  var container = querySelector("body");
+
+  Script script = (new ScriptBuilder()
+    ..addActor(Jack, (game, script, [json]) => new Jack(game, json))
+    ..addActor(Jill, (game, script, [json]) => new Jill(game, json))
+    // TODO: UI as actor is nice in some ways but script is tied to UI now
+    // Not exactly actually, the coupling is to the json format of the UI. If
+    // two UI's share compatible toJson() they can be interchanged. The only
+    // issue is that the dart definition of the script still defines the UI type.
+    // It would be neat(unnecessary?) if scripts could be used like libraries and
+    // UIs switched as needed. For instance, for mobile platforms (say, Sky).
+    // They could export a script builder though that could be extended with a UI
+    // of choice.
+    ..addActor(SimpleHtmlUi, (game, script,
+            [json]) => new SimpleHtmlUi(container, script, game, json))).build(
+      "adventure", "1.0.0");
 
   new Game(script)..begin();
 }
 
-class Jack extends Actor {
-  static const String _jillSaysHi = "jillSaysHi";
-
+class Jack extends ActorSupport {
   bool hasWater = false;
   bool isBruised = false;
   bool isCrownBroken = false;
 
   @override
-  Map get listeners => {_jillSaysHi: (DialogEvent event) {}};
+  Map get listeners => {};
 
   Jack(Game game, Map json) : super(game) {
     if (json != null) {
@@ -34,9 +45,10 @@ class Jack extends Actor {
 
   @override
   onBegin() {
-    on(DialogEvent)
-      //..where(eventTarget.is(this))
-      ..listen(_jillSaysHi);
+    game.addOption(new Option("Ask Jill to fetch a pail of water.",
+        new DialogEvent(
+            "Jack", "Would you like to fetch a pail of water with me?",
+            target: "Jill")));
   }
 
   Map toJson() => {
@@ -46,7 +58,7 @@ class Jack extends Actor {
   };
 }
 
-class Jill extends Actor {
+class Jill extends ActorSupport {
   bool hasWater = false;
   bool isBruised = false;
   Mood mood = Mood.happy;

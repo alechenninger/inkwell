@@ -61,9 +61,9 @@ class AddActor extends Event {
   Map toJson() => {"actor": actor};
 }
 
-Map<Type, EventDeserializer> _defaultEvents(Script script) => {
-  DialogEvent: (json) => new DialogEvent.fromJson(json),
-  AddActor: (json) => new AddActor.fromJson(json),
-  AddOption: (json) => new AddOption.fromJson(json, script),
-  RemoveOption: (json) => new RemoveOption.fromJson(json, script)
+Map<Type, EventDeserializer> _defaultEvents = {
+  DialogEvent: (json, script) => new DialogEvent.fromJson(json),
+  AddActor: (json, script) => new AddActor.fromJson(json),
+  AddOption: (json, script) => new AddOption.fromJson(json, script),
+  RemoveOption: (json, script) => new RemoveOption.fromJson(json, script)
 };

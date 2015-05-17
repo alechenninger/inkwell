@@ -3,18 +3,16 @@
 
 part of august.core;
 
-abstract class Actor extends Object with ActorSupport {
-  final Game game;
-
-  Actor(this.game);
-
+abstract class Actor {
   Map<String, Listener> get listeners;
 
   void onBegin();
 }
 
-abstract class ActorSupport {
-  Game get game;
+abstract class ActorSupport implements Actor {
+  final Game game;
+
+  ActorSupport(this.game);
 
   SubscriptionBuilder on(Type eventType) =>
       new SubscriptionBuilder(this.runtimeType, eventType, game);
