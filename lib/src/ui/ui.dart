@@ -31,7 +31,7 @@ class SimpleHtmlUi extends ActorSupport {
   Map<String, Listener> get listeners => {
     "addDialog": _addDialog,
     "addOption": _addOption,
-    "removeOption:": _removeOption
+    "removeOption": _removeOption
   };
 
   @override
@@ -70,7 +70,7 @@ class DialogElement {
       ..innerHtml = "${e.target}";
 
     var what = new DivElement()
-      ..classes.add('dialog')
+      ..classes.add('dialog-text')
       ..innerHtml = '${e.dialog}';
 
     var dialog = new DivElement()

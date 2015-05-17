@@ -2,6 +2,7 @@
 
 * {
     font-family: 'Slabo 27px', serif;
+    font-size: 1.1em;
 }
 
 body {
@@ -24,9 +25,9 @@ body {
     margin-bottom: .5em;
 }
 
-.dialog .speaker:after {
-    content: " to...";
-    margin-right: .5em;
+.dialog .target:before {
+    content: "(to) ";
+    margin-left: .5em;
 }
 
 .dialog .target {
@@ -34,6 +35,6 @@ body {
     float: right;
 }
 
-.dialog .what {
+.dialog .dialog-text {
     clear: both;
 }
