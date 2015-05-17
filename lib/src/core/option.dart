@@ -26,7 +26,10 @@ class Option {
       throw new StateError("Cannot use an option if it is not available.");
     }
 
-    _available = _available--;
+    _available = _available - 1;
+    if (_available == 0) {
+      broadcast(new RemoveOption(this));
+    }
 
     broadcast(_event);
   }
