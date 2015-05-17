@@ -71,6 +71,9 @@ class _Game extends _GameBase {
         .firstWhere((e) => e is BeginEvent)
         .then((e) => _stopwatch.start())
         .then((e) => _actors.values.forEach((a) => a.onBegin()));
+
+    _ctrl.stream
+      .listen((e) => print(e));
   }
 
   _Game.fromJson(Map json, this._script)
@@ -126,7 +129,7 @@ class _Game extends _GameBase {
     _subscriptions.add(subscription);
 
     subscription.filter.filter(_ctrl.stream).first.then((e) {
-      _subscriptions.remove((s) => s.id == subscription.id);
+      _subscriptions.removeWhere((s) => s.id == subscription.id);
       subscription.getListener(this)(e);
     });
   }
