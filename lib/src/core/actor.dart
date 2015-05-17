@@ -18,6 +18,11 @@ abstract class ActorSupport implements Actor {
       new SubscriptionBuilder(this.runtimeType, eventType, game);
 
   void broadcast(Event event) => game.broadcast(event);
+
+  void broadcastDelayed(Duration delay, Event event) =>
+      game.broadcastDelayed(delay, event);
+
+  void addOption(Option option) => game.addOption(option);
 }
 
 /// Responds to an [Event] occurrence. [Listener]s are actor-specific.
@@ -28,14 +33,18 @@ class SubscriptionBuilder {
   final Type eventType;
   final Game game;
 
-  EventFilter filter;
+  EventFilter _filter;
 
   SubscriptionBuilder(this.actorType, this.eventType, this.game) {
-    filter = new EventTypeEq(eventType.toString());
+    _filter = new EventTypeEq(eventType.toString());
+  }
+
+  void where(EventFilter filter) {
+    _filter = _filter.and(filter);
   }
 
   void listen(String listener) {
-    game.subscribe(listener, actorType, filter: filter);
+    game.subscribe(listener, actorType, filter: _filter);
   }
 }
 

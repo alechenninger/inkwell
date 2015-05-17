@@ -4,7 +4,7 @@
 part of august.core;
 
 typedef Actor ActorFactory(Game game, Script script, [Map json]);
-typedef EventFilter FilterDeserializer(Map json);
+typedef EventFilter FilterDeserializer(Map json, Script script);
 typedef Event EventDeserializer(Map json, Script script);
 
 /// [Script]s are immutable and accept all of their details in their
@@ -75,6 +75,6 @@ class _Script implements Script {
   }
 
   EventFilter getFilter(String type, Map json) {
-    return _filters[type](json);
+    return _filters[type](json, this);
   }
 }

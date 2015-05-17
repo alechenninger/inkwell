@@ -27,10 +27,14 @@ class Subscription {
 }
 
 abstract class EventFilter {
+  const EventFilter();
+
   Stream<Event> filter(Stream<Event> stream);
+
+  EventFilter and(EventFilter additional) => new AndFilter(this, additional);
 }
 
-class AllEvents implements EventFilter {
+class AllEvents extends EventFilter {
   const AllEvents();
 
   Stream<Event> filter(Stream<Event> stream) {
@@ -40,11 +44,26 @@ class AllEvents implements EventFilter {
   Map toJson() => {};
 }
 
+class AndFilter extends EventFilter {
+  final EventFilter _left;
+  final EventFilter _right;
+
+  AndFilter(this._left, this._right);
+
+  AndFilter.fromJson(Map json, Script script)
+      : _left = script.getFilter(json["left"]["type"], json["left"]["data"]),
+        _right = script.getFilter(json["right"]["type"], json["right"]["data"]);
+
+  Stream<Event> filter(Stream<Event> stream) {
+    return _right.filter(_left.filter(stream));
+  }
+}
+
 // TODO: new EventName().eq("foo");
 // new EventName().notEq("foo");
 // new EventType().eq(DialogEvent);
 
-class EventTypeEq implements EventFilter {
+class EventTypeEq extends EventFilter {
   final String _type;
 
   EventTypeEq(this._type);
@@ -57,7 +76,7 @@ class EventTypeEq implements EventFilter {
   Map toJson() => {"type": _type};
 }
 
-class EventTargetEq implements EventFilter {
+class EventTargetEq extends EventFilter {
   final String _target;
 
   EventTargetEq(this._target);
@@ -71,7 +90,8 @@ class EventTargetEq implements EventFilter {
 }
 
 Map<Type, FilterDeserializer> _defaultFilters = {
-  AllEvents: (json) => new AllEvents(),
-  EventTypeEq: (json) => new EventTypeEq.fromJson(json),
-  EventTargetEq: (json) => new EventTargetEq.fromJson(json)
+  AllEvents: (json, script) => new AllEvents(),
+  AndFilter: (json, script) => new AndFilter.fromJson(json, script),
+  EventTypeEq: (json, script) => new EventTypeEq.fromJson(json),
+  EventTargetEq: (json, script) => new EventTargetEq.fromJson(json)
 };

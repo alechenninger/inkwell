@@ -59,6 +59,8 @@ class Jack extends ActorSupport {
 }
 
 class Jill extends ActorSupport {
+  static const String _jackAsksToFetchWater = "jackAsksToFetchWater";
+
   bool hasWater = false;
   bool isBruised = false;
   Mood mood = Mood.happy;
@@ -72,10 +74,15 @@ class Jill extends ActorSupport {
   }
 
   @override
-  Map<String, Listener> get listeners => {};
+  Map<String, Listener> get listeners =>
+      {_jackAsksToFetchWater: (DialogEvent e) {}};
 
   @override
-  void onBegin() {}
+  void onBegin() {
+    on(DialogEvent)
+      ..where(new EventTargetEq("Jill"))
+      ..listen(_jackAsksToFetchWater);
+  }
 
   Map toJson() => {"hasWater": hasWater, "isBruised": isBruised, "mood": mood};
 }
