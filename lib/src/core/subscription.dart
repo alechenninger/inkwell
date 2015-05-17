@@ -57,6 +57,11 @@ class AndFilter extends EventFilter {
   Stream<Event> filter(Stream<Event> stream) {
     return _right.filter(_left.filter(stream));
   }
+
+  Map toJson() => {
+    "left": {"type": _left.runtimeType, "data": _left},
+    "right": {"type": _right.runtimeType, "data": _right}
+  };
 }
 
 // TODO: new EventName().eq("foo");
