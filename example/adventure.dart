@@ -6,92 +6,100 @@ library august.example;
 import 'package:august/core.dart';
 import 'package:august/ui.dart';
 
-import 'dart:math';
-
-var self = new Self();
-var adventurer = new Adventurer();
-var ui = new Ui(document.body);
-
 main() {
-  Game.begin([self, adventurer, ui]);
+  var container = querySelector("body");
+
+  Script script = (new ScriptBuilder()
+    ..addActor(Jack, (game, script, [json]) => new Jack(game, json))
+    ..addActor(Jill, (game, script, [json]) => new Jill(game, json))
+    // TODO: UI as actor is nice in some ways but script is tied to UI now
+    // Not exactly actually, the coupling is to the json format of the UI. If
+    // two UI's share compatible toJson() they can be interchanged. The only
+    // issue is that the dart definition of the script still defines the UI type.
+    // It would be neat(unnecessary?) if scripts could be used like libraries and
+    // UIs switched as needed. For instance, for mobile platforms (say, Sky).
+    // They could export a script builder though that could be extended with a UI
+    // of choice.
+    ..addActor(SimpleHtmlUi, (game, script,
+            [json]) => new SimpleHtmlUi(container, script, game, json))).build(
+      "adventure", "1.0.0");
+
+  new Game(script).begin();
 }
 
-class Self extends Actor {
-  @override
-  beforeBegin(Game game) {}
-}
-
-class Adventurer extends Actor {
-  static const List _thingsToSay = const [
-    "A mighty fine day, isn't it?",
-    "What in the world could that be!",
-    "Buffalo buffalo Buffalo buffalo buffalo."
-  ];
-
-  Random _random = new Random();
-
-  Option _talkToMe;
-
-  Adventurer() {
-    _talkToMe = new Option.singleUse(
-        "Talk to Adventurer", new DialogEvent(self, "Hi there!", target: this));
-  }
+class Jack extends ActorSupport {
+  bool hasWater = false;
+  bool isBruised = false;
+  bool isCrownBroken = false;
 
   @override
-  beforeBegin(Game game) {
-    StreamSubscription onDialog;
-    onDialog = game.on[DialogEvent]
-        .where((e) => e.target == this)
-        .listen((e) async {
-      onDialog.cancel();
+  Map get listeners => {};
 
-      await game.broadcastDelayed(new Duration(seconds: 1),
-          new DialogEvent(this, "...", target: e.speaker));
-
-      var punchMe =
-          new Reply('Punch $Adventurer', new PunchEvent(e.speaker, this));
-      var hugMe = new Reply('Hug $Adventurer', new HugEvent(e.speaker, this));
-
-      StreamSubscription onPunchMe, onHugMe;
-      onPunchMe = game.on[punchMe.event].listen((e) {
-        onPunchMe.cancel();
-        onHugMe.cancel();
-        game.broadcast(new DialogEvent(this, "Ow!", target: e.puncher));
-      });
-
-      onHugMe = game.on[hugMe.event].listen((e) {
-        onPunchMe.cancel();
-        onHugMe.cancel();
-        game.broadcast(
-            new DialogEvent(this, "How kind of you.", target: e.hugger));
-      });
-
-      game.broadcastDelayed(new Duration(seconds: 3),
-          _saySomethingRandomTo(e.speaker, [punchMe, hugMe]));
-    });
+  Jack(Game game, Map json) : super(game) {
+    if (json != null) {
+      hasWater = json["hasWater"];
+      isBruised = json["isBruised"];
+      isCrownBroken = json["isCrownBroken"];
+    }
   }
 
   @override
-  onBegin(Game game) {
-    game.broadcast(new AddOption(_talkToMe));
+  onBegin() {
+    game.addOption(new Option("Ask Jill to fetch a pail of water.",
+        new DialogEvent(
+            "Jack", "Would you like to fetch a pail of water with me?",
+            target: "Jill")));
   }
 
-  ModalDialogEvent _saySomethingRandomTo(target, replies) {
-    var thingToSay = _thingsToSay[_random.nextInt(_thingsToSay.length)];
-    return new ModalDialogEvent(this, thingToSay, target, replies);
+  Map toJson() => {
+    "hasWater": hasWater,
+    "isBruised": isBruised,
+    "isCrownBroken": isCrownBroken
+  };
+}
+
+class Jill extends ActorSupport {
+  static const String _jackAsksToFetchWater = "jackAsksToFetchWater";
+
+  bool hasWater = false;
+  bool isBruised = false;
+  Mood mood = Mood.happy;
+
+  Jill(Game game, Map json) : super(game) {
+    if (json != null) {
+      hasWater = json["hasWater"];
+      isBruised = json["isBruised"];
+      mood = new Mood.fromJson(json["mood"]);
+    }
   }
+
+  @override
+  Map<String, Listener> get listeners => {
+    _jackAsksToFetchWater: (DialogEvent e) {
+      broadcastDelayed(new Duration(seconds: 1, milliseconds: 500),
+          new DialogEvent("Jill", "Sure", target: "Jack"));
+    }
+  };
+
+  @override
+  void onBegin() {
+    on(DialogEvent)
+      ..where(new EventTargetEq("Jill"))
+      ..listen(_jackAsksToFetchWater);
+  }
+
+  Map toJson() => {"hasWater": hasWater, "isBruised": isBruised, "mood": mood};
 }
 
-class PunchEvent extends TargetedEvent {
-  final Actor puncher;
-  final Actor target;
+class Mood {
+  static const Mood happy = const Mood("happy");
+  static const Mood unhappy = const Mood("unhappy");
 
-  PunchEvent(this.puncher, this.target);
-}
+  final String mood;
 
-class HugEvent extends TargetedEvent {
-  final Actor hugger;
-  final Actor target;
+  const Mood(this.mood);
 
-  HugEvent(this.hugger, this.target);
+  Mood.fromJson(Map json) : mood = json['mood'];
+
+  Map toJson() => {"mood": mood};
 }

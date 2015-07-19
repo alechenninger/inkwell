@@ -3,32 +3,66 @@
 
 part of august.ui;
 
-class Ui extends Actor {
+class SimpleHtmlUi extends ActorSupport {
   final HtmlElement _container;
   final HtmlElement _mainPanel = new DivElement()..classes.add('event-panel');
 
   final HtmlElement _optionsPanel = new DivElement()
     ..classes.add('options-panel');
 
-  final List<Option> options = new List();
+  final List<DialogEvent> _dialog = [];
+  final List<Option> _options = [];
 
-  Ui(this._container) {
+  SimpleHtmlUi(this._container, Script script, Game game, [Map json])
+      : super(game) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
+
+    if (json != null) {
+      json["dialog"]
+          .map((d) => new DialogEvent.fromJson(d))
+          .forEach(_addDialog);
+      json["options"]
+          .map((o) => new AddOption.fromJson(o, script))
+          .forEach(_addOption);
+    }
   }
 
   @override
-  void beforeBegin(Game game) {
-    game.on[DialogEvent].listen((e) => new DialogElement(e, _mainPanel));
+  Map<String, Listener> get listeners => {
+    "addDialog": _addDialog,
+    "addOption": _addOption,
+    "removeOption": _removeOption
+  };
 
-    game.on[AddOption]
-        .listen((e) => new OptionElement(e.option, game, _optionsPanel));
-
-    game.on[RemoveOption].listen((e) => _optionsPanel.children
-        .removeWhere((c) => c.innerHtml == e.option.title));
-
-    game.on[ModalDialogEvent]
-        .listen((e) => new ModalDialogElement(e, game, _mainPanel));
+  @override
+  void onBegin() {
+    on(DialogEvent)
+      ..persistently()
+      ..listen("addDialog");
+    on(AddOption)
+      ..persistently()
+      ..listen("addOption");
+    on(RemoveOption)
+      ..persistently()
+      ..listen("removeOption");
   }
+
+  _addOption(AddOption e) {
+    _options.add(e.option);
+    new OptionElement(e.option, broadcast, _optionsPanel);
+  }
+
+  _addDialog(DialogEvent e) {
+    _dialog.add(e);
+    new DialogElement(e, _mainPanel);
+  }
+
+  _removeOption(RemoveOption e) {
+    _options.removeWhere((o) => o.title == e.option.title);
+    _optionsPanel.children.removeWhere((c) => c.innerHtml == e.option.title);
+  }
+
+  Map toJson() => {"options": _options, "dialog": _dialog};
 }
 
 class DialogElement {
@@ -42,8 +76,8 @@ class DialogElement {
       ..innerHtml = "${e.target}";
 
     var what = new DivElement()
-      ..classes.add('what')
-      ..innerHtml = '${e.what}';
+      ..classes.add('dialog-text')
+      ..innerHtml = '${e.dialog}';
 
     var dialog = new DivElement()
       ..classes.add('dialog')
@@ -53,42 +87,42 @@ class DialogElement {
   }
 }
 
-class ModalDialogElement {
-  ModalDialogElement(ModalDialogEvent e, Game game, HtmlElement container) {
-    var speaker = new DivElement()
-      ..classes.add('speaker')
-      ..innerHtml = "${e.speaker}";
-
-    var target = new DivElement()
-      ..classes.add('target')
-      ..innerHtml = "${e.target}";
-
-    var what = new DivElement()
-      ..classes.add('what')
-      ..innerHtml = '${e.what}';
-
-    var replies = e.replies.map((r) => new DivElement()
-      ..classes.add('reply')
-      ..innerHtml = '${r.title}'
-      ..onClick.first.then((e) => game.broadcast(r.event)));
-
-    var replyContainer = new DivElement()
-      ..classes.add('replies')
-      ..children.addAll(replies);
-
-    var dialog = new DivElement()
-      ..classes.add('dialog')
-      ..children.addAll([speaker, target, what, replyContainer]);
-
-    container.children.add(dialog);
-  }
-}
+//class ModalDialogElement {
+//  ModalDialogElement(ModalDialogEvent e, Game game, HtmlElement container) {
+//    var speaker = new DivElement()
+//      ..classes.add('speaker')
+//      ..innerHtml = "${e.speaker}";
+//
+//    var target = new DivElement()
+//      ..classes.add('target')
+//      ..innerHtml = "${e.target}";
+//
+//    var what = new DivElement()
+//      ..classes.add('what')
+//      ..innerHtml = '${e.what}';
+//
+//    var replies = e.replies.map((r) => new DivElement()
+//      ..classes.add('reply')
+//      ..innerHtml = '${r.title}'
+//      ..onClick.first.then((e) => game.broadcast(r.event)));
+//
+//    var replyContainer = new DivElement()
+//      ..classes.add('replies')
+//      ..children.addAll(replies);
+//
+//    var dialog = new DivElement()
+//      ..classes.add('dialog')
+//      ..children.addAll([speaker, target, what, replyContainer]);
+//
+//    container.children.add(dialog);
+//  }
+//}
 
 class OptionElement {
-  OptionElement(Option o, Game game, HtmlElement container) {
+  OptionElement(Option o, void broadcast(Event e), HtmlElement container) {
     container.children.add(new DivElement()
       ..classes.add('option')
       ..innerHtml = o.title
-      ..onClick.listen((e) => o.trigger(game)));
+      ..onClick.listen((e) => o.trigger(broadcast)));
   }
 }

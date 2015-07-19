@@ -4,74 +4,66 @@
 part of august.core;
 
 abstract class Event {
-  DateTime _timeStamp = null;
-  DateTime get timeStamp => _timeStamp;
-  bool get hasOccurred => timeStamp == null;
-
-  String toString() => "$timeStamp > ${this.runtimeType}()";
-}
-
-abstract class TargetedEvent extends Event {
-  Actor get target;
+  final String id = _uuid.v4();
 }
 
 class BeginEvent extends Event {}
 
-class DialogEvent extends TargetedEvent {
-  final Actor speaker;
-  final Actor target;
-  final String what;
+class DialogEvent extends Event {
+  final String speaker;
+  final String target;
+  final String dialog;
 
-  DialogEvent(this.speaker, this.what, {this.target});
+  DialogEvent(this.speaker, this.dialog, {this.target});
+  DialogEvent.fromJson(Map json)
+      : speaker = json["speaker"],
+        target = json["target"],
+        dialog = json["dialog"];
 
-  @override
-  String toString() => "$timeStamp > "
-      "DialogEvent(speaker: $speaker, target: $target, what: $what)";
-}
+  String toString() => "$id > "
+      "DialogEvent(speaker: $speaker, target: $target, dialog: $dialog)";
 
-class ModalDialogEvent extends TargetedEvent {
-  final Actor speaker;
-  final Actor target;
-  final String what;
-  final Iterable<Reply> replies;
-
-  ModalDialogEvent(this.speaker, this.what, this.target, this.replies);
-
-  @override
-  String toString() => "$timeStamp > "
-      "ModalDialogEvent(speaker: $speaker, target: $target, what: $what, "
-      "replies: $replies)";
+  Map toJson() => {"speaker": speaker, "target": target, "dialog": dialog};
 }
 
 class AddOption extends Event {
   final Option option;
 
-  AddOption(this.option) {
-    checkNotNull(option, message: "Option cannot be null.");
-  }
+  AddOption(this.option);
+  AddOption.fromJson(Map json, Script script)
+      : option = new Option.fromJson(json["option"], script);
 
-  @override
-  String toString() => "$timeStamp > AddOption(option: $option)";
+  String toString() => "$id > AddOption(option: $option)";
+
+  Map toJson() => {"option": option};
 }
 
 class RemoveOption extends Event {
   final Option option;
 
-  RemoveOption(this.option) {
-    checkNotNull(option, message: "Option cannot be null.");
-  }
+  RemoveOption(this.option);
+  RemoveOption.fromJson(Map json, Script script)
+      : option = new Option.fromJson(json["option"], script);
 
-  @override
-  String toString() => "$timeStamp > RemoveOption(option: $option)";
+  String toString() => "$id > RemoveOption(option: $option)";
+
+  Map toJson() => {"option": option};
 }
 
 class AddActor extends Event {
-  final Actor actor;
+  final String actor;
 
-  AddActor(this.actor) {
-    checkNotNull(actor, message: 'Actor cannot be null.');
-  }
+  AddActor(this.actor);
+  AddActor.fromJson(Map json) : actor = json["actor"];
 
-  @override
-  String toString() => "$timeStamp > AddActor(actor: $actor)";
+  String toString() => "$id > AddActor(actor: $actor)";
+
+  Map toJson() => {"actor": actor};
 }
+
+Map<Type, EventDeserializer> _defaultEvents = {
+  DialogEvent: (json, script) => new DialogEvent.fromJson(json),
+  AddActor: (json, script) => new AddActor.fromJson(json),
+  AddOption: (json, script) => new AddOption.fromJson(json, script),
+  RemoveOption: (json, script) => new RemoveOption.fromJson(json, script)
+};

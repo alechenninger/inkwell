@@ -1,3 +1,3 @@
 # august
 
-Library for writing event-driven, browser-based, text adventure games! 
+Library for writing event-driven, browser-based, text adventure games!

@@ -4,14 +4,41 @@
 part of august.core;
 
 /// Global "option" that represents a decision point for a player.
-abstract class Option {
-  String get title;
+class Option {
+  final String title;
+  final Event _event;
+  int _available;
 
-  factory Option.singleUse(String title, Event event) {
-    return new _SingleUseOption(title, event);
+  Option(this.title, this._event, {int available: 1}) {
+    _available = available;
   }
 
-  void trigger(Game game);
+  Option.fromJson(Map json, Script script)
+      : title = json["title"],
+        _event = script.getEvent(json["event"]["type"], json["event"]["data"]) {
+    _available = json["available"];
+  }
+
+  int get available => _available;
+
+  void trigger(void broadcast(Event e)) {
+    if (_available < 1) {
+      throw new StateError("Cannot use an option if it is not available.");
+    }
+
+    _available = _available - 1;
+    if (_available == 0) {
+      broadcast(new RemoveOption(this));
+    }
+
+    broadcast(_event);
+  }
+
+  Map toJson() => {
+    "title": title,
+    "available": available,
+    "event": {"type": _event.runtimeType, "data": _event}
+  };
 }
 
 /// Single use "option" as a result of a specific event.
@@ -24,30 +51,6 @@ class Reply {
 
   /// See [event]
   Reply(this.title, this.event);
-}
 
-/// Options present [Event]s that are triggerable by an intelligent [Actor]
-/// (either human or AI). Options are usually presented via a user interface
-/// component and triggered by user input, like keyboard, touch, or mouse. To
-/// "trigger" an option is to broadcast its associated [Event].
-class _SingleUseOption implements Option {
-  final String title;
-  final Event _event;
-
-  // TODO: Need to keep track of 'triggered' status?
-  // In other words, is it possible that trigger can be called >1 time before
-  // RemoveOption event is handled?
-
-  _SingleUseOption(this.title, this._event) {
-    checkNotNull(title);
-    checkNotNull(_event);
-  }
-
-  void trigger(Game game) {
-    game.broadcast(new RemoveOption(this));
-    game.broadcast(_event);
-  }
-
-  @override
-  String toString() => "_SingleUseOption(title: $title, _event: $_event)";
+  Map toJson() => {"title": title, "event": event};
 }

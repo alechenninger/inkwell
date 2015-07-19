@@ -4,63 +4,56 @@
 part of august.core;
 
 abstract class Actor {
-  /// Called before [onBegin]. Use to register event handlers prior to the start
-  /// of the [Game]. Broadcasting events from [beforeBegin] is considered an
-  /// error.
-  ///
-  /// If an actor is added to a game after it has already begun, `beforeBegin`
-  /// is called immediately, before `onBegin`.
-  beforeBegin(Game game);
+  Map<String, Listener> get listeners;
 
-  /// > Lights, camera... action!
-  ///
-  /// Called when the [Game] begins. By default, does nothing. Some [Actor]s
-  /// may want to broadcast [Event]s. [Event] listeners should be registered
-  /// in [beforeBegin].
-  ///
-  /// If an actor is added to a game after it has already begun, `onBegin` is
-  /// called immediately, after `beforeBegin`.
-  onBegin(Game game) {}
-
-  String toString() => this.runtimeType.toString();
+  void onBegin();
 }
 
-class Inventory {
-  final Map<Item, int> _items = {};
+abstract class ActorSupport implements Actor {
+  final Game game;
 
-  add(Item item, [int qty = 1]) {
-    int currentQty = _items[item];
+  ActorSupport(this.game);
 
-    if (currentQty == null) {
-      currentQty = 0;
-    }
+  SubscriptionBuilder on(Type eventType) =>
+      new SubscriptionBuilder(this.runtimeType, eventType, game);
 
-    int newQty = currentQty + qty;
+  void broadcast(Event event) => game.broadcast(event);
 
-    if (newQty > 0) {
-      _items[item] = newQty;
-    } else {
-      _items.remove(item);
-    }
+  void broadcastDelayed(Duration delay, Event event) =>
+      game.broadcastDelayed(delay, event);
+
+  void addOption(Option option) => game.addOption(option);
+}
+
+/// Responds to an [Event] occurrence. [Listener]s are actor-specific.
+typedef void Listener<T>(Event event);
+
+class SubscriptionBuilder {
+  final Type actorType;
+  final Type eventType;
+  final Game game;
+
+  EventFilter _filter;
+  bool _persistent = false;
+
+  SubscriptionBuilder(this.actorType, this.eventType, this.game) {
+    _filter = new EventTypeEq(eventType.toString());
   }
 
-  Item consume(item, [int qty = 1]) {
-    int currentQty = _items[item];
+  void where(EventFilter filter) {
+    _filter = _filter.and(filter);
+  }
 
-    if (currentQty == null) {
-      currentQty = 0;
-    }
+  void persistently() {
+    _persistent = true;
+  }
 
-    int newQty = currentQty - qty;
-
-    if (newQty > 0) {
-      _items[item] = newQty;
-    } else {
-      _items.remove(item);
-    }
-
-    return item;
+  void listen(String listener) {
+    game.subscribe(listener, actorType, filter: _filter, persistent: _persistent);
   }
 }
 
-class Item {}
+abstract class ListenerType {
+  String get name;
+  Listener get listener;
+}

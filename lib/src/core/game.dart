@@ -4,138 +4,168 @@
 part of august.core;
 
 abstract class Game {
-  /// Ordered log of all immutable [Event]s.
-  Journal get journal;
-
-  /// Provides syntactic sugar for listening to events of a specific type.
-  ///
-  /// Example:
-  ///
-  /// ```
-  /// game.on[DialogEvent].listen((e) => ...);
-  /// ```
-  Events get on;
-
-  Stream<Event> get stream;
-
-  /// Adds [actors] to the game, calling their [Actor.beforeBegin] callbacks
-  /// before firing off a [BeginEvent]. Actors should use `beforeBegin` to
-  /// register event handlers, and `onBegin` to fire events if necessary.
-  static Game begin(List<Actor> actors, [Journal getJournal(Game)]) {
-    getJournal = (getJournal != null) ? getJournal : _newDefaultJournal;
-    return new _Game(actors, getJournal);
+  static void start(Script script) {
+    new Game(script).begin();
   }
 
-  Future addActor(Actor a) {
-    return broadcast(new AddActor(a));
+  static void resume(Script script, Map json) {
+    new Game.fromJson(json, script);
   }
 
-  Future addActors(List<Actor> actors) {
-    var broadcastActors = actors.map((a) => broadcast(new AddActor(a)));
-
-    return Future.wait(broadcastActors);
+  factory Game(Script script) {
+    return new _Game(script);
   }
 
-  Future addOption(Option option) {
-    return broadcast(new AddOption(option));
+  factory Game.fromJson(Map json, Script script) {
+    return new _Game.fromJson(json, script);
   }
 
-  /// Schedule a new event to be broadcast to all registered listeners. The
-  /// event will not be broadcast immediately, but some time after the current
-  /// event loop cycle is done.
-  ///
-  /// It is an error to broadcast an [Event] before [begin] is called.
-  ///
-  /// Returns a [Future] that completes with the event when it is broadcast to
-  /// all listeners.
-  Future<Event> broadcast(Event event);
+  void begin();
 
-  /// Schedule a new event to be broadcast to all registered listeners after
-  /// the provided [Duration]. If it is 0 or less, it behaves as [broadcast].
-  ///
-  /// It is an error to broadcast an [Event] before [begin] is called.
-  ///
-  /// Returns a [Future] that completes with the event when it is broadcast to
-  /// all listeners.
-  Future<Event> broadcastDelayed(Duration delay, Event event);
+  void addActor(Type a);
+
+  void addOption(Option option);
+
+  void broadcast(Event event);
+
+  void broadcastDelayed(Duration delay, Event event);
+
+  void subscribe(String listenerName, Type actorType,
+      {EventFilter filter: const AllEvents(), bool persistent: false});
+
+  Actor getActor(String type);
 }
 
-class _Game extends Game {
-  /// Main broadcast stream controller which serves an [Event] sink as well as
-  /// the [Stream] of [Event]s. Listening and broadcasting events is the
-  /// central mechanic of communicating between actors and changing state.
+abstract class _GameBase implements Game {
+  void begin() => broadcast(new BeginEvent());
+
+  void addActor(Type a) => broadcast(new AddActor(a.toString()));
+
+  void addOption(Option option) => broadcast(new AddOption(option));
+
+  void broadcast(Event event) => broadcastDelayed(const Duration(), event);
+}
+
+class _Game extends _GameBase {
+  // Current state
+  Map<String, Actor> _actors;
+  List<Option> _options;
+  List<Subscription> _subscriptions;
+  List<PendingEvent> _pendingEvents;
+
+  final Duration _offset;
+  final Stopwatch _stopwatch = new Stopwatch();
+
   final StreamController<Event> _ctrl =
       new StreamController.broadcast(sync: true);
 
-  Events _events;
+  final Script _script;
 
-  Journal _journal;
+  _Game(this._script) : _offset = const Duration() {
+    _actors = _script.getActors(this);
+    _options = [];
+    _subscriptions = [];
+    _pendingEvents = [];
 
-  bool _hasBegun = false;
+    _ctrl.stream
+        .firstWhere((e) => e is BeginEvent)
+        .then((e) => _stopwatch.start())
+        .then((e) => _actors.values.forEach((a) => a.onBegin()));
 
-  Journal get journal => _journal;
-
-  Events get on => _events;
-
-  Stream<Event> get stream => _ctrl.stream;
-
-  _Game(List<Actor> actors, Journal getJournal(Game)) {
-    _journal = getJournal(this);
-    _events = new Events(stream);
-
-    _registerHandlers();
-
-    actors.forEach((a) => _addEvent(new AddActor(a)));
-
-    _hasBegun = true;
-
-    broadcast(new BeginEvent());
+    _ctrl.stream.listen((e) => print(e));
   }
 
-  Future broadcast(Event e) {
-    // Thanks, Günter! http://stackoverflow.com/a/29070144/2216134
-    return new Future(() => _addEvent(e));
-  }
-
-  Future broadcastDelayed(Duration delay, Event e) {
-    return new Future.delayed(delay, () => _addEvent(e));
-  }
-
-  _registerHandlers() {
-    on[AddActor].listen((e) {
-      e.actor.beforeBegin(this);
-
-      if (_hasBegun) {
-        e.actor.onBegin(this);
-      } else {
-        on[BeginEvent].listen((_) => e.actor.onBegin(this));
-      }
-    });
-  }
-
-  /// Synchronously add an event to the broadcast stream
-  Event _addEvent(Event e) {
-    e._timeStamp = new DateTime.now();
-    _ctrl.add(e);
-    return e;
-  }
-}
-
-class Events {
-  final Stream<Event> _events;
-
-  Events(this._events);
-
-  /// [eventType] may be a [Type] or an instance of a specific event.
-  Stream<Event> operator [](dynamic eventOrType) {
-    if (eventOrType is Type) {
-      return _events.where((e) => e.runtimeType == eventOrType);
+  _Game.fromJson(Map json, this._script)
+      : _offset = new Duration(microseconds: json["offset"]) {
+    if (!_isCompatible(json, _script)) {
+      throw new ArgumentError("Json is not compatible with script.");
     }
 
-    return _events.where((e) => e == eventOrType);
+    _options =
+        json["options"].map((o) => new Option.fromJson(o, _script)).toList();
+
+    json["subscriptions"]
+        .map((s) => new Subscription.fromJson(s, _script))
+        .forEach(_addSubscription);
+
+    json["pendingEvents"]
+        .map((s) => new PendingEvent.fromJson(s, _script))
+        .forEach((e) => broadcastDelayed(e.offset, e.event));
+
+    _actors = _script.getActors(this, json["actors"]);
+
+    _stopwatch.start();
+  }
+
+  void broadcastDelayed(Duration delay, Event event) {
+    _pendingEvents.add(new PendingEvent(delay, event));
+    new Future.delayed(delay, () => _addEvent(event));
+  }
+
+  /// Subscribes to the next (and only the next) event that matches filter.
+  void subscribe(String listenerName, Type actorType,
+      {EventFilter filter: const AllEvents(), bool persistent: false}) {
+    // TODO: Review use of String vs Type
+    _addSubscription(new Subscription(filter, listenerName, "$actorType",
+        persistent: persistent));
+  }
+
+  Actor getActor(String type) => _actors[type];
+
+  Map toJson() => {
+    "script": {"name": _script.name, "version": _script.version},
+    "offset": _offset.inMicroseconds,
+    "actors": _actors,
+    "options": _options,
+    "subscriptions": _subscriptions,
+    "pendingEvents": _pendingEvents
+  };
+
+  /// Adds a [Stream] listener based on the [subscription]. The `subscription`
+  /// is added to [_subscriptions] and removed from when the first relevant
+  /// event is fired.
+  void _addSubscription(Subscription subscription) {
+    _subscriptions.add(subscription);
+
+    if (subscription.persistent) {
+      subscription.filter.filter(_ctrl.stream).listen((e) {
+        subscription.getListener(this)(e);
+      });
+    } else {
+      subscription.filter.filter(_ctrl.stream).first.then((e) {
+        _subscriptions.removeWhere((s) => s.id == subscription.id);
+        subscription.getListener(this)(e);
+      });
+    }
+  }
+
+  void _addEvent(Event event) {
+    _pendingEvents.removeWhere((pending) => pending.event.id == event.id);
+    _ctrl.add(event);
   }
 }
 
-Journal _newDefaultJournal(game) {
-  return new Journal(game, shouldLog: true);
+class PendingEvent {
+  final Duration offset;
+  final Event event;
+
+  PendingEvent(this.offset, this.event);
+
+  PendingEvent.fromJson(Map json, Script script)
+      : offset = new Duration(microseconds: json["offset"]),
+        event = script.getEvent(json["event"]["type"], json["event"]["data"]);
+
+  Map toJson() => {
+    "offset": offset.inMicroseconds,
+    "event": {"type": event.runtimeType, "data": event}
+  };
+}
+
+/// Tests that the json representation of this game is compatible with the
+/// provided [script].
+bool _isCompatible(Map json, Script script) {
+  var scriptInfo = json["script"];
+  var name = scriptInfo["name"];
+  var version = scriptInfo["version"];
+  return name == script.name && version == script.version;
 }
