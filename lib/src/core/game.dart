@@ -8,7 +8,7 @@ abstract class Game {
     new Game(script).begin();
   }
 
-  static void startExisting(Script script, Map json) {
+  static void resume(Script script, Map json) {
     new Game.fromJson(json, script);
   }
 
@@ -31,7 +31,7 @@ abstract class Game {
   void broadcastDelayed(Duration delay, Event event);
 
   void subscribe(String listenerName, Type actorType,
-      {EventFilter filter: const AllEvents()});
+      {EventFilter filter: const AllEvents(), bool persistent: false});
 
   Actor getActor(String type);
 }
@@ -72,8 +72,7 @@ class _Game extends _GameBase {
         .then((e) => _stopwatch.start())
         .then((e) => _actors.values.forEach((a) => a.onBegin()));
 
-    _ctrl.stream
-      .listen((e) => print(e));
+    _ctrl.stream.listen((e) => print(e));
   }
 
   _Game.fromJson(Map json, this._script)
@@ -104,11 +103,11 @@ class _Game extends _GameBase {
   }
 
   /// Subscribes to the next (and only the next) event that matches filter.
-  // TODO: Handle long-running subscriptions? (Not just first matching)
   void subscribe(String listenerName, Type actorType,
-      {EventFilter filter: const AllEvents()}) {
+      {EventFilter filter: const AllEvents(), bool persistent: false}) {
     // TODO: Review use of String vs Type
-    _addSubscription(new Subscription(filter, listenerName, "$actorType"));
+    _addSubscription(new Subscription(filter, listenerName, "$actorType",
+        persistent: persistent));
   }
 
   Actor getActor(String type) => _actors[type];
@@ -128,10 +127,16 @@ class _Game extends _GameBase {
   void _addSubscription(Subscription subscription) {
     _subscriptions.add(subscription);
 
-    subscription.filter.filter(_ctrl.stream).first.then((e) {
-      _subscriptions.removeWhere((s) => s.id == subscription.id);
-      subscription.getListener(this)(e);
-    });
+    if (subscription.persistent) {
+      subscription.filter.filter(_ctrl.stream).listen((e) {
+        subscription.getListener(this)(e);
+      });
+    } else {
+      subscription.filter.filter(_ctrl.stream).first.then((e) {
+        _subscriptions.removeWhere((s) => s.id == subscription.id);
+        subscription.getListener(this)(e);
+      });
+    }
   }
 
   void _addEvent(Event event) {

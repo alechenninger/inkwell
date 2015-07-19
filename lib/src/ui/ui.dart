@@ -36,9 +36,15 @@ class SimpleHtmlUi extends ActorSupport {
 
   @override
   void onBegin() {
-    on(DialogEvent).listen("addDialog");
-    on(AddOption).listen("addOption");
-    on(RemoveOption).listen("removeOption");
+    on(DialogEvent)
+      ..persistently()
+      ..listen("addDialog");
+    on(AddOption)
+      ..persistently()
+      ..listen("addOption");
+    on(RemoveOption)
+      ..persistently()
+      ..listen("removeOption");
   }
 
   _addOption(AddOption e) {

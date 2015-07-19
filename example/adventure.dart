@@ -24,7 +24,7 @@ main() {
             [json]) => new SimpleHtmlUi(container, script, game, json))).build(
       "adventure", "1.0.0");
 
-  new Game(script)..begin();
+  new Game(script).begin();
 }
 
 class Jack extends ActorSupport {
@@ -74,8 +74,12 @@ class Jill extends ActorSupport {
   }
 
   @override
-  Map<String, Listener> get listeners =>
-      {_jackAsksToFetchWater: (DialogEvent e) {}};
+  Map<String, Listener> get listeners => {
+    _jackAsksToFetchWater: (DialogEvent e) {
+      broadcastDelayed(new Duration(seconds: 1, milliseconds: 500),
+          new DialogEvent("Jill", "Sure", target: "Jack"));
+    }
+  };
 
   @override
   void onBegin() {

@@ -9,11 +9,13 @@ class Subscription {
   // TODO: lister name / actor name combo is really a type
   final String actor;
   final String listener;
+  final bool persistent;
 
-  Subscription(this.filter, this.listener, this.actor);
+  Subscription(this.filter, this.listener, this.actor, {this.persistent: false});
   Subscription.fromJson(Map json, Script script) : this(
           script.getFilter(json["filter"]["type"], json["filter"]["data"]),
-          json["listener"], json["actor"]);
+          json["listener"], json["actor"],
+          persistent: json["persistent"]);
 
   Listener getListener(Game game) {
     return game.getActor(actor).listeners[listener];
@@ -22,7 +24,8 @@ class Subscription {
   Map toJson() => {
     "filter": {"type": filter.runtimeType, "data": filter},
     "listener": listener,
-    "actor": actor
+    "actor": actor,
+    "persistent": persistent
   };
 }
 

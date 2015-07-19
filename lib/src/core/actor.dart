@@ -34,6 +34,7 @@ class SubscriptionBuilder {
   final Game game;
 
   EventFilter _filter;
+  bool _persistent = false;
 
   SubscriptionBuilder(this.actorType, this.eventType, this.game) {
     _filter = new EventTypeEq(eventType.toString());
@@ -43,8 +44,12 @@ class SubscriptionBuilder {
     _filter = _filter.and(filter);
   }
 
+  void persistently() {
+    _persistent = true;
+  }
+
   void listen(String listener) {
-    game.subscribe(listener, actorType, filter: _filter);
+    game.subscribe(listener, actorType, filter: _filter, persistent: _persistent);
   }
 }
 
