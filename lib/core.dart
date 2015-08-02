@@ -42,9 +42,9 @@ class Event {
 }
 
 start(Script script, List<CreateUi> uis) {
-  StreamController<Event> _ctrl = new StreamController.broadcast(sync: true);
+  var _ctrl = new StreamController<Event>.broadcast(sync: true);
 
-  Future<Event> emit(event, {Duration delay: Duration.ZERO}) =>
+  Future emit(event, {delay: Duration.ZERO}) =>
       // Add the new event in a Future because we can't / don't want to
       // broadcast in the middle of a callback.
       new Future.delayed(delay, () {
@@ -52,11 +52,11 @@ start(Script script, List<CreateUi> uis) {
     return event;
   });
 
-  Future<Event> once(String eventAlias) {
+  Future once(String eventAlias) {
     return _ctrl.stream.firstWhere((e) => e.alias == eventAlias);
   }
 
-  Stream<Event> every(bool test(Event)) => _ctrl.stream.where(test);
+  Stream every(bool test(Event)) => _ctrl.stream.where(test);
 
   Map interfaces = {};
   Map modules = script.modules.fold({}, (map, moduleDef) {
@@ -86,22 +86,18 @@ abstract class InterfaceHandler {
 /// [args] should be natively serializable with [JSON].
 typedef void InterfaceEmit(String action, Map<String, dynamic> args);
 
-/// Module tracks state, emits events, allows listening to those events.
-typedef dynamic CreateModule(Once once, Every every, Emit emit, Map modules);
-
-/// Provides access to state and actions of the module. Actions should emit
-/// events which must be handled by the module's [InterfaceHandler]. Swappable.
-typedef dynamic CreateInterface(dynamic module, InterfaceEmit emit);
-
-/// Handles events emitted in interface.
-typedef InterfaceHandler CreateInterfaceHandler(dynamic module);
-
 abstract class ModuleDefinition {
+  /// Module tracks state, emits events, allows listening to those events.
   dynamic create(Once once, Every every, Emit emit, Map modules);
 }
 
 abstract class HasInterface {
+  /// Provides access to state and actions of the module. Actions should emit
+  /// events which must be handled by the module's [InterfaceHandler].
+  /// Swappable.
   dynamic createInterface(dynamic module, InterfaceEmit emit);
+
+  /// Handles events emitted in interface.
   InterfaceHandler createInterfaceHandler(dynamic module);
 }
 
