@@ -6,18 +6,20 @@ library august.example;
 import 'package:august/core.dart';
 
 main() {
-  start(jackAndJillV1);
+  start(jackAndJillV1, null /* TODO */);
 }
 
 class Jack {}
 
 class Jill {}
 
-var jackAndJillV1 = new Script("Jack and Jill", "1.0.0",
-    (Once once, Options options, Emit emit) {
+var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [new OptionsModule()],
+    (Once once, Emit emit, Map modules) {
   // TODO: How to handle scope of these? IoC?
   Jack jack = new Jack();
   Jill jill = new Jill();
+
+  Options options = modules[Options];
 
   options.add("Talk to Jill");
 

@@ -9,22 +9,18 @@ export 'dart:async';
 /// A [Block] is a function which defines the body of a [Script]. It emits
 /// events, adds event listeners, and adds to the [Options] available to the
 /// player.
-typedef void Block(Once once, Options options, Emit emit);
+typedef void Block(Once once, Emit emit, Map modules);
 
 /// Adds an [Event] listener for the next (and only the next) event that occurs
 /// with the [eventAlias].
 typedef Future<Event> Once(String eventAlias);
 
+typedef Stream<Event> Every(bool test(Event));
+
 /// Emits an [Event] with an optional [delay]. Returns a [Future] which
 /// completes when the event has been emitted and all listeners have received
 /// it.
 typedef Future<Event> Emit(Event event, {Duration delay});
-
-/// Combines many [Blocks] into one which consolidates all passed blocks,
-/// applything them in iteration order.
-Block blocks(List<Block> blocks) => (Once once, Options options, Emit emit) {
-  blocks.forEach((p) => p(once, options, emit));
-};
 
 class Script {
   final String name;
@@ -33,7 +29,10 @@ class Script {
   /// See [Block]
   final Block block;
 
-  Script(this.name, this.version, this.block);
+  final List<ModuleDefinition> modules;
+
+  Script(
+      this.name, this.version, List<ModuleDefinition> this.modules, this.block);
 }
 
 class Event {
@@ -42,7 +41,7 @@ class Event {
   Event(this.alias);
 }
 
-start(Script script) {
+start(Script script, List<CreateUi> uis) {
   StreamController<Event> _ctrl = new StreamController.broadcast(sync: true);
 
   Future<Event> emit(event, {Duration delay: Duration.ZERO}) =>
@@ -57,7 +56,69 @@ start(Script script) {
     return _ctrl.stream.firstWhere((e) => e.alias == eventAlias);
   }
 
-  script.block(once, new Options(emit), emit);
+  Stream<Event> every(bool test(Event)) => _ctrl.stream.where(test);
+
+  Map interfaces = {};
+  Map modules = script.modules.fold({}, (map, moduleDef) {
+    var module = moduleDef.create(once, every, emit, map);
+    map[module.runtimeType] = module;
+
+    if (module is HasInterface) {
+      var iHandler = module.createInterfaceHandler(module);
+      interfaces[module.runtimeType] = module.createInterface(module,
+          (action, args) {
+        // TODO: should also persist for keeping track of progress
+        iHandler.handle(action, args);
+      });
+    }
+  });
+
+  uis.forEach((createUi) => createUi(interfaces));
+
+  script.block(once, emit, modules);
+}
+
+abstract class InterfaceHandler {
+  void handle(String action, Map<String, dynamic> args);
+}
+
+/// Emits events from user interactions. These events will be serialized, so
+/// [args] should be natively serializable with [JSON].
+typedef void InterfaceEmit(String action, Map<String, dynamic> args);
+
+/// Module tracks state, emits events, allows listening to those events.
+typedef dynamic CreateModule(Once once, Every every, Emit emit, Map modules);
+
+/// Provides access to state and actions of the module. Actions should emit
+/// events which must be handled by the module's [InterfaceHandler]. Swappable.
+typedef dynamic CreateInterface(dynamic module, InterfaceEmit emit);
+
+/// Handles events emitted in interface.
+typedef InterfaceHandler CreateInterfaceHandler(dynamic module);
+
+abstract class ModuleDefinition {
+  dynamic create(Once once, Every every, Emit emit, Map modules);
+}
+
+abstract class HasInterface {
+  dynamic createInterface(dynamic module, InterfaceEmit emit);
+  InterfaceHandler createInterfaceHandler(dynamic module);
+}
+
+typedef dynamic CreateUi(Map interfaces);
+
+class OptionsModule implements ModuleDefinition, HasInterface {
+  Options create(Once once, Every every, Emit emit, Map modules) {
+    return new Options(emit);
+  }
+
+  OptionsInterface createInterface(Options options, InterfaceEmit emit) {
+    return new OptionsInterface(options, emit);
+  }
+
+  OptionsInterfaceHandler createInterfaceHandler(Options options) {
+    return new OptionsInterfaceHandler(options);
+  }
 }
 
 class Options {
@@ -84,8 +145,6 @@ class Options {
   /// well.
   ///
   /// Throws an [ArgumentError] if the `option` is not available.
-  // TODO: Should this actually emit an event? Should this event be saved to
-  // disk? No I think because non-user interactions could stil call this API.
   void use(String option) {
     if (!_opts.remove(option)) {
       throw new ArgumentError.value(
@@ -103,8 +162,31 @@ class Options {
   }
 
   Set<String> get available => new Set.from(_opts);
+}
 
-  noSuchMethod(Invocation invocation) {
-    invocation.memberName
+class OptionsInterface {
+  final Options _options;
+  final InterfaceEmit _emit;
+
+  OptionsInterface(this._options, this._emit);
+
+  void use(String option) {
+    // UserEmit created per module so scope is restricted by default
+    _emit("use", {"option": option});
+  }
+
+  Set<String> get available => _options.available;
+}
+
+class OptionsInterfaceHandler implements InterfaceHandler {
+  final Options _options;
+
+  OptionsInterfaceHandler(this._options);
+
+  void handle(String action, Map args) {
+    switch (action) {
+      case "use":
+        _options.use(args["option"]);
+    }
   }
 }
