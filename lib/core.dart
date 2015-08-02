@@ -3,65 +3,108 @@
 
 library august.core;
 
-import 'package:quiver/check.dart';
-
 import 'dart:async';
 export 'dart:async';
 
-typedef Future<Event> Once(dynamic event);
-typedef Stream<Event> Every(dynamic event);
-typedef Future<Event> Emit(Event event);
-typedef void RunScript(Once once, Options options, Emit emit);
+/// A [Block] is a function which defines the body of a [Script]. It emits
+/// events, adds event listeners, and adds to the [Options] available to the
+/// player.
+typedef void Block(Once once, Options options, Emit emit);
+
+/// Adds an [Event] listener for the next (and only the next) event that occurs
+/// with the [eventAlias].
+typedef Future<Event> Once(String eventAlias);
+
+/// Emits an [Event] with an optional [delay]. Returns a [Future] which
+/// completes when the event has been emitted and all listeners have received
+/// it.
+typedef Future<Event> Emit(Event event, {Duration delay});
+
+/// Combines many [Blocks] into one which consolidates all passed blocks,
+/// applything them in iteration order.
+Block blocks(List<Block> blocks) => (Once once, Options options, Emit emit) {
+  blocks.forEach((p) => p(once, options, emit));
+};
 
 class Script {
   final String name;
   final String version;
-  final RunScript run;
 
-  Script(this.name, this.version, this.run);
+  /// See [Block]
+  final Block block;
+
+  Script(this.name, this.version, this.block);
 }
 
 class Event {
-  final String name;
+  final String alias;
 
-  Event(this.name);
+  Event(this.alias);
 }
 
-class Run {
-  final Script _script;
+start(Script script) {
+  StreamController<Event> _ctrl = new StreamController.broadcast(sync: true);
 
-  Run(this._script);
+  Future<Event> emit(event, {Duration delay: Duration.ZERO}) =>
+      // Add the new event in a Future because we can't / don't want to
+      // broadcast in the middle of a callback.
+      new Future.delayed(delay, () {
+    _ctrl.add(event);
+    return event;
+  });
 
-  void start() {
-    StreamController<Event> _ctrl =
-        new StreamController.broadcast(sync: true);
-
-    Future<Event> once(String eventName) {
-      return _ctrl.stream
-          .firstWhere((e) => e.name == eventName);
-    }
-
-    Stream<Event> every(String eventName) {
-      return _ctrl.stream.where((e) => e.name == eventName);
-    }
-
-    _script.run(once, new Options(), (event) {
-      _ctrl.add(event);
-      return new Future(() => event);
-    });
+  Future<Event> once(String eventAlias) {
+    return _ctrl.stream.firstWhere((e) => e.alias == eventAlias);
   }
+
+  script.block(once, new Options(emit), emit);
 }
 
 class Options {
-  Set _opts = new Set();
+  final Set _opts = new Set();
+  final List<Set> _exclusives = new List();
+  final Emit _emit;
 
-  void add(String option) {
-    _opts.add(option);
+  Options(this._emit);
+
+  bool add(String option) => _opts.add(option);
+
+  /// Adds all of the options, and binds them together such that the use of any
+  /// of them, removes the rest. That is, they are mutually exclusive options.
+  void addExclusive(Iterable<String> options) {
+    var asSet = options.toSet();
+    asSet.forEach(add);
+    _exclusives.add(asSet);
   }
 
-  void remove(String option) {
-    _opts.remove(option);
+  bool remove(String option) => _opts.remove(option);
+
+  /// Emits an [Event] with the [option] as its alias and removes it from the
+  /// list of available options. Other mutually exclusive options are removed as
+  /// well.
+  ///
+  /// Throws an [ArgumentError] if the `option` is not available.
+  // TODO: Should this actually emit an event? Should this event be saved to
+  // disk? No I think because non-user interactions could stil call this API.
+  void use(String option) {
+    if (!_opts.remove(option)) {
+      throw new ArgumentError.value(
+          option, "option", "Option not available to be used.");
+    }
+
+    _exclusives.where((s) => s.contains(option)).forEach((s) {
+      s.forEach((o) {
+        _opts.remove(o);
+      });
+      _exclusives.remove(s);
+    });
+
+    _emit(new Event(option));
   }
 
-  Set<String> get all => new Set.from(_opts);
+  Set<String> get available => new Set.from(_opts);
+
+  noSuchMethod(Invocation invocation) {
+    invocation.memberName
+  }
 }

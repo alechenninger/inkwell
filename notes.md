@@ -1,104 +1,82 @@
-So turns out we can fake time passage with custom dart Zones (see quiver.testing.fakeAsync)
-This changes things a bit.
+# notes
 
-So there are a few options:
-1. Save cached state. This is what's implemented ish currently.
-   Pro:
-     - Simple
-     - Clear compatibility rules: json format read and written
-     - Quick load
-   Con:
-     - Everything must be serializable.
-     - More verbose
-2. Save all emitted events, replay all emitted events, ignore events emitted outside of journal,
-   fake passage of time with new Zone.
-   Pro:
-     - Only events need to be serializable; actors/game/ui will rebuild their state
-     - Could write plain dart... use streams and futures freely.
-   Con:
-     - Could we ignore something we aren't supposed to?
-3. Save only user interface events, replay them, trick passage of time using zones.
-   Would basically treat user events as another actor with events triggered at each of the times,
-   then elapse the total time of the journal.
-   Pro:
-     - Only user interface events need to be serializable
-     - Could write plain dart... use streams and futures freely.
-   Con:
-     - How to deal with UI?
-       Less variance / flexibility. UI impl cannot have its own state. Need to be able to switch
-       UI impl after replayed.
+## design
 
-       UI has separate standard (or custom) components which maintain state. Then these have
-       presentation impls.
-4. Emit only state changes
-   Have to be able to manage state explicitly / intercept all setters and replay.
+### begin event
+removed 'begin' event: RunScript function runs at the start, it's synchronous,
+so just do everything you would do during or before a 'begin' event.
 
+### saving
+save user interactions only, replay with fake timer. anything else is an optimization
+will this retain "happens before" relationship with all events? I think so, because to fake timer, all non-duration based things are effectively instantaneous.
 
-Take a step back... what is best way to write a game like this?
+UI state must be tracked by non-presentation components.
+presentation must be able to be switched at any time. or at least toggled off/on.
 
-Class per actor
-Pro:
-  - Simple
-Con:
-  - Maybe hard to organize. Each actor has cross-cutting concerns from beginning
-    to end of story.
+### is everything an 'event'?
+should everything really be an 'event'? should separate what scripts listen to
+vs what ui's listen to? scripts listen to things by name, ui listen to things
+by type.
 
-Organize by "chapters"?
+### modular UI
+options module
+map module
+inventory module
 
+these things aren't isolated to UI though.
 
-Organize by "scene"?
+(Once once, Emit emit, Map modules) {
+  Options options = modules[Options];
+  Inventory inv = modules[Inventory];
+  Dialog dialog = modules[Dialog];
 
+}
 
-Do we have to organize by 'anything' in particular? can top level code help?
+modules maintain state. UI presentation interacts with modules.
 
-once('begin').then((Options options) {
-  options.add("Talk to Jill");
-});
+Service per module or one service for all modules?
+Compose UI of modules... but they kind of have to be aware of one another?
+Or you have a container framework but eh...
 
-once('Talk to Jill').then((Jack jack, Jill jill, Emit emit) async {
-  emit(new DialogEvent("Hi Jill, would you like to fetch some water?", from: jack, to: jill));
+class HtmlOptions {
+  final Options options;
 
-  await emit(new DialogEvent("Sure...", from: jill, to: jack), delay: new Duration(milliseconds: 500));
-  await emit(new DialogEvent("See you at the top of the hill!", from: jill to: jack), delay: new Duration(seconds: 1))
-  emit(new Narration("Jill runs off."));
+  HtmlOptions(Map modules): this.options = modules[Options];
+}
 
-  options.add("Follow Jill");
-  options.add("Try to run past Jill");
-  // TODO: options.addExclusive([...]) -- automatically removes other options when one is used; only allows one of list to be used
+How do presentation classes know about important state changes?
+- Events are emitted (by modules or by scripts directly?)
+  I think might not want to emit directly because you could have different
+  implementations of the module API actually?
+- Callbacks are registered
+- The presentation classes /are/ the module impls... but then if you wanted to
+  swap out you'd have redundant state storage impls and other redundant
+  complications (such as handling of exclusive options).
 
-  once(new Duration(seconds: 10), named: "Jill gets to top of hill alone").then((Emit emit) {
-    options.remove("Follow Jill");
-    options.remove("Run past Jill");
+Module:
+- handle complex state arrangement based on script usage
+- emit straightforward events for UI after state change
 
-    emit(todo("Not yet implemented"));
-  });
-});
+UI:
+- handles events to update UI
+- handles events from user to propagate back to modules
+- indicates user events which should be saved to replay
 
-once(anyOf("Follow Jill", "Try to run past Jill")).then(() {
-  // Could also define this in the event handler for "Jill gets to top of hill alone"...
-  // Something like, once(... unless: anyOf("Follow Jill", "Try to run past Jill"))
-  // or something like that...
-  removeEventHandler("Jill gets to top of hill alone");
-});
+now what should the input be to a UI component?
 
-once("Follow Jill").then((Options options) {
-  // This is not needed if use options.addExclusive as mentioned above
-  options.remove("Try to run past Jill");
+OptionsDisplay:
+(Options options)
+or
+(Set<String> getOptions(), void selectOption(String))
 
-  // TODO...
-});
+addUi((modules) => new OptionsDisplay(modules[Options]))
 
+addModule(Option, (emit) => new Option(emit));
 
+Would you ever want to swap out module implementations? (Maybe not even testing?)
+Mainly just want to be able to swap out UI layer.
+(So could define modules with script).
 
-
-"random" numbers...
-
-randoms:
-  name: 42
-user_events: # (or options... depends on if you can 'input' other things than options)
-  -
-    timestamp: 012312333
-    option: "foo"
-  -
-    timestamp: 012353477
-    option: "bar"
+Coupling...
+story -> module API
+ui -> 1. module API or 2. emitted events only
