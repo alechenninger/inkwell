@@ -4,6 +4,7 @@
 library august.example;
 
 import 'package:august/core.dart';
+import 'package:august/modules.dart';
 
 main() {
   start(jackAndJillV1, null /* TODO */);
@@ -13,26 +14,28 @@ class Jack {}
 
 class Jill {}
 
-var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [new OptionsModule()],
-    (Once once, Emit emit, Map modules) {
+var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [
+  new OptionsModule(),
+  new DialogModule()
+], (Once once, Emit emit, Map modules) {
   // TODO: How to handle scope of these? IoC?
   Jack jack = new Jack();
   Jill jill = new Jill();
 
   Options options = modules[Options];
+  Dialog dialog = modules[Dialog];
 
   options.add("Talk to Jill");
 
   once("Talk to Jill").then((_) async {
-    emit(new Dialog('Hi Jill, would you like to fetch some water?',
-        from: jack, to: jill));
+    dialog.add('Hi Jill, would you like to fetch some water?',
+        from: "Jack", to: "Jill");
 
-    await emit(new Dialog("Sure...", from: jill, to: jack),
-        delay: const Duration(milliseconds: 500));
-    await emit(
-        new Dialog("See you at the top of the hill!", from: jill, to: jack),
-        delay: const Duration(seconds: 1));
-    emit(new Narration("Jill runs off."));
+    await dialog.add("Sure...",
+        from: "Jill", to: "Jack", delay: const Duration(milliseconds: 500));
+    await dialog.add("See you at the top of the hill!",
+        from: "Jill", to: "Jack", delay: const Duration(seconds: 1));
+    dialog.narrate("Jill runs off.");
 
     options.add("Follow Jill");
     options.add("Try to run past Jill");
@@ -44,8 +47,6 @@ var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [new OptionsModule()],
     once("Jill gets to top of hill alone").then((_) {
       options.remove("Follow Jill");
       options.remove("Run past Jill");
-
-      emit(new Todo("Not yet implemented"));
     });
   });
 });

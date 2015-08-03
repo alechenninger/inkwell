@@ -102,3 +102,37 @@ user_events: # (or options... depends on if you can 'input' other things than op
   -
     timestamp: 012353477
     option: "bar"
+
+
+
+
+
+
+--------
+now with modules:
+
+```
+(Once once, Emit emit, Map modules) {
+  Options options = modules[Options];
+  Dialog dialog = module[Dialog];
+
+  emit(options.add("foo"));
+
+  emit(dialog.event("blah blah", from: bill, to: bob));
+  await emit(dialog.event("whu?", alias: "someone expresses confusion",
+      delay: const Duration(seconds: 5),
+      replies: ["Foobar", "Bar foo!"]);
+  
+
+  await emit(dialog.clear(alias: "silenced"));
+
+  dialog.once({said: const RegExp(r"[Bb]ar")}).then((e) {
+
+  });
+
+  once(dialog.like({said: const RegExp("r[Bbar]")})).then((e) {
+
+  });
+
+}
+```

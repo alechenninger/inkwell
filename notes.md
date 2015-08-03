@@ -79,4 +79,20 @@ Mainly just want to be able to swap out UI layer.
 
 Coupling...
 story -> module API
-ui -> 1. module API or 2. emitted events only
+ui -> 1. module API or 2. emitted events only or 3. neither
+3 neither would accept functions...
+Set<String> getOptions(), void selectOption(String),
+Stream<Event> additions, Stream<Event>, removals
+save(Event);
+replay(Event);
+
+
+save(() => options.use("foo"));
+
+module 'interface'
+
+OptionsInterface oi ... or just an alt impl of same API?
+
+oi.use(foo)
+
+emit(new SaveEvent(this, "use", ["foo"]))
