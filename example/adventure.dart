@@ -31,20 +31,20 @@ var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [
 
     options.addExclusive(["Follow Jill", "Try to run past Jill"]);
 
-    var jillAlone = new Canceller();
+    var jillBeatsJack = new Canceller();
     emit(new Event("Jill gets to top of hill alone"),
-        delay: const Duration(seconds: 10), canceller: jillAlone);
+        delay: const Duration(seconds: 10), canceller: jillBeatsJack);
 
     once("Jill gets to top of hill alone").then((_) {
-      options..remove("Follow Jill")..remove("Run past Jill");
+      options..remove("Follow Jill")..remove("Try to run past Jill");
     });
 
     once("Follow Jill").then((_) {
-      jillAlone.cancelled = true;
+      jillBeatsJack.cancelled = true;
     });
 
     once("Try to run past Jill").then((_) {
-      jillAlone.cancelled = true;
+      jillBeatsJack.cancelled = true;
     });
   });
 });
