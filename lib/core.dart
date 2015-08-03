@@ -19,7 +19,8 @@ typedef Stream<Event> Every(bool test(Event event));
 
 /// Emits an [Event] with an optional [delay]. Returns a [Future] which
 /// completes when the event has been emitted and all listeners have received
-/// it.
+/// it. Optionally pass a [canceller] to later cancel an event from being
+/// emitted.
 typedef Future<Event> Emit(Event event, {Duration delay, Canceller canceller});
 
 class Script {
@@ -44,13 +45,10 @@ class Event {
 start(Script script, List<CreateUi> uis) {
   var ctrl = new StreamController<Event>.broadcast(sync: true);
 
-  Future emit(event, {delay: Duration.ZERO, Canceller canceller}) {
-    canceller._event = event;
+  Future emit(event, {delay: Duration.ZERO, Canceller canceller: const _Uncancellable()}) {
     return new Future.delayed(delay, () {
-      if (canceller != null && canceller.cancelled) {
-        // Return a future which will never complete.
-        var completer = new Completer();
-        return completer.future;
+      if (canceller.cancelled) {
+        return _never;
       }
 
       ctrl.add(event);
@@ -110,24 +108,16 @@ abstract class HasInterface {
 typedef dynamic CreateUi(Map interfaces);
 
 class Canceller {
-  bool get cancelled => _cancelled;
-  void set cancelled(c) {
-    _cancelled = c;
-    if (cancelled) {
-      _onCancel.complete(_event);
-    }
-  }
-  Future get future => _onCancel.future;
-
-  bool _cancelled = false;
-  Event get _event => __event;
-  void set _event(event) {
-    if (_event != null) {
-      throw new StateError("Canceller already assigned an event. You can't use "
-          "a canceller more than once.");
-    }
-    __event = event;
-  }
-  final Completer _onCancel = new Completer();
-  Event __event;
+  bool cancelled = false;
 }
+
+class _Uncancellable implements Canceller {
+  bool get cancelled => false;
+  void set cancelled(_) {
+    throw new UnsupportedError("");
+  }
+  const _Uncancellable();
+}
+
+/// Future which will never complete.
+final Future _never = new Completer().future;
