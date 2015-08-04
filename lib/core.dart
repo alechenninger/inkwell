@@ -67,14 +67,16 @@ start(Script script, List<CreateUi> uis) {
     var module = moduleDef.create(once, every, emit, map);
     map[module.runtimeType] = module;
 
-    if (module is HasInterface) {
-      var iHandler = module.createInterfaceHandler(module);
-      interfaces[module.runtimeType] = module.createInterface(module,
+    if (moduleDef is HasInterface) {
+      var iHandler = moduleDef.createInterfaceHandler(module);
+      interfaces[module.runtimeType] = moduleDef.createInterface(module,
           (action, args) {
         // TODO: should also persist for keeping track of progress
         iHandler.handle(action, args);
       });
     }
+
+    return map;
   });
 
   uis.forEach((createUi) => createUi(interfaces));

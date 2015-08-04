@@ -5,9 +5,15 @@ library august.example;
 
 import 'package:august/core.dart';
 import 'package:august/modules.dart';
+import 'package:august/ui.dart';
 
 main() {
-  start(jackAndJillV1, null /* TODO */);
+  var container = querySelector("body");
+
+  start(jackAndJillV1, [
+    (interfaces) =>
+        new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
+  ]);
 }
 
 var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [

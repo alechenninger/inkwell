@@ -2,7 +2,7 @@ part of august.modules;
 
 class OptionsModule implements ModuleDefinition, HasInterface {
   Options create(Once once, Every every, Emit emit, Map modules) {
-    return new Options(emit);
+    return new Options(every, emit);
   }
 
   OptionsInterface createInterface(Options options, InterfaceEmit emit) {
@@ -18,10 +18,17 @@ class Options {
   final Set _opts = new Set();
   final List<Set> _exclusives = new List();
   final Emit _emit;
+  final Every _every;
 
-  Options(this._emit);
+  Options(this._every, this._emit);
 
-  bool add(String option) => _opts.add(option);
+  bool add(String option) {
+    if (_opts.add(option)) {
+      _emit(new AddOptionEvent(option));
+      return true;
+    }
+    return false;
+  }
 
   /// Adds all of the options, and binds them together such that the use of any
   /// of them, removes the rest. That is, they are mutually exclusive options.
@@ -35,7 +42,13 @@ class Options {
     _exclusives.add(asSet);
   }
 
-  bool remove(String option) => _opts.remove(option);
+  bool remove(String option) {
+    if (_opts.remove(option)) {
+      _emit(new RemoveOptionEvent(option));
+      return true;
+    }
+    return false;
+  }
 
   /// Emits an [Event] with the [option] as its alias and removes it from the
   /// list of available options. Other mutually exclusive options are removed as
@@ -49,16 +62,21 @@ class Options {
     }
 
     _exclusives.where((s) => s.contains(option)).forEach((s) {
-      s.forEach((o) {
-        _opts.remove(o);
-      });
+      s.forEach(remove);
       _exclusives.remove(s);
     });
 
-    _emit(new Event(option));
+    _emit(new UseOptionEvent(option));
   }
 
   Set<String> get available => new Set.from(_opts);
+
+  Stream<AddOptionEvent> get additions => _every((e) => e is AddOptionEvent);
+
+  Stream<RemoveOptionEvent> get removals =>
+      _every((e) => e is RemoveOptionEvent);
+
+  Stream<UseOptionEvent> get uses => _every((e) => e is UseOptionEvent);
 }
 
 class OptionsInterface {
@@ -68,11 +86,16 @@ class OptionsInterface {
   OptionsInterface(this._options, this._emit);
 
   void use(String option) {
-    // UserEmit created per module so scope is restricted by default
     _emit("use", {"option": option});
   }
 
   Set<String> get available => _options.available;
+
+  Stream<String> get additions => _options.additions.map((e) => e.option);
+
+  Stream<String> get removals => _options.removals.map((e) => e.option);
+
+  Stream<String> get uses => _options.uses.map((e) => e.option);
 }
 
 class OptionsInterfaceHandler implements InterfaceHandler {
@@ -86,4 +109,32 @@ class OptionsInterfaceHandler implements InterfaceHandler {
         _options.use(args["option"]);
     }
   }
+}
+
+class AddOptionEvent implements Event {
+  // I think maybe alias should not be a thing every event has to have
+  final String alias;
+  final String option;
+
+  AddOptionEvent(String option)
+      : this.option = option,
+        this.alias = "Add option $option";
+}
+
+class RemoveOptionEvent implements Event {
+  final String alias;
+  final String option;
+
+  RemoveOptionEvent(String option)
+      : this.option = option,
+        this.alias = "Remove option $option";
+}
+
+class UseOptionEvent implements Event {
+  final String alias;
+  final String option;
+
+  UseOptionEvent(String option)
+      : this.option = option,
+        this.alias = option;
 }
