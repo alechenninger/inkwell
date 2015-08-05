@@ -50,6 +50,14 @@ class Options {
     return false;
   }
 
+  bool removeIn(Iterable<String> options) {
+    bool removed = false;
+    options.forEach((o) {
+      removed = remove(o) || removed;
+    });
+    return removed;
+  }
+
   /// Emits an [Event] with the [option] as its alias and removes it from the
   /// list of available options. Other mutually exclusive options are removed as
   /// well.

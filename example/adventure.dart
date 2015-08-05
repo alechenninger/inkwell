@@ -42,7 +42,7 @@ var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [
         delay: const Duration(seconds: 10), canceller: jillBeatsJack);
 
     once("Jill gets to top of hill alone").then((_) {
-      options..remove("Follow Jill")..remove("Try to run past Jill");
+      options.removeIn(["Follow Jill", "Try to run past Jill"]);
     });
 
     once("Follow Jill").then((_) {
