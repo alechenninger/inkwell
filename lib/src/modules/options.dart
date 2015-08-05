@@ -61,10 +61,10 @@ class Options {
           option, "option", "Option not available to be used.");
     }
 
-    _exclusives.where((s) => s.contains(option)).forEach((s) {
-      s.forEach(remove);
-      _exclusives.remove(s);
-    });
+    _exclusives
+        .where((s) => s.contains(option))
+        .forEach((s) => s.forEach(remove));
+    _exclusives.removeWhere((s) => s.contains(option));
 
     _emit(new UseOptionEvent(option));
   }
