@@ -1,6 +1,8 @@
 part of august.modules;
 
 class DialogModule implements ModuleDefinition, HasInterface {
+  final name = 'Dialog';
+
   Dialog create(Once once, Every every, Emit emit, Map modules) {
     return new Dialog(once, every, emit);
   }

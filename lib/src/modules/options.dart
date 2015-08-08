@@ -1,6 +1,8 @@
 part of august.modules;
 
 class OptionsModule implements ModuleDefinition, HasInterface {
+  final name = 'Options';
+
   Options create(Once once, Every every, Emit emit, Map modules) {
     return new Options(every, emit);
   }

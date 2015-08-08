@@ -5,7 +5,7 @@ library august.example;
 
 import 'package:august/core.dart';
 import 'package:august/modules.dart';
-import 'package:august/ui.dart';
+import 'package:august/html.dart';
 
 main() {
   var container = querySelector("body");
@@ -13,7 +13,7 @@ main() {
   start(jackAndJillV1, [
     (interfaces) =>
         new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
-  ]);
+  ], new HtmlPersistence(jackAndJillV1));
 }
 
 var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [

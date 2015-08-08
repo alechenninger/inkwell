@@ -1,7 +1,7 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of august.ui;
+part of august.html;
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
@@ -13,6 +13,8 @@ class SimpleHtmlUi {
 
   SimpleHtmlUi(this._container, OptionsInterface options, DialogInterface dialog) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
+
+    // TODO: Add options and dialog already present?
 
     dialog.dialog.listen((e) => new DialogElement(e, _mainPanel));
 

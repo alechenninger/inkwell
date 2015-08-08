@@ -13,6 +13,29 @@ will this retain "happens before" relationship with all events? I think so, beca
 UI state must be tracked by non-presentation components.
 presentation must be able to be switched at any time. or at least toggled off/on.
 
+#### replaying saved events
+order | seconds
+1|0.0 - event A (schedules event B)
+2|0.0 - event B (schedules event c and d)
+3|0.0 - event C (schedules event e 1 sec in future and f 2 secs in future)
+4|0.0 - event D (schedules event g .5 sec in future and h 2 secs in future)
+5|0.5 - event G
+6|1.0 - event E
+7|2.0 - event F
+8|2.0 - event H
+
+fast forward to 06
+runs block
+new future event a -> queues fake timer
+starts ff, goes to first timer in queue,
+schedules event B in next event loop
+schedules another ff loop after that
+event b runs -> queues fake timer event C and D
+ff loop runs
+schedules c in next loop
+schedules d in next loop
+schedules another ff loop after that
+
 ### is everything an 'event'?
 should everything really be an 'event'? should separate what scripts listen to
 vs what ui's listen to? scripts listen to things by name, ui listen to things

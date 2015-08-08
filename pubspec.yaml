@@ -4,4 +4,4 @@ environment:
   sdk: '>=1.9.0-dev <2.0.0'
 dependencies:
   browser: any
-  quiver: any
+  quiver: ^0.21.4
