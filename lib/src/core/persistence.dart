@@ -27,11 +27,9 @@ class InterfaceEvent {
       };
 }
 
-Future fastForward(
-    void run(CurrentPlayTime cpt), Clock realClock, Duration offset) async {
-  print("Fast forwarding...");
-  await new _FastForwarder(realClock).run((ff) {
-    print("In FF zone...");
+void fastForward(
+    void run(CurrentPlayTime cpt), Clock realClock, Duration offset) {
+  new _FastForwarder(realClock).run((ff) {
     run(() => ff.currentPlayTime());
     return ff.fastForward(offset);
   });
@@ -51,10 +49,10 @@ class _FastForwarder {
   _FastForwarder(this._realClock);
 
   Duration currentPlayTime() => _useParentZone
-      ? _elapsed
-      : _elapsed + _realClock.now().difference(_switchedToParent);
+      ? _elapsed + _realClock.now().difference(_switchedToParent)
+      : _elapsed;
 
-  Future fastForward(Duration offset) {
+  void fastForward(Duration offset) {
     if (_useParentZone) {
       throw new StateError("Can only fast forward once.");
     }
@@ -65,18 +63,14 @@ class _FastForwarder {
       throw new StateError(
           'Cannot fast forward until previous fast forward is complete.');
     }
-    print("in fastForward");
-    var completer = new Completer();
     _elapsingTo = _elapsed + offset;
     _drainTimersWhile(
-        (_FastForwarderTimer next) => next.nextCall <= _elapsingTo, completer);
-    return completer.future.then((_) => _switchToParentZone());
+        (_FastForwarderTimer next) => next.nextCall <= _elapsingTo);
   }
 
   run(callback(_FastForwarder self)) {
     if (_zone == null) {
       _zone = Zone.current.fork(specification: _zoneSpec);
-      print("Forked zone: $_zone");
     }
     return _zone.run(() => callback(this));
   }
@@ -95,21 +89,20 @@ class _FastForwarder {
         }
       });
 
-  _drainTimersWhile(bool predicate(timer), Completer completer) {
+  _drainTimersWhile(bool predicate(timer)) {
     _drainMicrotasks();
     var next = _getNextTimer();
-    print("Drain timers at $next");
     if (next != null && predicate(next)) {
       var nextCall = next.nextCall;
       var nextSet = new Set.from(_timers.where((t) => t.nextCall == nextCall));
       _elapseTo(nextCall);
       nextSet.forEach(_scheduleTimer);
-      _zone.parent.createTimer(
-          Duration.ZERO, () => _drainTimersWhile(predicate, completer));
+      _zone.parent
+          .createTimer(Duration.ZERO, () => _drainTimersWhile(predicate));
     } else {
       _elapseTo(_elapsingTo);
       _elapsingTo = null;
-      completer.complete();
+      _switchToParentZone();
     }
   }
 
@@ -164,7 +157,7 @@ class _FastForwarder {
 
     _timers.forEach((t) {
       if (t.isPeriodic) {
-        _zone.parent.createTimer(t.nextCall, () {
+        _zone.parent.createTimer(t.nextCall - _elapsed, () {
           var trackingTimer = new _TrackingTimer();
           t.callback(trackingTimer);
           if (trackingTimer.isActive) {
@@ -172,7 +165,7 @@ class _FastForwarder {
           }
         });
       } else {
-        _zone.parent.createTimer(t.nextCall, t.callback);
+        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback);
       }
     });
     _timers.clear();

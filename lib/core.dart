@@ -106,6 +106,8 @@ start(Script script, List<CreateUi> uis, Persistence persistence) {
     // TODO: Manage UI lifecycle WRT replaying saved events?
     uis.forEach((createUi) => createUi(interfaces));
 
+    every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
+
     script.block(once, emit, modules);
 
     persistence.savedEvents.forEach((e) {

@@ -10,16 +10,18 @@ import 'package:august/html.dart';
 main() {
   var container = querySelector("body");
 
-  start(jackAndJillV1, [
-    (interfaces) =>
-        new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
-  ], new HtmlPersistence(jackAndJillV1));
+  start(
+      jackAndJillV1,
+      [
+        (interfaces) =>
+            new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
+      ],
+      new HtmlPersistence(jackAndJillV1));
 }
 
-var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [
-  new OptionsModule(),
-  new DialogModule()
-], (Once once, Emit emit, Map modules) {
+var jackAndJillV1 = new Script(
+    "Jack and Jill", "1.0.0", [new OptionsModule(), new DialogModule()],
+    (Once once, Emit emit, Map modules) {
   Options options = modules[Options];
   Dialog dialog = modules[Dialog];
 
@@ -45,8 +47,10 @@ var jackAndJillV1 = new Script("Jack and Jill", "1.0.0", [
       options.removeIn(["Follow Jill", "Try to run past Jill"]);
     });
 
-    once("Follow Jill").then((_) {
+    once("Follow Jill").then((_) async {
       jillBeatsJack.cancelled = true;
+      dialog.add("So what do you want this water for anyway?",
+          from: "Jill", to: "Jack", delay: const Duration(seconds: 3));
     });
 
     once("Try to run past Jill").then((_) {
