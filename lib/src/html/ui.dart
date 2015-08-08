@@ -18,6 +18,10 @@ class SimpleHtmlUi {
 
     dialog.dialog.listen((e) => new DialogElement(e, _mainPanel));
 
+    dialog.clears.listen((e) {
+      _mainPanel.children.clear();
+    });
+
     options.additions.listen((o) {
       _optionsPanel.children.add(new DivElement()
         ..classes.add('option')

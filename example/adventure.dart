@@ -49,6 +49,7 @@ var jackAndJillV1 = new Script(
 
     once("Follow Jill").then((_) async {
       jillBeatsJack.cancelled = true;
+      dialog.clear();
       dialog.add("So what do you want this water for anyway?",
           from: "Jill", to: "Jack", delay: const Duration(seconds: 3));
     });

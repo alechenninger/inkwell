@@ -63,18 +63,25 @@ class DialogEvent implements Event {
   final String from;
   final String to;
 
-  DialogEvent(this.dialog, {this.from, this.to, this.alias: ""});
+  DialogEvent(String dialog, {String from, String to, String alias})
+      : this.dialog = dialog,
+        this.from = from,
+        this.to = to,
+        this.alias =
+            alias == null ? "From: $from, To: $to, Dialog: $dialog" : alias;
 }
 
 class NarrationEvent implements Event {
   final String alias;
   final String narration;
 
-  NarrationEvent(this.narration, {this.alias: ""});
+  NarrationEvent(String narration, {String alias})
+      : this.narration = narration,
+        this.alias = alias == null ? "Narration: $narration" : alias;
 }
 
 class ClearDialogEvent implements Event {
   final String alias;
 
-  ClearDialogEvent([this.alias = ""]);
+  ClearDialogEvent([this.alias = "Dialog clear"]);
 }
