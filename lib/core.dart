@@ -60,7 +60,7 @@ class Event {
   Event(this.alias);
 }
 
-start(Script script, List<CreateUi> uis, Persistence persistence) {
+start(Script script, {List<CreateUi> uis: const [], Persistence persistence}) {
   var ctrl = new StreamController<Event>.broadcast(sync: true);
   var clock = new Clock();
 

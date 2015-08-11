@@ -31,7 +31,7 @@ void fastForward(
     void run(CurrentPlayTime cpt), Clock realClock, Duration offset) {
   new _FastForwarder(realClock).run((ff) {
     run(() => ff.currentPlayTime());
-    return ff.fastForward(offset);
+    ff.fastForward(offset);
   });
 }
 

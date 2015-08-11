@@ -10,13 +10,12 @@ import 'package:august/html.dart';
 main() {
   var container = querySelector("body");
 
-  start(
-      jackAndJillV1,
-      [
+  start(jackAndJillV1,
+      uis: [
         (interfaces) =>
             new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
       ],
-      new HtmlPersistence(jackAndJillV1));
+      persistence: new HtmlPersistence(jackAndJillV1));
 }
 
 var jackAndJillV1 = new Script(
