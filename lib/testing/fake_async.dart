@@ -182,8 +182,10 @@ class _FakeAsync extends FakeAsync {
       if (flushPeriodicTimers) {
         return _timers.isNotEmpty;
       } else {
-        // translation: keep draining while non-periodic timers exist
-        return _timers.any((_FakeTimer timer) => !timer._isPeriodic);
+        // translation: drain every timer (periodic or not) that will occur up
+        // until the latest non-periodic timer
+        return _timers.any((_FakeTimer timer) =>
+            !timer._isPeriodic || timer._nextCall <= _elapsed);
       }
     });
   }
@@ -243,8 +245,7 @@ class _FakeAsync extends FakeAsync {
   _FakeTimer _getNextTimer() {
     return _timers.isEmpty
         ? null
-        : _timers.reduce((timer1, timer2) =>
-            timer1._nextCall <= timer2._nextCall ? timer1 : timer2);
+        : _timers.reduce((t1, t2) => t1._nextCall <= t2._nextCall ? t1 : t2);
   }
 
   _runTimer(_FakeTimer timer) {
