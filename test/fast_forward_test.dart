@@ -19,7 +19,7 @@ void main() {
               const Duration(seconds: 5), () => occurred.add("second"));
         }, async.getClock(initialTime), const Duration(seconds: 10));
 
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(Duration.ZERO);
 
         expect(occurred, equals(["first", "second"]));
       });
@@ -38,7 +38,7 @@ void main() {
               const Duration(seconds: 5), () => times[2] = time());
         }, async.getClock(initialTime), const Duration(seconds: 10));
 
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(Duration.ZERO);
 
         expect(
             times,
@@ -65,6 +65,42 @@ void main() {
         expect(occurred, equals(["first"]));
         async.elapse(const Duration(milliseconds: 1));
         expect(occurred, equals(["first", "second"]));
+      });
+    });
+
+    test("fast forwards timers created as a result of other timers", () {
+      new FakeAsync().run((async) {
+        var occurred = false;
+
+        fastForward((_) {
+          new Future.delayed(const Duration(seconds: 1), () {
+            new Future.delayed(const Duration(seconds: 2), () {
+              new Future.delayed(const Duration(seconds: 3), () {
+                occurred = true;
+              });
+            });
+          });
+        }, async.getClock(initialTime), const Duration(seconds: 6));
+
+        async.elapse(Duration.ZERO);
+        expect(occurred, true);
+      });
+    });
+
+    test("allows scheduling future to add to sync broadcast stream", () {
+      new FakeAsync().run((async) {
+        var ctrl = new StreamController.broadcast(sync: true);
+
+        fastForward((_) {
+          ctrl.stream.where((_) => _ == 'foo').listen((_) {
+            new Future(() => ctrl.add("got it!"));
+          });
+
+          ctrl.add("foo");
+        }, async.getClock(initialTime), const Duration(seconds: 6));
+
+        // If this does not fail, we are good
+        async.elapse(const Duration(seconds: 1));
       });
     });
   });

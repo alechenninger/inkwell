@@ -32,6 +32,7 @@ void fastForward(
   new _FastForwarder(realClock).run((ff) {
     run(() => ff.currentPlayTime());
     ff.fastForward(offset);
+    ff.switchToParentZone();
   });
 }
 
@@ -64,8 +65,9 @@ class _FastForwarder {
           'Cannot fast forward until previous fast forward is complete.');
     }
     _elapsingTo = _elapsed + offset;
-    _drainTimersWhile(
-        (_FastForwarderTimer next) => next.nextCall <= _elapsingTo);
+    _runTimersUntil(_elapsingTo);
+    _elapseTo(_elapsingTo);
+    _elapsingTo = null;
   }
 
   run(callback(_FastForwarder self)) {
@@ -89,20 +91,12 @@ class _FastForwarder {
         }
       });
 
-  _drainTimersWhile(bool predicate(timer)) {
-    _drainMicrotasks();
-    var next = _getNextTimer();
-    if (next != null && predicate(next)) {
-      var nextCall = next.nextCall;
-      var nextSet = new Set.from(_timers.where((t) => t.nextCall == nextCall));
-      _elapseTo(nextCall);
-      nextSet.forEach(_scheduleTimer);
-      _zone.parent
-          .createTimer(Duration.ZERO, () => _drainTimersWhile(predicate));
-    } else {
-      _elapseTo(_elapsingTo);
-      _elapsingTo = null;
-      _switchToParentZone();
+  _runTimersUntil(Duration elapsingTo) {
+    var next;
+    while ((next = _getNextTimer()) != null && next.nextCall <= elapsingTo) {
+      _elapseTo(next.nextCall);
+      _runTimer(next);
+      _drainMicrotasks();
     }
   }
 
@@ -124,20 +118,17 @@ class _FastForwarder {
     return timer;
   }
 
-  _FastForwarderTimer _getNextTimer() {
-    return min(_timers,
-        (timer1, timer2) => timer1.nextCall.compareTo(timer2.nextCall));
-  }
+  _FastForwarderTimer _getNextTimer() => _timers.isEmpty
+      ? null
+      : _timers.reduce((t1, t2) => t1.nextCall <= t2.nextCall ? t1 : t2);
 
-  _scheduleTimer(_FastForwarderTimer timer) {
+  _runTimer(_FastForwarderTimer timer) {
     assert(timer.isActive);
     if (timer.isPeriodic) {
-      // Schedule the callback on the next event loop
-      _zone.parent.createTimer(Duration.ZERO, () => timer.callback(timer));
+      timer.callback(timer);
       timer.nextCall += timer.duration;
     } else {
-      // Schedule the callback on the next event loop
-      _zone.parent.createTimer(Duration.ZERO, timer.callback);
+      timer.callback();
       _timers.remove(timer);
     }
   }
@@ -148,7 +139,7 @@ class _FastForwarder {
     }
   }
 
-  void _switchToParentZone() {
+  void switchToParentZone() {
     _useParentZone = true;
     _switchedToParent = _realClock.now();
 
