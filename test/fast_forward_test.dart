@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:test/test.dart';
 import 'package:august/core.dart';
-import 'package:august/testing/fake_async.dart' show FakeAsync;
+
+import 'util/fake_async.dart' show FakeAsync;
 
 void main() {
   var initialTime = new DateTime.fromMillisecondsSinceEpoch(0);
