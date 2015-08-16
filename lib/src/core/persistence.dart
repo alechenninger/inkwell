@@ -55,7 +55,7 @@ class _FastForwarder {
 
   void fastForward(Duration offset) {
     if (_useParentZone) {
-      throw new StateError("Can only fast forward once.");
+      throw new StateError("Cannot fast forward if switched to parent zone.");
     }
     if (offset.inMicroseconds < 0) {
       throw new ArgumentError('Cannot fast forward with negative duration');
@@ -78,18 +78,13 @@ class _FastForwarder {
   }
 
   ZoneSpecification get _zoneSpec => new ZoneSpecification(
-          createTimer: (_, parent, zone, Duration duration, Function callback) {
-        return _createTimer(parent, zone, duration, callback, false);
-      }, createPeriodicTimer:
-              (_, parent, zone, Duration duration, Function callback) {
-        return _createTimer(parent, zone, duration, callback, true);
-      }, scheduleMicrotask: (_, parent, zone, Function microtask) {
-        if (_useParentZone) {
-          parent.scheduleMicrotask(microtask);
-        } else {
-          _microtasks.add(microtask);
-        }
-      });
+      createTimer: (_, parent, zone, duration, callback) =>
+          _createTimer(parent, zone, duration, callback, false),
+      createPeriodicTimer: (_, parent, zone, duration, callback) =>
+          _createTimer(parent, zone, duration, callback, true),
+      scheduleMicrotask: (_, parent, zone, microtask) => _useParentZone
+          ? parent.scheduleMicrotask(microtask)
+          : _microtasks.add(microtask));
 
   _runTimersUntil(Duration elapsingTo) {
     var next;
@@ -143,10 +138,12 @@ class _FastForwarder {
     _useParentZone = true;
     _switchedToParent = _realClock.now();
 
-    _microtasks.forEach(_zone.parent.scheduleMicrotask);
-    _microtasks.clear();
+    while (_microtasks.isNotEmpty) {
+      _zone.parent.scheduleMicrotask(_microtasks.removeFirst());
+    }
 
-    _timers.forEach((t) {
+    while (_timers.isNotEmpty) {
+      var t = _timers.first;
       if (t.isPeriodic) {
         _zone.parent.createTimer(t.nextCall - _elapsed, () {
           var trackingTimer = new _TrackingTimer();
@@ -158,8 +155,8 @@ class _FastForwarder {
       } else {
         _zone.parent.createTimer(t.nextCall - _elapsed, t.callback);
       }
-    });
-    _timers.clear();
+      _timers.remove(t);
+    }
   }
 
   _hasTimer(timer) => _timers.contains(timer);
