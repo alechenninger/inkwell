@@ -85,6 +85,23 @@ void main() {
         async.elapse(Duration.ZERO);
         expect(occurred, true);
       });
+
+      new FakeAsync().run((async) {
+        var occurred = false;
+
+        fastForward((_) {
+          new Future.delayed(const Duration(seconds: 1), () {
+            new Future.delayed(const Duration(seconds: 2), () {
+              new Future.delayed(const Duration(seconds: 3), () {
+                occurred = true;
+              });
+            });
+          });
+        }, async.getClock(initialTime), const Duration(seconds: 5));
+
+        async.elapse(Duration.ZERO);
+        expect(occurred, false);
+      });
     });
 
     test("allows scheduling future to add to sync broadcast stream", () {
