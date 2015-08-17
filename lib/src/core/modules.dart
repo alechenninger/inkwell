@@ -1,10 +1,8 @@
 part of august.core;
 
 abstract class ModuleDefinition {
-  String get name;
-
   /// A module tracks state, emits events, allows listening to those events.
-  dynamic create(Once once, Every every, Emit emit, Map modules);
+  dynamic create(Run run, Map modules);
 }
 
 /// If implemented by a [ModuleDefinition], indicates this module can be

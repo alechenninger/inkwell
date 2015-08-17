@@ -20,9 +20,12 @@ main() {
 
 var jackAndJillV1 = new Script(
     "Jack and Jill", "1.0.0", [new OptionsModule(), new DialogModule()],
-    (Once once, Emit emit, Map modules) {
+    (Run run, Map modules) {
   Options options = modules[Options];
   Dialog dialog = modules[Dialog];
+
+  Once once = run.once;
+  Emit emit = run.emit;
 
   options.add("Talk to Jill");
 

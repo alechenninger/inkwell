@@ -5,13 +5,21 @@ abstract class Persistence {
   void saveEvent(InterfaceEvent event);
 }
 
+class NoopPersistance implements Persistence {
+  final List savedEvents = const [];
+  void saveEvent(_) {}
+
+  const NoopPersistance();
+}
+
 class InterfaceEvent {
   final Duration offset;
   final String moduleName;
   final String action;
   final Map<String, dynamic> args;
 
-  InterfaceEvent(this.moduleName, this.action, this.args, this.offset);
+  InterfaceEvent(Type moduleType, this.action, this.args, this.offset)
+      : this.moduleName = '$moduleType';
 
   InterfaceEvent.fromJson(Map json)
       : moduleName = json['moduleName'],
@@ -25,15 +33,6 @@ class InterfaceEvent {
         'args': args,
         'offsetMillis': offset.inMilliseconds
       };
-}
-
-void fastForward(
-    void run(CurrentPlayTime cpt), Clock realClock, Duration offset) {
-  new _FastForwarder(realClock).run((ff) {
-    run(() => ff.currentPlayTime());
-    ff.fastForward(offset);
-    ff.switchToParentZone();
-  });
 }
 
 // Adapted from quiver's FakeAsync

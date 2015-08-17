@@ -3,8 +3,8 @@ part of august.modules;
 class DialogModule implements ModuleDefinition, HasInterface {
   final name = 'Dialog';
 
-  Dialog create(Once once, Every every, Emit emit, Map modules) {
-    return new Dialog(once, every, emit);
+  Dialog create(Run run, Map modules) {
+    return new Dialog(run);
   }
 
   DialogInterface createInterface(Dialog dialog, InterfaceEmit emit) {
@@ -15,32 +15,32 @@ class DialogModule implements ModuleDefinition, HasInterface {
 }
 
 class Dialog {
-  final Once _once;
-  final Every _every;
-  final Emit _emit;
+  final Run _run;
 
-  Dialog(this._once, this._every, this._emit);
+  Dialog(this._run);
 
   Future<DialogEvent> add(String dialog,
           {String from, String to, Duration delay: Duration.ZERO}) =>
-      _emit(new DialogEvent(dialog, from: from, to: to), delay: delay);
+      _run.emit(new DialogEvent(dialog, from: from, to: to), delay: delay);
 
   Future<NarrationEvent> narrate(String narration,
           {Duration delay: Duration.ZERO}) =>
-      _emit(new NarrationEvent(narration), delay: delay);
+      _run.emit(new NarrationEvent(narration), delay: delay);
 
-  Future<ClearDialogEvent> clear() => _emit(new ClearDialogEvent());
+  Future<ClearDialogEvent> clear() => _run.emit(new ClearDialogEvent());
 
   Future<DialogEvent> once({String dialog, String from, String to}) {
     // TODO
     throw new UnimplementedError();
   }
 
-  Stream<DialogEvent> get dialog => _every((e) => e is DialogEvent);
+  Stream<DialogEvent> get dialog => _run.every((e) => e is DialogEvent);
 
-  Stream<NarrationEvent> get narration => _every((e) => e is NarrationEvent);
+  Stream<NarrationEvent> get narration =>
+      _run.every((e) => e is NarrationEvent);
 
-  Stream<ClearDialogEvent> get clears => _every((e) => e is ClearDialogEvent);
+  Stream<ClearDialogEvent> get clears =>
+      _run.every((e) => e is ClearDialogEvent);
 }
 
 class DialogInterface {

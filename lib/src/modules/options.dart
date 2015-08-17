@@ -3,8 +3,8 @@ part of august.modules;
 class OptionsModule implements ModuleDefinition, HasInterface {
   final name = 'Options';
 
-  Options create(Once once, Every every, Emit emit, Map modules) {
-    return new Options(every, emit);
+  Options create(Run run, Map modules) {
+    return new Options(run);
   }
 
   OptionsInterface createInterface(Options options, InterfaceEmit emit) {
@@ -19,14 +19,13 @@ class OptionsModule implements ModuleDefinition, HasInterface {
 class Options {
   final Set _opts = new Set();
   final List<Set> _exclusives = new List();
-  final Emit _emit;
-  final Every _every;
+  final Run _run;
 
-  Options(this._every, this._emit);
+  Options(this._run);
 
   bool add(String option) {
     if (_opts.add(option)) {
-      _emit(new AddOptionEvent(option));
+      _run.emit(new AddOptionEvent(option));
       return true;
     }
     return false;
@@ -46,7 +45,7 @@ class Options {
 
   bool remove(String option) {
     if (_opts.remove(option)) {
-      _emit(new RemoveOptionEvent(option));
+      _run.emit(new RemoveOptionEvent(option));
       return true;
     }
     return false;
@@ -76,17 +75,18 @@ class Options {
         .forEach((s) => s.forEach(remove));
     _exclusives.removeWhere((s) => s.contains(option));
 
-    _emit(new UseOptionEvent(option));
+    _run.emit(new UseOptionEvent(option));
   }
 
   Set<String> get available => new Set.from(_opts);
 
-  Stream<AddOptionEvent> get additions => _every((e) => e is AddOptionEvent);
+  Stream<AddOptionEvent> get additions =>
+      _run.every((e) => e is AddOptionEvent);
 
   Stream<RemoveOptionEvent> get removals =>
-      _every((e) => e is RemoveOptionEvent);
+      _run.every((e) => e is RemoveOptionEvent);
 
-  Stream<UseOptionEvent> get uses => _every((e) => e is UseOptionEvent);
+  Stream<UseOptionEvent> get uses => _run.every((e) => e is UseOptionEvent);
 }
 
 class OptionsInterface {

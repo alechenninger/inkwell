@@ -8,7 +8,6 @@ import 'dart:collection';
 
 export 'dart:async';
 
-import 'package:quiver/iterables.dart';
 import 'package:quiver/time.dart';
 
 part 'src/core/modules.dart';
@@ -17,7 +16,7 @@ part 'src/core/persistence.dart';
 /// A [Block] is a function which defines the body of a [Script]. It emits
 /// events, adds event listeners, and interacts with any installed [Module]s for
 /// the `Script`.
-typedef void Block(Once once, Emit emit, Map modules);
+typedef void Block(Run run, Map modules);
 
 /// Adds an [Event] listener for the next (and only the next) event that occurs
 /// with the [eventAlias].
@@ -48,8 +47,7 @@ class Script {
   /// The [List] of [ModuleDefinition]s defines what modules will be injected
   /// into the [block]. Modules add functionality to scripts, and may expose
   /// similar functionality to a UI layer.
-  Script(
-      this.name, this.version, List<ModuleDefinition> this.modules, this.block);
+  Script(this.name, this.version, this.modules, this.block);
 }
 
 /// Events capture what is happening while playing. Events can be listened to
@@ -60,68 +58,98 @@ class Event {
   Event(this.alias);
 }
 
-start(Script script, {List<CreateUi> uis: const [], Persistence persistence}) {
-  var ctrl = new StreamController<Event>.broadcast(sync: true);
+start(Script script,
+    {List<CreateUi> uis: const [],
+    Persistence persistence: const NoopPersistance()}) {
   var clock = new Clock();
+  var run;
+  var scriptModules;
 
-  run(CurrentPlayTime currentPlayTime) {
-    Future emit(event,
-            {delay: Duration.ZERO,
-            Canceller canceller: const _Uncancellable()}) =>
-        new Future.delayed(delay, () {
-          if (canceller.cancelled) return _never;
-          ctrl.add(event);
-          return event;
+  if (persistence.savedEvents.isNotEmpty) {
+    // fastForward((cpt) => _run(cpt, script, uis, persistence), clock,
+    //     persistence.savedEvents.last.offset);
+    var ff = new _FastForwarder(clock);
+    run = new Run(ff.currentPlayTime);
+    scriptModules = new ScriptModules(script.modules, run, persistence);
+    ff.run((ff) {
+      script.block(run, scriptModules.modules);
+      persistence.savedEvents.forEach((e) {
+        new Future.delayed(e.offset, () {
+          scriptModules.interfaceHandlers[e.moduleName]
+              .handle(e.action, e.args);
         });
+      });
+      ff.fastForward(persistence.savedEvents.last.offset);
+    });
+    ff.switchToParentZone();
+  } else {
+    var startTime = clock.now();
+    var cpt = () => clock.now().difference(startTime);
+    run = new Run(cpt);
+    scriptModules = new ScriptModules(script.modules, run, persistence);
+    script.block(run, scriptModules.modules);
+  }
 
-    Future once(String eventAlias) =>
-        ctrl.stream.firstWhere((e) => e.alias == eventAlias);
+  uis.forEach((createUi) => createUi(scriptModules.interfaces));
+}
 
-    Stream every(bool test(Event)) => ctrl.stream.where(test);
+class Run {
+  var _ctrl = new StreamController<Event>.broadcast(sync: true);
+  CurrentPlayTime _currentPlayTime;
 
-    var interfaces = {};
-    var interfaceHandlers = {};
-    var modules = script.modules.fold({}, (map, moduleDef) {
-      var module = moduleDef.create(once, every, emit, map);
-      map[module.runtimeType] = module;
+  Run(this._currentPlayTime) {
+    //every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
+  }
+
+  Future emit(Event event,
+          {Duration delay: Duration.ZERO,
+          Canceller canceller: const _Uncancellable()}) =>
+      new Future.delayed(delay, () {
+        if (canceller.cancelled) return _never;
+        _ctrl.add(event);
+        return event;
+      });
+
+  /// Listens to events happening in the script run. See [Once].
+  Future once(String eventAlias) =>
+      _ctrl.stream.firstWhere((e) => e.alias == eventAlias);
+
+  /// Listens to events happening in the script run. See [Every].
+  Stream every(bool test(Event)) => _ctrl.stream.where(test);
+
+  Duration currentPlayTime() => _currentPlayTime();
+}
+
+class ScriptModules {
+  final Map modules = {};
+  final Map interfaces = {};
+  final Map interfaceHandlers = {};
+
+  ScriptModules(
+      List<ModuleDefinition> moduleDefs, Run run, Persistence persistence) {
+    moduleDefs.forEach((moduleDef) {
+      var module = moduleDef.create(run, modules);
+
+      _putIn(modules, module.runtimeType, module);
 
       if (moduleDef is HasInterface) {
-        // TODO: need to use string for module ref everywhere instead of type
-        var moduleName = module.runtimeType.toString();
-
-        var iHandler = moduleDef.createInterfaceHandler(module);
-        interfaceHandlers[moduleName] = iHandler;
-
-        interfaces[module.runtimeType] = moduleDef.createInterface(module,
-            (action, args) {
-          persistence.saveEvent(new InterfaceEvent(moduleName, action, args,
-              currentPlayTime()));
-          iHandler.handle(action, args);
+        var handler = moduleDef.createInterfaceHandler(module);
+        var interface = moduleDef.createInterface(module, (action, args) {
+          var event = new InterfaceEvent(
+              moduleDef.runtimeType, action, args, run.currentPlayTime());
+          persistence.saveEvent(event);
+          handler.handle(action, args);
         });
+
+        _putIn(interfaces, module.runtimeType, interface);
+        _putIn(interfaceHandlers, module.runtimeType, handler);
       }
-
-      return map;
-    });
-
-    // TODO: Manage UI lifecycle WRT replaying saved events?
-    uis.forEach((createUi) => createUi(interfaces));
-
-    every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
-
-    script.block(once, emit, modules);
-
-    persistence.savedEvents.forEach((e) {
-      new Future.delayed(e.offset, () {
-        interfaceHandlers[e.moduleName].handle(e.action, e.args);
-      });
     });
   }
 
-  if (persistence.savedEvents.isNotEmpty) {
-    fastForward(run, clock, persistence.savedEvents.last.offset);
-  } else {
-    var startTime = clock.now();
-    run(() => clock.now().difference(startTime));
+  _putIn(Map map, Type type, dynamic value) {
+    map[type] = value;
+    map['$type'] = value;
   }
 }
 

@@ -11,7 +11,6 @@ class HtmlPersistence implements Persistence {
     if (storage.containsKey(_scriptHandle)) {
       var saved = JSON.decode(storage[_scriptHandle]);
       _savedEvents = saved.map((o) => new InterfaceEvent.fromJson(o));
-      print("Loaded $_savedEvents");
     } else {
       _savedEvents = [];
     }
