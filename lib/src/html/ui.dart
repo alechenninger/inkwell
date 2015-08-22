@@ -11,7 +11,11 @@ class SimpleHtmlUi {
   final HtmlElement _optionsPanel = new DivElement()
     ..classes.add('options-panel');
 
-  SimpleHtmlUi(this._container, OptionsInterface options, DialogInterface dialog) {
+  static CreateUi forContainer(HtmlElement container) => (interfaces) =>
+      new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog]);
+
+  SimpleHtmlUi(
+      this._container, OptionsInterface options, DialogInterface dialog) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
 
     // TODO: Add options and dialog already present?

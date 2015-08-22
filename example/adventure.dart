@@ -12,8 +12,7 @@ main() {
 
   start(jackAndJillV1,
       uis: [
-        (interfaces) =>
-            new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog])
+        SimpleHtmlUi.forContainer(container)
       ],
       persistence: new HtmlPersistence(jackAndJillV1));
 }

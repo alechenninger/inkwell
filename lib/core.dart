@@ -66,8 +66,6 @@ start(Script script,
   var scriptModules;
 
   if (persistence.savedEvents.isNotEmpty) {
-    // fastForward((cpt) => _run(cpt, script, uis, persistence), clock,
-    //     persistence.savedEvents.last.offset);
     var ff = new _FastForwarder(clock);
     run = new Run(ff.currentPlayTime);
     scriptModules = new ScriptModules(script.modules, run, persistence);

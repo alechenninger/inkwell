@@ -30,7 +30,7 @@ class Dialog {
   Future<ClearDialogEvent> clear() => _run.emit(new ClearDialogEvent());
 
   Future<DialogEvent> once({String dialog, String from, String to}) {
-    // TODO
+    // TODO implement once
     throw new UnimplementedError();
   }
 
@@ -54,8 +54,6 @@ class DialogInterface {
 
   DialogInterface(this._dialog);
 }
-
-// TODO: default aliases
 
 class DialogEvent implements Event {
   final String alias;
