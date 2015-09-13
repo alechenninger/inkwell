@@ -11,9 +11,7 @@ main() {
   var container = querySelector("body");
 
   start(jackAndJillV1,
-      uis: [
-        SimpleHtmlUi.forContainer(container)
-      ],
+      uis: [SimpleHtmlUi.forContainer(container)],
       persistence: new HtmlPersistence(jackAndJillV1));
 }
 

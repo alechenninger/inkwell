@@ -20,8 +20,12 @@ class Dialog {
   Dialog(this._run);
 
   Future<DialogEvent> add(String dialog,
-          {String from, String to, Duration delay: Duration.ZERO}) =>
-      _run.emit(new DialogEvent(dialog, from: from, to: to), delay: delay);
+          {String from,
+          String to,
+          Duration delay: Duration.ZERO,
+          Replies replies: const Replies.none()}) =>
+      _run.emit(new DialogEvent(dialog, from: from, to: to, replies: replies),
+          delay: delay);
 
   Future<NarrationEvent> narrate(String narration,
           {Duration delay: Duration.ZERO}) =>
@@ -29,10 +33,11 @@ class Dialog {
 
   Future<ClearDialogEvent> clear() => _run.emit(new ClearDialogEvent());
 
-  Future<DialogEvent> once({String dialog, String from, String to}) {
-    // TODO implement once
-    throw new UnimplementedError();
-  }
+  Future<DialogEvent> once({String dialog, String from, String to}) =>
+      _run.once((e) => e is DialogEvent &&
+          e.dialog == dialog &&
+          e.from == from &&
+          e.to == to);
 
   Stream<DialogEvent> get dialog => _run.every((e) => e is DialogEvent);
 
@@ -60,13 +65,33 @@ class DialogEvent implements Event {
   final String dialog;
   final String from;
   final String to;
+  final Replies replies;
 
-  DialogEvent(String dialog, {String from, String to, String alias})
+  DialogEvent(String dialog,
+      {String from,
+      String to,
+      String alias,
+      Replies replies: const Replies.none()})
       : this.dialog = dialog,
         this.from = from,
         this.to = to,
-        this.alias =
-            alias == null ? "From: $from, To: $to, Dialog: $dialog" : alias;
+        this.replies = replies,
+        this.alias = alias == null
+            ? "From: $from, To: $to, Dialog: $dialog, Replies: $replies"
+            : alias;
+}
+
+class Replies {
+  final bool modal;
+  final List<String> replies;
+
+  Replies(this.replies, {this.modal: false});
+
+  const Replies.none()
+      : modal = false,
+        replies = const [];
+
+  toString() => "Replies: $replies, Modal: $modal";
 }
 
 class NarrationEvent implements Event {

@@ -13,51 +13,10 @@ import 'package:quiver/time.dart';
 part 'src/core/modules.dart';
 part 'src/core/persistence.dart';
 
-/// A [Block] is a function which defines the body of a [Script]. It emits
-/// events, adds event listeners, and interacts with any installed [Module]s for
-/// the `Script`.
-typedef void Block(Run run, Map modules);
-
-/// Adds an [Event] listener for the next (and only the next) event that occurs
-/// with the [eventAlias].
-typedef Future<Event> Once(String eventAlias);
-
-typedef Stream<Event> Every(bool test(Event event));
-
-/// Emits an [Event] with an optional [delay]. Returns a [Future] which
-/// completes when the event has been emitted and all listeners have received
-/// it. Optionally pass a [Canceller] to later cancel an event from being
-/// emitted, if it has not already been.
-typedef Future<Event> Emit(Event event, {Duration delay, Canceller canceller});
-
-typedef Duration CurrentPlayTime();
-
-class Script {
-  final String name;
-  final String version;
-
-  /// See [Block]
-  final Block block;
-
-  final List<ModuleDefinition> modules;
-
-  /// The [name] and [version] of the script are import for loading previous
-  /// progress and ensuring compatibility.
-  ///
-  /// The [List] of [ModuleDefinition]s defines what modules will be injected
-  /// into the [block]. Modules add functionality to scripts, and may expose
-  /// similar functionality to a UI layer.
-  Script(this.name, this.version, this.modules, this.block);
-}
-
-/// Events capture what is happening while playing. Events can be listened to
-/// and they can be emitted.
-class Event {
-  final String alias;
-
-  Event(this.alias);
-}
-
+/// Creates a new [Run] for this script by instantiating the modules it
+/// requires, replaying back any saved events provided in [persistence], and
+/// creating and attaching the provided [uis]. Then, calls into that script's
+/// [Block].
 start(Script script,
     {List<CreateUi> uis: const [],
     Persistence persistence: const NoopPersistance()}) {
@@ -67,7 +26,7 @@ start(Script script,
 
   if (persistence.savedEvents.isNotEmpty) {
     var ff = new _FastForwarder(clock);
-    run = new Run(ff.currentPlayTime);
+    run = new Run(ff.getCurrentPlayTime);
     scriptModules = new ScriptModules(script.modules, run, persistence);
     ff.run((ff) {
       script.block(run, scriptModules.modules);
@@ -91,9 +50,42 @@ start(Script script,
   uis.forEach((createUi) => createUi(scriptModules.interfaces));
 }
 
+class Script {
+  final String name;
+  final String version;
+
+  /// See [Block]
+  final Block block;
+
+  final List<ModuleDefinition> modules;
+
+  /// The [name] and [version] of the script are import for loading previous
+  /// progress and ensuring compatibility.
+  ///
+  /// The [List] of [ModuleDefinition]s defines what modules will be injected
+  /// into the [block]. Modules add functionality to scripts, and may expose
+  /// similar functionality to a UI layer.
+  Script(this.name, this.version, this.modules, this.block);
+}
+
+/// A [Block] is a function which defines the body of a [Script] by interacting
+/// with that script's [Run] and installed [Module]s.
+///
+/// In simple terms, it's where you put your story.
+///
+/// N.b. there's nothing stopping you from organizing your story into multiple
+/// `Block`s. Define separate block functions and call them, passing in the
+/// `Run` and module map from the parent block.
+typedef void Block(Run run, Map modules);
+
+/// Function which takes a map of module types to "interfaces": objects specific
+/// to that module which a UI can use to interact with the current [Run].
+typedef dynamic CreateUi(Map interfaces);
+
 class Run {
-  var _ctrl = new StreamController<Event>.broadcast(sync: true);
-  CurrentPlayTime _currentPlayTime;
+  StreamController<Event> _ctrl =
+      new StreamController<Event>.broadcast(sync: true);
+  GetCurrentPlayTime _currentPlayTime;
 
   Run(this._currentPlayTime) {
     //every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
@@ -109,8 +101,18 @@ class Run {
       });
 
   /// Listens to events happening in the script run. See [Once].
-  Future once(String eventAlias) =>
-      _ctrl.stream.firstWhere((e) => e.alias == eventAlias);
+  Future once(dynamic eventAliasOrTest) {
+    if (eventAliasOrTest is! String && eventAliasOrTest is! EventTest) {
+      throw new ArgumentError.value(eventAliasOrTest, "eventAliasOrTest",
+          "Must be a String or EventTest, was ${eventAliasOrTest.runtimeType}");
+    }
+
+    var test = eventAliasOrTest is String
+        ? (Event e) => e.name == eventAliasOrTest
+        : eventAliasOrTest;
+
+    return _ctrl.stream.firstWhere(test);
+  }
 
   /// Listens to events happening in the script run. See [Every].
   Stream every(bool test(Event)) => _ctrl.stream.where(test);
@@ -118,6 +120,37 @@ class Run {
   Duration currentPlayTime() => _currentPlayTime();
 }
 
+/// Adds an [Event] listener for the next (and only the next) event that matches
+/// the [eventAliasOrTest]. This may be a String or an [EventTest]. If a String
+/// is passed, this is equivalent to passing the `EventTest` function,
+/// `(e) => e.alias == eventAliasOrTest`.
+typedef Future<Event> Once(dynamic eventAliasOrTest);
+
+typedef Stream<Event> Every(EventTest eventTest);
+
+/// Emits an [Event] with an optional [delay]. Returns a [Future] which
+/// completes when the event has been emitted and all listeners have received
+/// it. Optionally pass a [Canceller] to later cancel an event from being
+/// emitted, if it has not already been.
+typedef Future<Event> Emit(Event event, {Duration delay, Canceller canceller});
+
+typedef bool EventTest(Event event);
+
+/// Events capture what is happening while playing. Events can be listened to
+/// and they can be emitted.
+class Event {
+  final String name;
+
+  Event(this.name);
+}
+
+/// Returns the current play time, which is a [Duration] since the beginning of
+/// the first [Run]. Note that the amount of time lapsed is saved, so starting
+/// a saved run does not reset the play time to zero, it picks up where it left
+/// off.
+typedef Duration GetCurrentPlayTime();
+
+/// Instantiates modules for a particular run and houses them.
 class ScriptModules {
   final Map modules = {};
   final Map interfaces = {};
@@ -150,8 +183,6 @@ class ScriptModules {
     map['$type'] = value;
   }
 }
-
-typedef dynamic CreateUi(Map interfaces);
 
 class Canceller {
   bool cancelled = false;

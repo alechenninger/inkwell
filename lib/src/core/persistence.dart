@@ -48,7 +48,7 @@ class _FastForwarder {
 
   _FastForwarder(this._realClock);
 
-  Duration currentPlayTime() => _useParentZone
+  Duration getCurrentPlayTime() => _useParentZone
       ? _elapsed + _realClock.now().difference(_switchedToParent)
       : _elapsed;
 
