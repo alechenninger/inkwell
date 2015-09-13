@@ -39,7 +39,7 @@ var jackAndJillV1 = new Script(
     options.addExclusive(["Follow Jill", "Try to run past Jill"]);
 
     var jillBeatsJack = new Canceller();
-    emit(new Event("Jill gets to top of hill alone"),
+    emit("Jill gets to top of hill alone",
         delay: const Duration(seconds: 10), canceller: jillBeatsJack);
 
     once("Jill gets to top of hill alone").then((_) {

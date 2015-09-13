@@ -59,9 +59,9 @@ class Options {
     return removed;
   }
 
-  /// Emits an [Event] with the [option] as its alias and removes it from the
-  /// list of available options. Other mutually exclusive options are removed as
-  /// well.
+  /// Emits an [NamedEvent] with the [option] as its name and removes it from
+  /// the list of available options. Other mutually exclusive options are
+  /// removed as well.
   ///
   /// Throws an [ArgumentError] if the `option` is not available.
   void use(String option) {
@@ -105,7 +105,7 @@ class OptionsInterface {
 
   Stream<String> get removals => _options.removals.map((e) => e.option);
 
-  Stream<String> get uses => _options.uses.map((e) => e.option);
+  Stream<String> get uses => _options.uses.map((e) => e.name);
 }
 
 class OptionsInterfaceHandler implements InterfaceHandler {
@@ -121,30 +121,20 @@ class OptionsInterfaceHandler implements InterfaceHandler {
   }
 }
 
-class AddOptionEvent implements Event {
-  // I think maybe alias should not be a thing every event has to have
-  final String alias;
+class AddOptionEvent {
   final String option;
 
-  AddOptionEvent(String option)
-      : this.option = option,
-        this.alias = "Add option $option";
+  AddOptionEvent(this.option);
 }
 
-class RemoveOptionEvent implements Event {
-  final String alias;
+class RemoveOptionEvent {
   final String option;
 
-  RemoveOptionEvent(String option)
-      : this.option = option,
-        this.alias = "Remove option $option";
+  RemoveOptionEvent(this.option);
 }
 
-class UseOptionEvent implements Event {
-  final String alias;
-  final String option;
+class UseOptionEvent implements NamedEvent {
+  final String name;
 
-  UseOptionEvent(String option)
-      : this.option = option,
-        this.alias = option;
+  UseOptionEvent(this.name);
 }

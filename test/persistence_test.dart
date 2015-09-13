@@ -74,7 +74,7 @@ void main() {
             (Run run, Map modules) {
           run.once("first").then((_) {
             occurred.add("first");
-            run.emit(new Event("second"), delay: const Duration(seconds: 3));
+            run.emit("second", delay: const Duration(seconds: 3));
           });
           run.once("second").then((_) {
             occurred.add("second");
@@ -119,7 +119,7 @@ class TestEmitter {
   TestEmitter(this._run);
 
   emit(String alias) {
-    _run.emit(new Event(alias));
+    _run.emit(alias);
   }
 }
 

@@ -60,7 +60,7 @@ class DialogInterface {
   DialogInterface(this._dialog);
 }
 
-class DialogEvent implements Event {
+class DialogEvent {
   final String alias;
   final String dialog;
   final String from;
@@ -79,6 +79,8 @@ class DialogEvent implements Event {
         this.alias = alias == null
             ? "From: $from, To: $to, Dialog: $dialog, Replies: $replies"
             : alias;
+
+  toString() => alias;
 }
 
 class Replies {
@@ -94,17 +96,21 @@ class Replies {
   toString() => "Replies: $replies, Modal: $modal";
 }
 
-class NarrationEvent implements Event {
+class NarrationEvent {
   final String alias;
   final String narration;
 
   NarrationEvent(String narration, {String alias})
       : this.narration = narration,
         this.alias = alias == null ? "Narration: $narration" : alias;
+
+  toString() => alias;
 }
 
-class ClearDialogEvent implements Event {
+class ClearDialogEvent {
   final String alias;
 
   ClearDialogEvent([this.alias = "Dialog clear"]);
+
+  toString() => alias;
 }

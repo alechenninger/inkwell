@@ -83,65 +83,71 @@ typedef void Block(Run run, Map modules);
 typedef dynamic CreateUi(Map interfaces);
 
 class Run {
-  StreamController<Event> _ctrl =
-      new StreamController<Event>.broadcast(sync: true);
+  StreamController<dynamic> _ctrl =
+      new StreamController<dynamic>.broadcast(sync: true);
   GetCurrentPlayTime _currentPlayTime;
 
   Run(this._currentPlayTime) {
     //every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
   }
 
-  Future emit(Event event,
+  Future emit(dynamic event,
           {Duration delay: Duration.ZERO,
-          Canceller canceller: const _Uncancellable()}) =>
-      new Future.delayed(delay, () {
+          Canceller canceller: const _Uncancellable()}) {
+      event = event is String
+        ? new NamedEvent(event)
+        : event;
+
+      return new Future.delayed(delay, () {
         if (canceller.cancelled) return _never;
         _ctrl.add(event);
         return event;
       });
-
-  /// Listens to events happening in the script run. See [Once].
-  Future once(dynamic eventAliasOrTest) {
-    if (eventAliasOrTest is! String && eventAliasOrTest is! EventTest) {
-      throw new ArgumentError.value(eventAliasOrTest, "eventAliasOrTest",
-          "Must be a String or EventTest, was ${eventAliasOrTest.runtimeType}");
     }
 
-    var test = eventAliasOrTest is String
-        ? (Event e) => e.name == eventAliasOrTest
-        : eventAliasOrTest;
+  /// Listens to events happening in the script run. See [Once].
+  Future once(dynamic eventNameOrTest) {
+    if (eventNameOrTest is! String && eventNameOrTest is! EventTest) {
+      throw new ArgumentError.value(eventNameOrTest, "eventAliasOrTest",
+          "Must be a String or EventTest, was ${eventNameOrTest.runtimeType}");
+    }
+
+    var test = eventNameOrTest is String
+        ? (e) => e is NamedEvent && e.name == eventNameOrTest
+        : eventNameOrTest;
 
     return _ctrl.stream.firstWhere(test);
   }
 
   /// Listens to events happening in the script run. See [Every].
-  Stream every(bool test(Event)) => _ctrl.stream.where(test);
+  Stream every(bool test(event)) => _ctrl.stream.where(test);
 
   Duration currentPlayTime() => _currentPlayTime();
 }
 
-/// Adds an [Event] listener for the next (and only the next) event that matches
-/// the [eventAliasOrTest]. This may be a String or an [EventTest]. If a String
+/// Adds an event listener for the next (and only the next) event that matches
+/// the [eventNameOrTest]. This may be a String or an [EventTest]. If a String
 /// is passed, this is equivalent to passing the `EventTest` function,
-/// `(e) => e.alias == eventAliasOrTest`.
-typedef Future<Event> Once(dynamic eventAliasOrTest);
+/// `(e) => e is NamedEvent && e.alias == eventNameOrTest`.
+typedef Future<dynamic> Once(dynamic eventNameOrTest);
 
-typedef Stream<Event> Every(EventTest eventTest);
+typedef Stream<dynamic> Every(EventTest eventTest);
 
-/// Emits an [Event] with an optional [delay]. Returns a [Future] which
+/// Emits an event object with an optional [delay]. Returns a [Future] which
 /// completes when the event has been emitted and all listeners have received
 /// it. Optionally pass a [Canceller] to later cancel an event from being
 /// emitted, if it has not already been.
-typedef Future<Event> Emit(Event event, {Duration delay, Canceller canceller});
+typedef Future<dynamic> Emit(dynamic event, {Duration delay, Canceller canceller});
 
-typedef bool EventTest(Event event);
+typedef bool EventTest(dynamic event);
 
-/// Events capture what is happening while playing. Events can be listened to
-/// and they can be emitted.
-class Event {
+/// Special kind of event which is identified by its [name] only. [Run.emit] and
+/// [Run.once] have terse syntax for [NamedEvent]s: it assumes a [String] in
+/// place of a
+class NamedEvent {
   final String name;
 
-  Event(this.name);
+  NamedEvent(this.name);
 }
 
 /// Returns the current play time, which is a [Duration] since the beginning of
