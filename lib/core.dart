@@ -88,22 +88,20 @@ class Run {
   GetCurrentPlayTime _currentPlayTime;
 
   Run(this._currentPlayTime) {
-    //every((e) => true).listen((e) => print("${currentPlayTime()}: ${e.alias}"));
+    every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
   }
 
   Future emit(dynamic event,
-          {Duration delay: Duration.ZERO,
-          Canceller canceller: const _Uncancellable()}) {
-      event = event is String
-        ? new NamedEvent(event)
-        : event;
+      {Duration delay: Duration.ZERO,
+      Canceller canceller: const _Uncancellable()}) {
+    event = event is String ? new NamedEvent(event) : event;
 
-      return new Future.delayed(delay, () {
-        if (canceller.cancelled) return _never;
-        _ctrl.add(event);
-        return event;
-      });
-    }
+    return new Future.delayed(delay, () {
+      if (canceller.cancelled) return _never;
+      _ctrl.add(event);
+      return event;
+    });
+  }
 
   /// Listens to events happening in the script run. See [Once].
   Future once(dynamic eventNameOrTest) {
@@ -137,7 +135,8 @@ typedef Stream<dynamic> Every(EventTest eventTest);
 /// completes when the event has been emitted and all listeners have received
 /// it. Optionally pass a [Canceller] to later cancel an event from being
 /// emitted, if it has not already been.
-typedef Future<dynamic> Emit(dynamic event, {Duration delay, Canceller canceller});
+typedef Future<dynamic> Emit(dynamic event,
+    {Duration delay, Canceller canceller});
 
 typedef bool EventTest(dynamic event);
 
@@ -148,6 +147,8 @@ class NamedEvent {
   final String name;
 
   NamedEvent(this.name);
+
+  toString() => name;
 }
 
 /// Returns the current play time, which is a [Duration] since the beginning of

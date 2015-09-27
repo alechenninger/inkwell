@@ -50,7 +50,22 @@ var jackAndJillV1 = new Script(
       jillBeatsJack.cancelled = true;
       dialog.clear();
       dialog.add("So what do you want this water for anyway?",
-          from: "Jill", to: "Jack", delay: const Duration(seconds: 3));
+          from: "Jill",
+          to: "Jack",
+          delay: const Duration(seconds: 3),
+          replies: new Replies(
+              ["I don't know actually!", "I'm really thirsty."],
+              modal: true));
+
+      dialog
+          .onceReply(
+              reply: "I don't know actually!",
+              forDialog: "So what do you want this water for anyway?")
+          .then((_) {
+        dialog.add("I don't know actually!", from: "Jack", to: "Jill");
+        dialog.add("Seriously?",
+            from: "Jill", to: "Jack", delay: const Duration(milliseconds: 500));
+      });
     });
 
     once("Try to run past Jill").then((_) {

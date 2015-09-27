@@ -18,9 +18,9 @@ class SimpleHtmlUi {
       this._container, OptionsInterface options, DialogInterface dialog) {
     _container.children.addAll([_mainPanel, _optionsPanel]);
 
-    // TODO: Add options and dialog already present?
+    // TODO: Add options and dialog already present
 
-    dialog.dialog.listen((e) => new DialogElement(e, _mainPanel));
+    dialog.dialog.listen((e) => new DialogElement(e, _mainPanel, dialog));
 
     dialog.clears.listen((e) {
       _mainPanel.children.clear();
@@ -30,7 +30,7 @@ class SimpleHtmlUi {
       _optionsPanel.children.add(new DivElement()
         ..classes.add('option')
         ..innerHtml = o
-        ..onClick.listen((_) => options.use(o)));
+        ..onClick.listen((e) => options.use(o)));
     });
 
     options.removals.listen((o) {
@@ -44,7 +44,7 @@ class SimpleHtmlUi {
 }
 
 class DialogElement {
-  DialogElement(DialogEvent e, HtmlElement container) {
+  DialogElement(DialogEvent e, HtmlElement container, DialogInterface dialog) {
     var speaker = new DivElement()
       ..classes.add('speaker')
       ..innerHtml = "${e.from}";
@@ -57,11 +57,20 @@ class DialogElement {
       ..classes.add('what')
       ..innerHtml = '${e.dialog}';
 
-    var dialog = new DivElement()
-      ..classes.add('dialog')
-      ..children.addAll([speaker, target, what]);
+    var replies = e.replies.available.map((r) => new DivElement()
+      ..classes.add('reply')
+      ..innerHtml = '$r'
+      ..onClick.first.then((_) => dialog.reply(r, e)));
 
-    container.children.add(dialog);
+    var replyContainer = new DivElement()
+      ..classes.add('replies')
+      ..children.addAll(replies);
+
+    var dialogElement = new DivElement()
+      ..classes.add('dialog')
+      ..children.addAll([speaker, target, what, replyContainer]);
+
+    container.children.add(dialogElement);
   }
 }
 

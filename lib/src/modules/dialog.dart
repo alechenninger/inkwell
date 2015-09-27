@@ -40,9 +40,9 @@ class Dialog {
 
   Future<DialogEvent> once({String dialog, String from, String to}) {
     var conditions = [];
-    dialog ?? conditions.add((e) => e.dialog == dialog);
-    from ?? conditions.add((e) => e.from = from);
-    to ?? conditions.add((e) => e.to == to);
+    if (_notNull(dialog)) conditions.add((e) => e.dialog == dialog);
+    if (_notNull(from)) conditions.add((e) => e.from = from);
+    if (_notNull(to)) conditions.add((e) => e.to == to);
     return this.dialog.firstWhere((e) => conditions.every((c) => c(e)));
   }
 
@@ -52,10 +52,13 @@ class Dialog {
       String forDialogTo,
       String forDialogFrom}) {
     var conditions = [];
-    reply ?? conditions.add((e) => e.reply == reply);
-    forDialog ?? conditions.add((e) => e.dialogEvent.dialog == forDialog);
-    forDialogTo ?? conditions.add((e) => e.dialogEvent.to == forDialogTo);
-    forDialogFrom ?? conditions.add((e) => e.dialogEvent.from == forDialogFrom);
+    if (_notNull(reply)) conditions.add((e) => e.reply == reply);
+    if (_notNull(forDialog)) conditions
+        .add((e) => e.dialogEvent.dialog == forDialog);
+    if (_notNull(forDialogFrom)) conditions
+        .add((e) => e.dialogEvent.to == forDialogTo);
+    if (_notNull(forDialogFrom)) conditions
+        .add((e) => e.dialogEvent.from == forDialogFrom);
     return replies.firstWhere((e) => conditions.every((c) => c(e)));
   }
 
@@ -97,7 +100,8 @@ class DialogInterfaceHandler implements InterfaceHandler {
   void handle(String action, Map args) {
     switch (action) {
       case 'reply':
-        _dialog.reply(args['reply'], args['dialogEvent']);
+        _dialog.reply(
+            args['reply'], new DialogEvent.fromJson(args['dialogEvent']));
     }
   }
 }
@@ -142,21 +146,21 @@ class DialogEvent {
 
 class Replies {
   final bool modal;
-  final List<String> replies;
+  final List<String> available;
 
-  Replies(this.replies, {this.modal: false});
+  Replies(this.available, {this.modal: false});
 
   const Replies.none()
       : modal = false,
-        replies = const [];
+        available = const [];
 
   Replies.fromJson(Map json)
       : modal = json['modal'],
-        replies = json['replies'];
+        available = json['replies'];
 
-  toString() => "Replies: $replies, Modal: $modal";
+  toString() => "Replies: $available, Modal: $modal";
 
-  Map toJson() => {'modal': modal, 'replies': replies};
+  Map toJson() => {'modal': modal, 'replies': available};
 }
 
 class NarrationEvent {
@@ -186,3 +190,5 @@ class ReplyEvent {
 
   toString() => "Reply: $reply, dialog: $dialogEvent";
 }
+
+bool _notNull(String reply) => reply != null;
