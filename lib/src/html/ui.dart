@@ -57,10 +57,17 @@ class DialogElement {
       ..classes.add('what')
       ..innerHtml = '${e.dialog}';
 
+    var replied = false;
+
     var replies = e.replies.available.map((r) => new DivElement()
       ..classes.add('reply')
-      ..innerHtml = '$r'
-      ..onClick.first.then((_) => dialog.reply(r, e)));
+      ..innerHtml = r
+      ..onClick.first.then((_) {
+        if (!replied) {
+          dialog.reply(r, e);
+          replied = true;
+        }
+      }));
 
     var replyContainer = new DivElement()
       ..classes.add('replies')
