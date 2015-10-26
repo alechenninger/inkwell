@@ -1,3 +1,4 @@
+/// A library which exports some standard, default modules.
 library august.modules;
 
 import 'package:august/core.dart';
