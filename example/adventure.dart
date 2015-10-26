@@ -12,7 +12,7 @@ main() {
 
   start(jackAndJillV1,
       uis: [SimpleHtmlUi.forContainer(container)],
-      persistence: new NoopPersistance());
+      persistence: new HtmlPersistence(jackAndJillV1));
 }
 
 var jackAndJillV1 = new Script(

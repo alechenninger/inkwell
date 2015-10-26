@@ -210,7 +210,7 @@ class RunModules {
 
   _initializeModuleWithInterface(HasInterface hasInterface, dynamic module,
       Run run, Persistence persistence) {
-    var moduleType = hasInterface.runtimeType;
+    var moduleType = module.runtimeType;
 
     var handler = hasInterface.createInterfaceHandler(module);
     var interface = hasInterface.createInterface(module, (action, args) {
