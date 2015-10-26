@@ -4,7 +4,6 @@ import 'package:august/core.dart';
 import 'util/fake_async.dart' show FakeAsync;
 
 void main() {
-  var initialTime = new DateTime.fromMillisecondsSinceEpoch(0);
   var persistence;
 
   setUp(() {

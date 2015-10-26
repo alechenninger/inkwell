@@ -2,7 +2,7 @@ part of august.html;
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;
-  List<InterfaceEvent> _savedEvents = [];
+  final List<InterfaceEvent> _savedEvents = [];
 
   HtmlPersistence(Script script, [Storage _storage])
       : _scriptHandle = script.name + script.version {
@@ -10,7 +10,7 @@ class HtmlPersistence implements Persistence {
 
     if (storage.containsKey(_scriptHandle)) {
       var saved = JSON.decode(storage[_scriptHandle]);
-      //_savedEvents.addAll(saved.map((o) => new InterfaceEvent.fromJson(o)));
+      _savedEvents.addAll(saved.map((o) => new InterfaceEvent.fromJson(o)));
     }
 
     window.onBeforeUnload.listen((e) {
