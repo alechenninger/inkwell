@@ -3,7 +3,7 @@ part of august.modules;
 class DialogModule implements ModuleDefinition, HasInterface {
   final name = 'Dialog';
 
-  Dialog create(Run run, Map modules) {
+  Dialog createModule(Run run, Map modules) {
     return new Dialog(run);
   }
 
@@ -19,23 +19,31 @@ class DialogModule implements ModuleDefinition, HasInterface {
 class Dialog {
   final Run _run;
 
+  final List<DialogEvent> _alreadyReplied = [];
+
   Dialog(this._run);
 
   Future<DialogEvent> add(String dialog,
-          {String from,
-          String to,
-          Duration delay: Duration.ZERO,
-          Replies replies: const _NoReplies()}) =>
-      _run.emit(new DialogEvent(dialog, from: from, to: to, replies: replies),
-          delay: delay);
+      {String from,
+      String to,
+      Duration delay: Duration.ZERO,
+      Replies replies: const _NoReplies()}) {
+    var event = new DialogEvent(dialog, from: from, to: to, replies: replies);
 
-  Future<ReplyEvent> reply(String reply, DialogEvent dialogEvent) {
-    if (dialogEvent.replies._used != null) {
-      throw new StateError("Cannot reply to a dialog more than once; previous "
-          "reply was ${dialogEvent.replies._used}.");
+    if (replies.modal) {
+      _run.changeMode(this, new MustReplyMode(_run, event, this));
     }
 
-    dialogEvent.replies._used = reply;
+    return _run.emit(event, delay: delay);
+  }
+
+  Future<ReplyEvent> reply(String reply, DialogEvent dialogEvent) {
+    if (_alreadyReplied.contains(dialogEvent)) {
+      throw new StateError("Cannot reply to a dialog more than once. Tried to "
+          "reply twice to $dialogEvent.");
+    }
+
+    _alreadyReplied.add(dialogEvent);
 
     return _run.emit(new ReplyEvent(reply, dialogEvent));
   }
@@ -44,7 +52,10 @@ class Dialog {
           {Duration delay: Duration.ZERO}) =>
       _run.emit(new NarrationEvent(narration), delay: delay);
 
-  Future<ClearDialogEvent> clear() => _run.emit(new ClearDialogEvent());
+  Future<ClearDialogEvent> clear() {
+    _alreadyReplied.clear();
+    return _run.emit(new ClearDialogEvent());
+  }
 
   Future<DialogEvent> once({String dialog, String from, String to}) {
     var conditions = [];
@@ -156,23 +167,58 @@ class DialogEvent {
         'to': to,
         'replies': replies.toJson()
       };
+
+  bool operator ==(dynamic other) => other is DialogEvent &&
+      alias == other.alias &&
+      dialog == other.dialog &&
+      from == other.from &&
+      to == other.to &&
+      replies == other.replies;
 }
 
 class Replies {
   final bool modal;
   final List<String> available;
-  String _used;
 
   Replies(this.available, {this.modal: false});
 
   Replies.fromJson(Map json)
       : modal = json['modal'],
-        available = json['replies'],
-        _used = json['_used'];
+        available = json['replies'];
 
   toString() => "Replies: $available, Modal: $modal";
 
-  Map toJson() => {'modal': modal, 'replies': available, '_used': _used};
+  Map toJson() => {'modal': modal, 'replies': available};
+
+  bool operator ==(dynamic other) =>
+      other is Replies && modal == other.modal && available == other.available;
+}
+
+class MustReplyMode implements Mode {
+  final Run _run;
+  final DialogEvent _dialogEvent;
+  final Mode _previous;
+  final Dialog _dialog;
+  bool _hasReplied = false;
+
+  MustReplyMode(Run run, this._dialogEvent, this._dialog)
+      : _run = run,
+        _previous = run.currentMode;
+
+  bool canChangeMode(module, Mode to) => _hasReplied;
+
+  Mode getNewMode(Mode to) => to;
+
+  void handleInterfaceEvent(
+      String action, Map<String, dynamic> args, InterfaceHandler handler) {
+    if (handler is DialogInterfaceHandler &&
+        action == 'reply' &&
+        new DialogEvent.fromJson(args['dialogEvent']) == _dialogEvent) {
+      _hasReplied = true;
+      _run.changeMode(_dialog, _previous);
+      handler.handle(action, args);
+    }
+  }
 }
 
 class NarrationEvent {
@@ -218,4 +264,4 @@ class _NoReplies implements Replies {
   Map toJson() => {'modal': modal, 'replies': available};
 }
 
-bool _notNull(String reply) => reply != null;
+bool _notNull(dynamic it) => it != null;

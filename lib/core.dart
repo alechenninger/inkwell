@@ -22,19 +22,19 @@ start(Script script,
     Persistence persistence: const NoopPersistance()}) {
   var clock = new Clock();
   var run;
-  var scriptModules;
+  var runModules;
 
   if (persistence.savedEvents.isNotEmpty) {
     var ff = new _FastForwarder(clock);
 
     run = new Run._(ff.getCurrentPlayTime);
-    scriptModules = new ScriptModules(script.modules, run, persistence);
+    runModules = new RunModules(script.modules, run, persistence);
 
     ff.run((ff) {
-      script.block(run, scriptModules.modules);
+      script.block(run, runModules.modules);
       persistence.savedEvents.forEach((e) {
         new Future.delayed(e.offset, () {
-          scriptModules.interfaceHandlers[e.moduleName]
+          runModules.interfaceHandlers[e.moduleName]
               .handle(e.action, e.args);
         });
       });
@@ -47,12 +47,12 @@ start(Script script,
     var cpt = () => clock.now().difference(startTime);
 
     run = new Run._(cpt);
-    scriptModules = new ScriptModules(script.modules, run, persistence);
+    runModules = new RunModules(script.modules, run, persistence);
 
-    script.block(run, scriptModules.modules);
+    script.block(run, runModules.modules);
   }
 
-  uis.forEach((createUi) => createUi(scriptModules.interfaces));
+  uis.forEach((createUi) => createUi(runModules.interfaces));
 }
 
 class Script {
@@ -94,9 +94,14 @@ typedef dynamic CreateUi(Map interfaces);
 /// A `Run`'s focus is on managing events emitted and subscribed to from
 /// `Module`s and the consuming [Script]. See the [start] function.
 class Run {
-  StreamController<dynamic> _ctrl =
+  Mode _mode = const Free();
+
+  final StreamController<dynamic> _ctrl =
       new StreamController<dynamic>.broadcast(sync: true);
-  GetCurrentPlayTime _currentPlayTime;
+
+  final GetCurrentPlayTime _currentPlayTime;
+
+  Mode get currentMode => _mode;
 
   Run._(this._currentPlayTime, {verbose: true}) {
     if (verbose) {
@@ -134,6 +139,17 @@ class Run {
   Stream every(bool test(event)) => _ctrl.stream.where(test);
 
   Duration currentPlayTime() => _currentPlayTime();
+
+  void changeMode(dynamic requestingModule, Mode to) {
+    if (_mode.canChangeMode(requestingModule, to)) {
+      _mode = _mode.getNewMode(to);
+      return;
+    }
+
+    throw new StateError("Current mode is not allowing mode change. "
+        "Current mode is $_mode. Module requesting change is "
+        "${requestingModule.runtimeType}. It is requesting a change to $to.");
+  }
 }
 
 /// Adds an event listener for the next (and only the next) event that matches
@@ -155,7 +171,7 @@ typedef bool EventTest(dynamic event);
 
 /// Special kind of event which is identified by its [name] only. [Run.emit] and
 /// [Run.once] have terse syntax for [NamedEvent]s: it assumes a [String] in
-/// place of a
+/// place of an [Event] is a [NamedEvent].
 class NamedEvent {
   final String name;
 
@@ -171,38 +187,83 @@ class NamedEvent {
 typedef Duration GetCurrentPlayTime();
 
 /// Instantiates modules for a particular run and houses them.
-class ScriptModules {
+class RunModules {
   final Map modules = {};
   final Map interfaces = {};
   final Map interfaceHandlers = {};
 
-  ScriptModules(
-      List<ModuleDefinition> moduleDefs, Run run, Persistence persistence) {
-    moduleDefs.forEach((moduleDef) {
-      var module = moduleDef.create(run, modules);
+  RunModules(List<ModuleDefinition> defs, Run run, Persistence persistence) {
+    defs.forEach((moduleDef) {
+      // TODO: How will module dependencies play out?
+      // If modules can lazily lookup their deps, that can work
+      // Otherwise need to understand dep graph which is kind of gnarly.
+      // Potential cyclic dependencies and such.
+      var module = moduleDef.createModule(run, modules);
 
-      _putIn(modules, module.runtimeType, module);
+      _putModule(module);
 
       if (moduleDef is HasInterface) {
-        var handler = moduleDef.createInterfaceHandler(module);
-        var interface = moduleDef.createInterface(module, (action, args) {
-          // Could put logic here to check if this module is allowed to be
-          // interacted with from user interface currently.
-          var event = new InterfaceEvent(
-              moduleDef.runtimeType, action, args, run.currentPlayTime());
-          persistence.saveEvent(event);
-          handler.handle(action, args);
-        });
-
-        _putIn(interfaces, module.runtimeType, interface);
-        _putIn(interfaceHandlers, module.runtimeType, handler);
+        _initializeModuleWithInterface(moduleDef, module, run, persistence);
       }
     });
   }
 
-  _putIn(Map map, Type type, dynamic value) {
-    map[type] = value;
-    map['$type'] = value;
+  _initializeModuleWithInterface(HasInterface hasInterface, dynamic module,
+      Run run, Persistence persistence) {
+    var moduleType = hasInterface.runtimeType;
+
+    var handler = hasInterface.createInterfaceHandler(module);
+    var interface = hasInterface.createInterface(module, (action, args) {
+      var currentPlayTime = run.currentPlayTime();
+      var event = new InterfaceEvent(moduleType, action, args, currentPlayTime);
+
+      persistence.saveEvent(event);
+
+      run._mode.handleInterfaceEvent(action, args, handler);
+    });
+
+    _putInterface(module.runtimeType, interface);
+    _putInterfaceHandler(module.runtimeType, handler);
+  }
+
+  _putModule(dynamic module) {
+    modules[module.runtimeType] = module;
+    modules['${module.runtimeType}'] = module;
+  }
+
+  _putInterface(Type moduleType, dynamic interface) {
+    interfaces[moduleType] = interface;
+    interfaces['$moduleType'] = interface;
+  }
+
+  _putInterfaceHandler(Type moduleType, InterfaceHandler handler) {
+    interfaceHandlers[moduleType] = handler;
+    interfaceHandlers['$moduleType'] = handler;
+  }
+}
+
+/// User interaction through an interface is governed by the current [Mode] of
+/// the [Run]. The default `mode` is [Free].
+abstract class Mode {
+  bool canChangeMode(dynamic module, Mode to);
+  Mode getNewMode(Mode to);
+  void handleInterfaceEvent(
+      String action, Map<String, dynamic> args, InterfaceHandler handler);
+}
+
+/// A [Mode] which may freely by changed, does not augment the mode being
+/// changed to, and passes all interface events through to their normal
+/// [InterfaceHandler]s.
+class Free implements Mode {
+  const Free();
+
+  bool canChangeMode(module, Mode to) => true;
+
+  Mode getNewMode(Mode to) => to;
+
+  void handleInterfaceEvent(
+      String action, Map<String, dynamic> args, InterfaceHandler handler) {
+    handler.handle(action, args);
   }
 }
 
