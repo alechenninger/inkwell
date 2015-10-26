@@ -4,7 +4,7 @@ packages:
   analyzer:
     description: analyzer
     source: hosted
-    version: "0.26.0"
+    version: "0.26.1+15"
   args:
     description: args
     source: hosted
@@ -16,7 +16,7 @@ packages:
   barback:
     description: barback
     source: hosted
-    version: "0.15.2+6"
+    version: "0.15.2+7"
   browser:
     description: browser
     source: hosted
@@ -28,15 +28,19 @@ packages:
   collection:
     description: collection
     source: hosted
-    version: "1.1.1"
+    version: "1.1.3"
+  convert:
+    description: convert
+    source: hosted
+    version: "1.0.0"
   crypto:
     description: crypto
     source: hosted
-    version: "0.9.0"
+    version: "0.9.1"
   csslib:
     description: csslib
     source: hosted
-    version: "0.12.1"
+    version: "0.12.2"
   glob:
     description: glob
     source: hosted
@@ -44,7 +48,7 @@ packages:
   html:
     description: html
     source: hosted
-    version: "0.12.1+2"
+    version: "0.12.2"
   http_multi_server:
     description: http_multi_server
     source: hosted
@@ -52,11 +56,11 @@ packages:
   http_parser:
     description: http_parser
     source: hosted
-    version: "0.0.2+8"
+    version: "1.1.0"
   logging:
     description: logging
     source: hosted
-    version: "0.11.1"
+    version: "0.11.2"
   matcher:
     description: matcher
     source: hosted
@@ -68,7 +72,7 @@ packages:
   package_config:
     description: package_config
     source: hosted
-    version: "0.1.1"
+    version: "0.1.3"
   path:
     description: path
     source: hosted
@@ -80,11 +84,11 @@ packages:
   pool:
     description: pool
     source: hosted
-    version: "1.1.0"
+    version: "1.2.0"
   pub_semver:
     description: pub_semver
     source: hosted
-    version: "1.2.1"
+    version: "1.2.2"
   quiver:
     description: quiver
     source: hosted
@@ -92,15 +96,15 @@ packages:
   shelf:
     description: shelf
     source: hosted
-    version: "0.6.2"
+    version: "0.6.3+1"
   shelf_static:
     description: shelf_static
     source: hosted
-    version: "0.2.3"
+    version: "0.2.3+1"
   shelf_web_socket:
     description: shelf_web_socket
     source: hosted
-    version: "0.0.1+2"
+    version: "0.0.1+4"
   source_map_stack_trace:
     description: source_map_stack_trace
     source: hosted
@@ -112,19 +116,23 @@ packages:
   source_span:
     description: source_span
     source: hosted
-    version: "1.1.2"
+    version: "1.2.1"
   stack_trace:
     description: stack_trace
     source: hosted
-    version: "1.3.4"
+    version: "1.4.2"
   string_scanner:
     description: string_scanner
     source: hosted
-    version: "0.1.3+1"
+    version: "0.1.4"
   test:
     description: test
     source: hosted
-    version: "0.12.4+7"
+    version: "0.12.5+1"
+  typed_data:
+    description: typed_data
+    source: hosted
+    version: "1.0.0"
   utf:
     description: utf
     source: hosted
@@ -136,4 +144,4 @@ packages:
   yaml:
     description: yaml
     source: hosted
-    version: "2.1.3"
+    version: "2.1.7"
