@@ -3,7 +3,7 @@ part of august.modules;
 class OptionsModule implements ModuleDefinition, HasInterface {
   final name = 'Options';
 
-  Options create(Run run, Map modules) {
+  Options createModule(Run run, Map modules) {
     return new Options(run);
   }
 

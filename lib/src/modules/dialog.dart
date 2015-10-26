@@ -3,7 +3,7 @@ part of august.modules;
 class DialogModule implements ModuleDefinition, HasInterface {
   final name = 'Dialog';
 
-  Dialog create(Run run, Map modules) {
+  Dialog createModule(Run run, Map modules) {
     return new Dialog(run);
   }
 

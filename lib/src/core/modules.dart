@@ -2,11 +2,12 @@ part of august.core;
 
 abstract class ModuleDefinition {
   /// A module tracks state, emits events, allows listening to those events.
-  dynamic create(Run run, Map modules);
+  dynamic createModule(Run run, Map modules);
 }
 
 /// If implemented by a [ModuleDefinition], indicates this module can be
 /// interacted with by a user interface.
+// TODO: It might be cleaner if the module itself implemented this
 abstract class HasInterface {
   /// Provides access to state and actions of the module. Actions should emit
   /// events which must be handled by the module's [InterfaceHandler]. Interface

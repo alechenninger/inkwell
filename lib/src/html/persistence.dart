@@ -9,7 +9,7 @@ class HtmlPersistence implements Persistence {
     var storage = _storage == null ? window.localStorage : _storage;
 
     if (storage.containsKey(_scriptHandle)) {
-      var saved = JSON.decode(storage[_scriptHandle]);
+      var saved = JSON.decode(storage[_scriptHandle]) as List<Map>;
       _savedEvents.addAll(saved.map((o) => new InterfaceEvent.fromJson(o)));
     }
 

@@ -105,7 +105,7 @@ class InMemoryPersistence implements Persistence {
 }
 
 class TestEmitterModule implements ModuleDefinition, HasInterface {
-  TestEmitter create(Run run, Map modules) => new TestEmitter(run);
+  TestEmitter createModule(Run run, Map modules) => new TestEmitter(run);
   TestEmitterInterface createInterface(module, emit) =>
       new TestEmitterInterface();
   TestEmitterHandler createInterfaceHandler(TestEmitter emitter) =>
