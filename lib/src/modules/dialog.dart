@@ -31,8 +31,7 @@ class Dialog {
     var event = new DialogEvent(dialog, from: from, to: to, replies: replies);
 
     if (replies.modal) {
-      _run.changeMode(
-          this, new MustReplyMode(_run, event, _run.currentMode, this));
+      _run.changeMode(this, new MustReplyMode(_run, event, this));
     }
 
     return _run.emit(event, delay: delay);
@@ -202,7 +201,9 @@ class MustReplyMode implements Mode {
   final Dialog _dialog;
   bool _hasReplied = false;
 
-  MustReplyMode(this._run, this._dialogEvent, this._previous, this._dialog);
+  MustReplyMode(Run run, this._dialogEvent, this._dialog)
+      : _run = run,
+        _previous = run.currentMode;
 
   bool canChangeMode(module, Mode to) => _hasReplied;
 
