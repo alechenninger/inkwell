@@ -26,8 +26,10 @@ start(Script script,
 
   if (persistence.savedEvents.isNotEmpty) {
     var ff = new _FastForwarder(clock);
-    run = new Run(ff.getCurrentPlayTime);
+
+    run = new Run._(ff.getCurrentPlayTime);
     scriptModules = new ScriptModules(script.modules, run, persistence);
+
     ff.run((ff) {
       script.block(run, scriptModules.modules);
       persistence.savedEvents.forEach((e) {
@@ -38,12 +40,15 @@ start(Script script,
       });
       ff.fastForward(persistence.savedEvents.last.offset);
     });
+
     ff.switchToParentZone();
   } else {
     var startTime = clock.now();
     var cpt = () => clock.now().difference(startTime);
-    run = new Run(cpt);
+
+    run = new Run._(cpt);
     scriptModules = new ScriptModules(script.modules, run, persistence);
+
     script.block(run, scriptModules.modules);
   }
 
@@ -82,13 +87,21 @@ typedef void Block(Run run, Map modules);
 /// to that module which a UI can use to interact with the current [Run].
 typedef dynamic CreateUi(Map interfaces);
 
+/// A [Run] encapsulates the state of a currently _actively_ running script.
+/// Current saved progress of a player's playthrough is not encapsulated in a
+/// `Run`. This state is managed elsewhere.
+///
+/// A `Run`'s focus is on managing events emitted and subscribed to from
+/// `Module`s and the consuming [Script]. See the [start] function.
 class Run {
   StreamController<dynamic> _ctrl =
       new StreamController<dynamic>.broadcast(sync: true);
   GetCurrentPlayTime _currentPlayTime;
 
-  Run(this._currentPlayTime) {
-    every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
+  Run._(this._currentPlayTime, {verbose: true}) {
+    if (verbose) {
+      every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
+    }
   }
 
   Future emit(dynamic event,
@@ -173,6 +186,8 @@ class ScriptModules {
       if (moduleDef is HasInterface) {
         var handler = moduleDef.createInterfaceHandler(module);
         var interface = moduleDef.createInterface(module, (action, args) {
+          // Could put logic here to check if this module is allowed to be
+          // interacted with from user interface currently.
           var event = new InterfaceEvent(
               moduleDef.runtimeType, action, args, run.currentPlayTime());
           persistence.saveEvent(event);
