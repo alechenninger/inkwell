@@ -101,6 +101,8 @@ class Run {
 
   final GetCurrentPlayTime _currentPlayTime;
 
+  Mode get currentMode => _mode;
+
   Run._(this._currentPlayTime, {verbose: true}) {
     if (verbose) {
       every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
@@ -138,14 +140,15 @@ class Run {
 
   Duration currentPlayTime() => _currentPlayTime();
 
-  // TODO: May want to throw if can't change mode instead, not sure
-  bool requestModeChange(dynamic requestingModule, Mode to) {
+  void changeMode(dynamic requestingModule, Mode to) {
     if (_mode.canChangeMode(requestingModule, to)) {
       _mode = _mode.getNewMode(to);
-      return true;
+      return;
     }
 
-    return false;
+    throw new StateError("Current mode is not allowing mode change. "
+        "Current mode is $_mode. Module requesting change is "
+        "${requestingModule.runtimeType}. It is requesting a change to $to.");
   }
 }
 
