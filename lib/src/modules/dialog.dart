@@ -190,8 +190,9 @@ class Replies {
 
   Map toJson() => {'modal': modal, 'replies': available};
 
-  bool operator ==(dynamic other) =>
-      other is Replies && modal == other.modal && available == other.available;
+  bool operator ==(dynamic other) => other is Replies &&
+      modal == other.modal &&
+      const IterableEquality().equals(available, other.available);
 }
 
 class MustReplyMode implements Mode {

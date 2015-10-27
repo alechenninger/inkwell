@@ -2,6 +2,7 @@
 library august.modules;
 
 import 'package:august/core.dart';
+import 'package:collection/equality.dart';
 
 part 'src/modules/options.dart';
 part 'src/modules/dialog.dart';
