@@ -63,11 +63,12 @@ class DialogElement {
       ..classes.add('reply')
       ..innerHtml = r
       ..onClick.first.then((_) {
-        if (!replied) {
-          dialog.reply(r, e);
-          replied = true;
-        }
+        if (!replied) dialog.reply(r, e);
       }));
+
+    dialog.replies
+        .firstWhere((r) => r.dialogEvent == e)
+        .then((_) => replied = true);
 
     var replyContainer = new DivElement()
       ..classes.add('replies')
