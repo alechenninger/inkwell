@@ -252,10 +252,6 @@ class ReplyEvent {
 class _NoReplies implements Replies {
   final bool modal = false;
   final List<String> available = const [];
-  String get _used => null;
-  void set _used(_) {
-    throw new UnsupportedError("");
-  }
 
   const _NoReplies();
 
