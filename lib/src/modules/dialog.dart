@@ -24,12 +24,26 @@ class Dialog {
   Future<DialogEvent> add(String dialog,
       {String from,
       String to,
+      String named,
       Duration delay: Duration.ZERO,
       Replies replies: const _NoReplies()}) {
-    var event = new DialogEvent(dialog, from: from, to: to, replies: replies);
+    var event = new DialogEvent(dialog,
+        from: from, to: to, replies: replies, name: named);
+
+    if (_previousDialogNames.contains(event.name)) {
+      throw new ArgumentError("Added dialog names must be unique. Dialog names "
+          "are useful as a way to distinguish otherwise similar dialogs. "
+          "Note that if you did not provide a name explicitly, it was computed "
+          "from the dialogs other attributes, and must still be unique. "
+          "By enforcing a name's uniqueness, you can rely on referring to a "
+          "dialog's name as only ever referring to the one dialog you mean it "
+          "to. Dialog added was: $event.");
+    }
+
+    _previousDialogNames.add(event.name);
 
     if (replies.modal) {
-      _run.changeMode(this, new MustReplyMode(_run, event, this));
+      _run.changeMode(this, new MustReplyMode(_run, event.name, this));
     }
 
     return _run.emit(event, delay: delay);
@@ -55,11 +69,21 @@ class Dialog {
     return _run.emit(new ClearDialogEvent());
   }
 
-  Future<DialogEvent> once({String dialog, String from, String to}) {
+  /// Listens for next emitted dialog which matches the provided criteria.
+  ///
+  /// [named] criteria trumps all others.
+  Future<DialogEvent> once(
+      {String dialog, String from, String to, String named}) {
+    if (_notNull(named)) {
+      return this.dialog.firstWhere((e) => e.name == named);
+    }
+
     var conditions = [];
+
     if (_notNull(dialog)) conditions.add((e) => e.dialog == dialog);
     if (_notNull(from)) conditions.add((e) => e.from = from);
     if (_notNull(to)) conditions.add((e) => e.to == to);
+
     return this.dialog.firstWhere((e) => conditions.every((c) => c(e)));
   }
 
@@ -67,19 +91,32 @@ class Dialog {
       {String reply,
       String forDialog,
       String forDialogTo,
-      String forDialogFrom}) {
+      String forDialogFrom,
+      String forDialogNamed}) {
     var conditions = [];
 
-    if (_notNull(reply)) conditions.add((e) => e.reply == reply);
-    if (_notNull(forDialog)) conditions
-        .add((e) => e.dialogEvent.dialog == forDialog);
-    if (_notNull(forDialogFrom)) conditions
-        .add((e) => e.dialogEvent.to == forDialogTo);
-    if (_notNull(forDialogFrom)) conditions
-        .add((e) => e.dialogEvent.from == forDialogFrom);
+    if (_notNull(reply)) {
+      conditions.add((e) => e.reply == reply);
+    }
 
-    if (conditions.isEmpty) {
-      throw new ArgumentError("Must pass at least one criteria for a reply.");
+    if (_notNull(forDialogNamed)) {
+      conditions.add((e) => e.dialogEvent.name == forDialogNamed);
+    } else {
+      if (_notNull(forDialog)) {
+        conditions.add((e) => e.dialogEvent.dialog == forDialog);
+      }
+
+      if (_notNull(forDialogTo)) {
+        conditions.add((e) => e.dialogEvent.to == forDialogTo);
+      }
+
+      if (_notNull(forDialogFrom)) {
+        conditions.add((e) => e.dialogEvent.from == forDialogFrom);
+      }
+
+      if (conditions.isEmpty) {
+        throw new ArgumentError("Must pass at least one criteria for a reply.");
+      }
     }
 
     return replies.firstWhere((e) => conditions.every((c) => c(e)));
@@ -130,7 +167,7 @@ class DialogInterfaceHandler implements InterfaceHandler {
 }
 
 class DialogEvent {
-  final String alias;
+  final String name;
   final String dialog;
   final String from;
   final String to;
@@ -139,27 +176,27 @@ class DialogEvent {
   DialogEvent(String dialog,
       {String from: "",
       String to: "",
-      String alias,
+      String name,
       Replies replies: const _NoReplies()})
       : this.dialog = dialog,
         this.from = from,
         this.to = to,
         this.replies = replies,
-        this.alias = alias == null
+        this.name = name == null
             ? "From: $from, To: $to, Dialog: $dialog, Replies: $replies"
-            : alias;
+            : name;
 
   DialogEvent.fromJson(Map json)
-      : alias = json['alias'],
+      : name = json['name'],
         dialog = json['dialog'],
         from = json['from'],
         to = json['to'],
         replies = new Replies.fromJson(json['replies']);
 
-  toString() => alias;
+  toString() => name;
 
   Map toJson() => {
-        'alias': alias,
+        'name': name,
         'dialog': dialog,
         'from': from,
         'to': to,
@@ -167,11 +204,13 @@ class DialogEvent {
       };
 
   bool operator ==(dynamic other) => other is DialogEvent &&
-      alias == other.alias &&
+      name == other.name &&
       dialog == other.dialog &&
       from == other.from &&
       to == other.to &&
       replies == other.replies;
+
+  int get hashCode => quiver.hashObjects([name, dialog, from, to, replies]);
 }
 
 class Replies {
@@ -191,16 +230,18 @@ class Replies {
   bool operator ==(dynamic other) => other is Replies &&
       modal == other.modal &&
       const IterableEquality().equals(available, other.available);
+
+  int get hashCode => quiver.hash2(modal, available);
 }
 
 class MustReplyMode implements Mode {
   final Run _run;
-  final DialogEvent _dialogEvent;
+  final String _dialogEventName;
   final Mode _previous;
   final Dialog _dialog;
   bool _hasReplied = false;
 
-  MustReplyMode(Run run, this._dialogEvent, this._dialog)
+  MustReplyMode(Run run, this._dialogEventName, this._dialog)
       : _run = run,
         _previous = run.currentMode;
 
@@ -212,7 +253,8 @@ class MustReplyMode implements Mode {
       String action, Map<String, dynamic> args, InterfaceHandler handler) {
     if (handler is DialogInterfaceHandler &&
         action == 'reply' &&
-        new DialogEvent.fromJson(args['dialogEvent']) == _dialogEvent) {
+        new DialogEvent.fromJson(args['dialogEvent']).name ==
+            _dialogEventName) {
       _hasReplied = true;
       _run.changeMode(_dialog, _previous);
       handler.handle(action, args);
@@ -258,5 +300,7 @@ class _NoReplies implements Replies {
 
   Map toJson() => {'modal': modal, 'replies': available};
 }
+
+final List<String> _previousDialogNames = <String>[];
 
 bool _notNull(dynamic it) => it != null;
