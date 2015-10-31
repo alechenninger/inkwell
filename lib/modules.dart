@@ -3,6 +3,7 @@ library august.modules;
 
 import 'package:august/core.dart';
 import 'package:collection/equality.dart';
+import 'package:quiver/core.dart' as quiver;
 
 part 'src/modules/options.dart';
 part 'src/modules/dialog.dart';

@@ -16,7 +16,7 @@ main() {
 }
 
 var jackAndJillV1 = new Script(
-    "Jack and Jill", "1.0.0", [new OptionsModule(), new DialogModule()],
+    "Jack and Jill", "1.0.0", [new OptionsDefinition(), new DialogDefinition()],
     (Run run, Map modules) {
   Options options = modules[Options];
   Dialog dialog = modules[Dialog];

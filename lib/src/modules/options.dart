@@ -1,6 +1,6 @@
 part of august.modules;
 
-class OptionsModule implements ModuleDefinition, HasInterface {
+class OptionsDefinition implements ModuleDefinition, InterfaceModuleDefinition {
   final name = 'Options';
 
   Options createModule(Run run, Map modules) {
@@ -17,18 +17,15 @@ class OptionsModule implements ModuleDefinition, HasInterface {
 }
 
 class Options {
-  final Set _opts = new Set();
-  final List<Set> _exclusives = new List();
+  /// `Option` name to `Option` instance.
+  final Map<String, Option> _opts = <String, Option>{};
+  final List<Set<Option>> _exclusives = <Set<Option>>[];
   final Run _run;
 
   Options(this._run);
 
-  bool add(String option) {
-    if (_opts.add(option)) {
-      _run.emit(new AddOptionEvent(option));
-      return true;
-    }
-    return false;
+  bool add(String text, {String named}) {
+    return _addOption(new Option(text, named: named));
   }
 
   /// Adds all of the options, and binds them together such that the use of any
@@ -37,25 +34,29 @@ class Options {
   /// The same option may be in multiple sets of exclusive options. The option
   /// will still be available once, and therefore it's use will remove all sets
   /// of mutually exclusive options.
-  void addExclusive(Iterable<String> options) {
-    var asSet = options.toSet();
-    asSet.forEach(add);
-    _exclusives.add(asSet);
+  ///
+  /// The [Iterable] may include [Option]s or [String]s. An `Option` created
+  /// from a `String` uses that `String` for both its text and name.
+  void addExclusive(Iterable<dynamic> options) {
+    Set<Option> exclusiveSet =
+        options.toSet().map((o) => o is Option ? o : new Option(o));
+    exclusiveSet.forEach(_addOption);
+    _exclusives.add(exclusiveSet);
   }
 
   bool remove(String option) {
-    if (_opts.remove(option)) {
-      _run.emit(new RemoveOptionEvent(option));
-      return true;
-    }
-    return false;
+    var removed = _opts.remove(option);
+    if (removed == null) return false;
+
+    _run.emit(new RemoveOptionEvent(removed));
+    return true;
   }
 
   bool removeIn(Iterable<String> options) {
     bool removed = false;
-    options.forEach((o) {
-      removed = remove(o) || removed;
-    });
+    for (var option in options) {
+      removed = remove(option) || removed;
+    }
     return removed;
   }
 
@@ -65,20 +66,32 @@ class Options {
   ///
   /// Throws an [ArgumentError] if the `option` is not available.
   void use(String option) {
-    if (!_opts.remove(option)) {
+    var used = _opts.remove(option);
+
+    if (used == null) {
       throw new ArgumentError.value(
           option, "option", "Option not available to be used.");
     }
 
-    _exclusives
-        .where((s) => s.contains(option))
-        .forEach((s) => s.forEach(remove));
-    _exclusives.removeWhere((s) => s.contains(option));
+    for (var exclusiveSet in _exclusives.where((e) => e.contains(used))) {
+      for (var exclusiveOption in exclusiveSet) {
+        remove(exclusiveOption.name);
+      }
+      _exclusives.remove(exclusiveSet);
+    }
 
-    _run.emit(new UseOptionEvent(option));
+    // _exclusives
+    //     .where((s) => s.contains(used))
+    //     .forEach((s) => s.forEach(remove));
+    // _exclusives.removeWhere((s) => s.contains(option));
+
+    _run.emit(new UseOptionEvent(used));
   }
 
-  Set<String> get available => new Set.from(_opts);
+  Set<String> get available => new Set.from(_opts.keys);
+
+  Future<UseOptionEvent> once(String option) =>
+      uses.firstWhere((u) => u.name == option);
 
   Stream<AddOptionEvent> get additions =>
       _run.every((e) => e is AddOptionEvent);
@@ -87,9 +100,18 @@ class Options {
       _run.every((e) => e is RemoveOptionEvent);
 
   Stream<UseOptionEvent> get uses => _run.every((e) => e is UseOptionEvent);
+
+  bool _addOption(Option option) {
+    if (!_opts.containsKey(option.name)) {
+      _opts[option.name] = option;
+      _run.emit(new AddOptionEvent(option));
+      return true;
+    }
+    return false;
+  }
 }
 
-class OptionsInterface {
+class OptionsInterface implements Interface {
   final Options _options;
   final InterfaceEmit _emit;
 
@@ -122,19 +144,33 @@ class OptionsInterfaceHandler implements InterfaceHandler {
 }
 
 class AddOptionEvent {
-  final String option;
+  final Option option;
 
   AddOptionEvent(this.option);
 }
 
 class RemoveOptionEvent {
-  final String option;
+  final String name;
 
-  RemoveOptionEvent(this.option);
+  RemoveOptionEvent(Option option) : this.name = option.name;
 }
 
 class UseOptionEvent implements NamedEvent {
   final String name;
 
-  UseOptionEvent(this.name);
+  UseOptionEvent(Option option) : this.name = option.name;
+}
+
+class Option {
+  final String text;
+  final String name;
+
+  Option(String text, {String named})
+      : this.text = text,
+        this.name = (named == null) ? text : named;
+
+  bool operator ==(other) =>
+      other.runtimeType == Option && other.text == text && other.name == name;
+
+  int hashCode() => quiver.hash2(text, name);
 }

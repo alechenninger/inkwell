@@ -193,27 +193,27 @@ class RunModules {
   final Map interfaceHandlers = {};
 
   RunModules(List<ModuleDefinition> defs, Run run, Persistence persistence) {
-    defs.forEach((moduleDef) {
+    for (var def in defs) {
       // TODO: How will module dependencies play out?
       // If modules can lazily lookup their deps, that can work
       // Otherwise need to understand dep graph which is kind of gnarly.
       // Potential cyclic dependencies and such.
-      var module = moduleDef.createModule(run, modules);
+      var module = def.createModule(run, modules);
 
       _putModule(module);
 
-      if (moduleDef is HasInterface) {
-        _initializeModuleWithInterface(moduleDef, module, run, persistence);
+      if (def is InterfaceModuleDefinition) {
+        _initializeInterface(def, module, run, persistence);
       }
-    });
+    }
   }
 
-  _initializeModuleWithInterface(HasInterface hasInterface, dynamic module,
+  _initializeInterface(InterfaceModuleDefinition moduleDef, dynamic module,
       Run run, Persistence persistence) {
     var moduleType = module.runtimeType;
 
-    var handler = hasInterface.createInterfaceHandler(module);
-    var interface = hasInterface.createInterface(module, (action, args) {
+    var handler = moduleDef.createInterfaceHandler(module);
+    var interface = moduleDef.createInterface(module, (action, args) {
       var currentPlayTime = run.currentPlayTime();
       var event = new InterfaceEvent(moduleType, action, args, currentPlayTime);
 

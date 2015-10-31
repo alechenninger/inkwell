@@ -1,8 +1,6 @@
 part of august.modules;
 
-class DialogModule implements ModuleDefinition, HasInterface {
-  final name = 'Dialog';
-
+class DialogDefinition implements InterfaceModuleDefinition<Dialog> {
   Dialog createModule(Run run, Map modules) {
     return new Dialog(run);
   }
@@ -98,7 +96,7 @@ class Dialog {
       _run.every((e) => e is ClearDialogEvent);
 }
 
-class DialogInterface {
+class DialogInterface implements Interface {
   final Dialog _dialog;
   final InterfaceEmit _emit;
 
