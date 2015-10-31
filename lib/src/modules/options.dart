@@ -124,9 +124,9 @@ class OptionsInterface implements Interface {
 
   Set<String> get available => _options.available;
 
-  Stream<String> get additions => _options.additions.map((e) => e.option);
+  Stream<Option> get additions => _options.additions.map((e) => e.option);
 
-  Stream<String> get removals => _options.removals.map((e) => e.option);
+  Stream<String> get removals => _options.removals.map((e) => e.name);
 
   Stream<String> get uses => _options.uses.map((e) => e.name);
 }

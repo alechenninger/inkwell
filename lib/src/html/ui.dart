@@ -29,8 +29,8 @@ class SimpleHtmlUi {
     options.additions.listen((o) {
       _optionsPanel.children.add(new DivElement()
         ..classes.add('option')
-        ..innerHtml = o
-        ..onClick.listen((e) => options.use(o)));
+        ..innerHtml = o.text
+        ..onClick.listen((e) => options.use(o.name)));
     });
 
     options.removals.listen((o) {
