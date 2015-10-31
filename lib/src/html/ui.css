@@ -1,0 +1,78 @@
+@import url(https://fonts.googleapis.com/css?family=EB+Garamond);
+
+* {
+    font-family: 'EB Garamond', serif;
+    font-size: 1.1em;;
+}
+
+body {
+    width:80em;
+    margin:2em auto;
+}
+
+.dialogs {
+    width: 40em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.dialog {
+    width: 40em;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1em;
+    /*background-color: gainsboro;*/
+    padding: .5em;
+    border-radius: .1em;
+    float: left;
+}
+
+.dialog .speaker {
+    float: left;
+    margin-bottom: .5em;
+}
+
+.dialog .speaker:after {
+    content: " to...";
+    margin-right: .5em;
+}
+
+.dialog .target {
+    margin-bottom: .5em;
+    float: right;
+}
+
+.dialog .what {
+    clear: both;
+}
+
+.dialog .reply-available {
+    cursor: pointer;
+    border-bottom: 1px solid lightgray;
+}
+
+.replies {
+    margin: 1em 1em 0 1em;
+    padding: .6em 0;
+    list-style: none;
+}
+
+.reply-chosen {
+    font-weight: bold;
+}
+
+.reply-not-chosen {
+    color: lightgray;
+}
+
+.options {
+    float: left;
+    padding: .6em 0;
+    margin: 0 0;
+    list-style: none;
+}
+
+.options .option {
+    cursor: pointer;
+    border-bottom: 1px solid lightgray;
+}

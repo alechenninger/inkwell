@@ -6,39 +6,40 @@ part of august.html;
 /// Quick hacked together UI
 class SimpleHtmlUi {
   final HtmlElement _container;
-  final HtmlElement _mainPanel = new DivElement()..classes.add('event-panel');
+  final HtmlElement _dialogContainer = new DivElement()..classes.add('dialogs');
 
-  final HtmlElement _optionsPanel = new DivElement()
-    ..classes.add('options-panel');
+  final HtmlElement _optionsContainer = new OListElement()
+    ..classes.add('options');
 
   static CreateUi forContainer(HtmlElement container) => (interfaces) =>
       new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog]);
 
   SimpleHtmlUi(
       this._container, OptionsInterface options, DialogInterface dialog) {
-    _container.children.addAll([_mainPanel, _optionsPanel]);
+    _container.children.addAll([_optionsContainer, _dialogContainer]);
 
     // TODO: Add options and dialog already present
 
-    dialog.dialog.listen((e) => new DialogElement(e, _mainPanel, dialog));
+    dialog.dialog.listen((e) => new DialogElement(e, _dialogContainer, dialog));
 
     dialog.clears.listen((e) {
-      _mainPanel.children.clear();
+      _dialogContainer.children.clear();
     });
 
     options.additions.listen((o) {
-      _optionsPanel.children.add(new DivElement()
-        ..classes.add('option')
-        ..innerHtml = o.text
-        ..onClick.listen((e) => options.use(o.name)));
+      _optionsContainer.children
+          .add(new LIElement()..children.add(new SpanElement()
+            ..classes.add('option')
+            ..innerHtml = o.text
+            ..onClick.listen((e) => options.use(o.name))));
     });
 
     options.removals.listen((o) {
-      _optionsPanel.children.removeWhere((e) => e.innerHtml == o);
+      _optionsContainer.children.removeWhere((e) => e.children[0].innerHtml == o);
     });
 
     options.uses.listen((o) {
-      _optionsPanel.children.removeWhere((e) => e.innerHtml == o);
+      _optionsContainer.children.removeWhere((e) => e.children[0].innerHtml == o);
     });
   }
 }
@@ -59,25 +60,45 @@ class DialogElement {
 
     var replied = false;
 
-    var replies = e.replies.available.map((r) => new DivElement()
-      ..classes.add('reply')
-      ..innerHtml = r
-      ..onClick.first.then((_) {
-        if (!replied) dialog.reply(r, e);
-      }));
+    Iterable<DivElement> replies =
+        e.replies.available.map((r) => new LIElement()
+          ..children.add(new SpanElement()
+            ..classes.addAll(['reply', 'reply-available'])
+            ..innerHtml = r
+            ..onClick.first.then((clickEvent) {
+              if (!replied) dialog.reply(r, e);
+            })));
 
     dialog.replies
-        .firstWhere((r) => r.dialogEvent == e)
-        .then((_) => replied = true);
+        .firstWhere((r) => r.dialogEvent.name == e.name)
+        .then((ReplyEvent r) {
+      replied = true;
 
-    var replyContainer = new DivElement()
+      for (var replyElement
+          in querySelectorAll("#${_idify(e.name)} .reply-available")) {
+        replyElement.classes.remove('reply-available');
+
+        if (replyElement.innerHtml == r.reply) {
+          replyElement.classes.add('reply-chosen');
+        } else {
+          replyElement.classes.add('reply-not-chosen');
+        }
+      }
+    });
+
+    var replyContainer = new UListElement()
       ..classes.add('replies')
       ..children.addAll(replies);
 
     var dialogElement = new DivElement()
       ..classes.add('dialog')
+      ..id = _idify(e.name)
       ..children.addAll([speaker, target, what, replyContainer]);
 
     container.children.add(dialogElement);
   }
+}
+
+String _idify(String name) {
+  return name.replaceAll(new RegExp("[ :\\[\\],\\?\\.!']"), '_');
 }
