@@ -14,9 +14,8 @@ part 'src/core/modules.dart';
 part 'src/core/persistence.dart';
 
 /// Creates a new [Run] for this script by instantiating the modules it
-/// requires, replaying back any saved events provided in [persistence], and
-/// creating and attaching the provided [uis]. Then, calls into that script's
-/// [Block].
+/// requires, then calls the script's [Block], and replays back any saved events
+/// provided in [persistence]. Finally, we create the provided [ui]s.
 start(Script script,
     {List<CreateUi> uis: const [],
     Persistence persistence: const NoopPersistance()}) {
@@ -30,12 +29,13 @@ start(Script script,
     run = new Run._(ff.getCurrentPlayTime);
     runModules = new RunModules(script.modules, run, persistence);
 
+    uis.forEach((createUi) => createUi(runModules.interfaces));
+
     ff.run((ff) {
       script.block(run, runModules.modules);
       persistence.savedEvents.forEach((e) {
         new Future.delayed(e.offset, () {
-          runModules.interfaceHandlers[e.moduleName]
-              .handle(e.action, e.args);
+          runModules.interfaceHandlers[e.moduleName].handle(e.action, e.args);
         });
       });
       ff.fastForward(persistence.savedEvents.last.offset);
@@ -49,10 +49,10 @@ start(Script script,
     run = new Run._(cpt);
     runModules = new RunModules(script.modules, run, persistence);
 
+    uis.forEach((createUi) => createUi(runModules.interfaces));
+
     script.block(run, runModules.modules);
   }
-
-  uis.forEach((createUi) => createUi(runModules.interfaces));
 }
 
 class Script {
@@ -124,7 +124,7 @@ class Run {
   /// Listens to events happening in the script run. See [Once].
   Future once(dynamic eventNameOrTest) {
     if (eventNameOrTest is! String && eventNameOrTest is! EventTest) {
-      throw new ArgumentError.value(eventNameOrTest, "eventAliasOrTest",
+      throw new ArgumentError.value(eventNameOrTest, "eventNameOrTest",
           "Must be a String or EventTest, was ${eventNameOrTest.runtimeType}");
     }
 
