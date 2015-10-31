@@ -26,7 +26,7 @@ start(Script script,
   if (persistence.savedEvents.isNotEmpty) {
     var ff = new _FastForwarder(clock);
 
-    run = new Run._(ff.getCurrentPlayTime);
+    run = new Run(ff.getCurrentPlayTime);
     runModules = new RunModules(script.modules, run, persistence);
 
     uis.forEach((createUi) => createUi(runModules.interfaces));
@@ -46,7 +46,7 @@ start(Script script,
     var startTime = clock.now();
     var cpt = () => clock.now().difference(startTime);
 
-    run = new Run._(cpt);
+    run = new Run(cpt);
     runModules = new RunModules(script.modules, run, persistence);
 
     uis.forEach((createUi) => createUi(runModules.interfaces));
@@ -103,7 +103,7 @@ class Run {
 
   Mode get currentMode => _mode;
 
-  Run._(this._currentPlayTime, {verbose: true}) {
+  Run(this._currentPlayTime, {verbose: false}) {
     if (verbose) {
       every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
     }

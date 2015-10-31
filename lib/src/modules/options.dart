@@ -39,7 +39,7 @@ class Options {
   /// from a `String` uses that `String` for both its text and name.
   void addExclusive(Iterable<dynamic> options) {
     Set<Option> exclusiveSet =
-        options.toSet().map((o) => o is Option ? o : new Option(o));
+        options.map((o) => o is Option ? o : new Option(o)).toSet();
     exclusiveSet.forEach(_addOption);
     _exclusives.add(exclusiveSet);
   }
@@ -73,17 +73,18 @@ class Options {
           option, "option", "Option not available to be used.");
     }
 
-    for (var exclusiveSet in _exclusives.where((e) => e.contains(used))) {
-      for (var exclusiveOption in exclusiveSet) {
-        remove(exclusiveOption.name);
-      }
-      _exclusives.remove(exclusiveSet);
-    }
+    for (var i = 0; i < _exclusives.length;) {
+      var exclusiveSet = _exclusives[i];
+      if (exclusiveSet.any((o) => o.name == option)) {
+        for (var exclusiveOption in exclusiveSet) {
+          remove(exclusiveOption.name);
+        }
 
-    // _exclusives
-    //     .where((s) => s.contains(used))
-    //     .forEach((s) => s.forEach(remove));
-    // _exclusives.removeWhere((s) => s.contains(option));
+        _exclusives.removeAt(i);
+      } else {
+        i++;
+      }
+    }
 
     _run.emit(new UseOptionEvent(used));
   }
@@ -172,5 +173,5 @@ class Option {
   bool operator ==(other) =>
       other.runtimeType == Option && other.text == text && other.name == name;
 
-  int hashCode() => quiver.hash2(text, name);
+  int get hashCode => quiver.hash2(text, name);
 }
