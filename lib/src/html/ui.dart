@@ -89,14 +89,18 @@ class DialogElement {
       }
     });
 
-    var replyContainer = new UListElement()
-      ..classes.add('replies')
-      ..children.addAll(replies);
-
     var dialogElement = new DivElement()
       ..classes.add('dialog')
       ..id = _idify(e.name)
-      ..children.addAll([speaker, target, what, replyContainer]);
+      ..children.addAll([speaker, target, what]);
+
+    if (replies.isNotEmpty) {
+      var replyContainer = new UListElement()
+        ..classes.add('replies')
+        ..children.addAll(replies);
+      
+      dialogElement.children.add(replyContainer);
+    }
 
     container.children.add(dialogElement);
   }
