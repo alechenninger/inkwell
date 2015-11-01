@@ -24,19 +24,23 @@
     margin-left: auto;
     margin-right: auto;
     margin-bottom: 1em;
-    /*background-color: gainsboro;*/
     padding: .5em;
     border-radius: .1em;
+}
+
+.narration {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 1em;
+    padding: .5em;
+    border-radius: .1em;
+    text-align: center;
 }
 
 .dialog .speaker {
     float: left;
     margin-bottom: .5em;
-}
-
-.dialog .speaker:after {
-    content: " to...";
-    margin-right: .5em;
 }
 
 .dialog .target {

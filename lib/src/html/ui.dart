@@ -7,8 +7,7 @@ part of august.html;
 class SimpleHtmlUi {
   final HtmlElement _container;
   final HtmlElement _dialogContainer = new DivElement()..classes.add('dialogs');
-
-  final HtmlElement _optionsContainer = new OListElement()
+  final HtmlElement _optionsContainer = new UListElement()
     ..classes.add('options');
 
   static CreateUi forContainer(HtmlElement container) => (interfaces) =>
@@ -20,7 +19,13 @@ class SimpleHtmlUi {
 
     // TODO: Add options and dialog already present
 
-    dialog.dialog.listen((e) => new DialogElement(e, _dialogContainer, dialog));
+    dialog.dialog.listen(
+        (e) => _dialogContainer.children.add(_getDialogElement(e, dialog)));
+
+    dialog.narration
+        .listen((e) => _dialogContainer.children.add(new DivElement()
+          ..classes.add('narration')
+          ..innerHtml = e.narration));
 
     dialog.clears.listen((e) {
       _dialogContainer.children.clear();
@@ -47,20 +52,28 @@ class SimpleHtmlUi {
   }
 }
 
-class DialogElement {
-  DialogElement(DialogEvent e, HtmlElement container, DialogInterface dialog) {
-    var speaker = new DivElement()
-      ..classes.add('speaker')
-      ..innerHtml = "${e.from}";
+DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
+  var dialogElement = new DivElement()
+    ..classes.add('dialog')
+    ..id = _idify(e.name);
 
-    var target = new DivElement()
+  dialogElement.children.add(new DivElement()
+    ..classes.add('what')
+    ..innerHtml = '${e.dialog}');
+
+  if (e.to != null) {
+    dialogElement.children.insert(0, new DivElement()
       ..classes.add('target')
-      ..innerHtml = "${e.to}";
+      ..innerHtml = "${e.to}");
+  }
 
-    var what = new DivElement()
-      ..classes.add('what')
-      ..innerHtml = '${e.dialog}';
+  if (e.from != null) {
+    dialogElement.children.insert(0, new DivElement()
+      ..classes.add('speaker')
+      ..innerHtml = e.to == null ? e.from : "${e.from} to...");
+  }
 
+  if (e.replies.available.isNotEmpty) {
     var replied = false;
 
     Iterable<DivElement> replies =
@@ -89,21 +102,12 @@ class DialogElement {
       }
     });
 
-    var dialogElement = new DivElement()
-      ..classes.add('dialog')
-      ..id = _idify(e.name)
-      ..children.addAll([speaker, target, what]);
-
-    if (replies.isNotEmpty) {
-      var replyContainer = new UListElement()
-        ..classes.add('replies')
-        ..children.addAll(replies);
-
-      dialogElement.children.add(replyContainer);
-    }
-
-    container.children.add(dialogElement);
+    dialogElement.children.add(new UListElement()
+      ..classes.add('replies')
+      ..children.addAll(replies));
   }
+
+  return dialogElement;
 }
 
 String _idify(String name) {
