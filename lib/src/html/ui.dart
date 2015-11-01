@@ -55,7 +55,7 @@ class SimpleHtmlUi {
 DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
   var dialogElement = new DivElement()
     ..classes.add('dialog')
-    ..id = _idify(e.name);
+    ..id = _toId(e.name);
 
   dialogElement.children.add(new DivElement()
     ..classes.add('what')
@@ -91,7 +91,7 @@ DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
       replied = true;
 
       for (var replyElement
-          in querySelectorAll("#${_idify(e.name)} .reply-available")) {
+          in querySelectorAll("#${_toId(e.name)} .reply-available")) {
         replyElement.classes.remove('reply-available');
 
         if (replyElement.innerHtml == r.reply) {
@@ -110,6 +110,6 @@ DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
   return dialogElement;
 }
 
-String _idify(String name) {
+String _toId(String name) {
   return name.replaceAll(new RegExp("[ :\\[\\],\\?\\.!']"), '_');
 }

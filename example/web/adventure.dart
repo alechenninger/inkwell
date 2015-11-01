@@ -4,8 +4,8 @@
 library august.example;
 
 import 'package:august/core.dart';
-import 'package:august/modules.dart';
 import 'package:august/html.dart';
+import 'package:august/modules.dart';
 
 main() {
   var container = querySelector(".ui-container");
@@ -64,7 +64,7 @@ var jackAndJillV1 = new Script(
           to: "Jack",
           delay: const Duration(seconds: 3),
           replies: new Replies(
-              ["I don't know actually!", "I'm really thirsty."],
+              ["I don't know actually!", "I'm really thirsty. [not yet implemented]"],
               modal: true));
 
       dialog
@@ -75,11 +75,56 @@ var jackAndJillV1 = new Script(
         dialog.add("I don't know actually!", from: "Jack", to: "Jill");
         dialog.add("Seriously?",
             from: "Jill", to: "Jack", delay: const Duration(milliseconds: 500));
+
+        dialog.narrate("[not yet implemented]");
       });
     });
 
     once("Try to run past Jill").then((_) {
       jillBeatsJack.cancelled = true;
+
+      dialog.clear();
+
+      dialog.narrate("About halfway up the hill, you trip and fall.");
+
+      dialog.add("Ow!", from: "Jack", delay: const Duration(seconds: 1));
+
+      dialog.add("Are you okay?",
+          from: "Jill",
+          to: "Jack",
+          named: "After Jack falls",
+          delay: const Duration(seconds: 1),
+          replies: new Replies([
+            "I'm alright, thanks.",
+            "Yeah, but I think I stained my jeans. [not yet implemented]",
+            "My ankle... [not yet implemented]"
+          ], modal: true));
+
+      dialog
+          .onceReply(
+              reply: "I'm alright, thanks.", forDialogNamed: "After Jack falls")
+          .then((_) async {
+        dialog.add("I'm alright, thanks.");
+
+        await dialog.narrate("Jack brushes himself off, and continues up the hill.",
+            delay: const Duration(seconds: 1));
+
+        emit("Jill and Jack arrive at the top of the hill",
+            delay: const Duration(seconds: 2));
+      });
+
+      dialog
+          .onceReply(
+              reply: "Yeah, but I think I stained my jeans.",
+              forDialogNamed: "After Jack falls")
+          .then((_) {
+        dialog.add("Yeah, but I think I stained my jeans.");
+      });
+
+      once("Jill and Jack arrive at the top of the hill").then((_) {
+        dialog.clear();
+        dialog.narrate("[not yet implemented]");
+      });
     });
   });
 });
