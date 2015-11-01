@@ -58,6 +58,10 @@ body {
     font-size: 1em;
 }
 
+.replies li {
+    margin-bottom: .2em;
+}
+
 .reply-chosen {
     font-weight: bold;
 }
