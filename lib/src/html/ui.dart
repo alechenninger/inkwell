@@ -30,16 +30,19 @@ class SimpleHtmlUi {
       _optionsContainer.children
           .add(new LIElement()..children.add(new SpanElement()
             ..classes.add('option')
+            ..attributes['name'] = o.name
             ..innerHtml = o.text
             ..onClick.listen((e) => options.use(o.name))));
     });
 
     options.removals.listen((o) {
-      _optionsContainer.children.removeWhere((e) => e.children[0].innerHtml == o);
+      _optionsContainer.children
+          .removeWhere((e) => e.children[0].attributes['name'] == o);
     });
 
     options.uses.listen((o) {
-      _optionsContainer.children.removeWhere((e) => e.children[0].innerHtml == o);
+      _optionsContainer.children
+          .removeWhere((e) => e.children[0].attributes['name'] == o);
     });
   }
 }
