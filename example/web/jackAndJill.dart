@@ -71,9 +71,9 @@ var jackAndJillV1 = new Script(
           .onceReply(
               reply: "I don't know actually!",
               forDialog: "So what do you want this water for anyway?")
-          .then((_) {
+          .then((_) async {
         dialog.add("I don't know actually!", from: "Jack", to: "Jill");
-        dialog.add("Seriously?",
+        await dialog.add("Seriously?",
             from: "Jill", to: "Jack", delay: const Duration(milliseconds: 500));
 
         dialog.narrate("[not yet implemented]");
