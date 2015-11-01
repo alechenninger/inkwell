@@ -24,8 +24,8 @@ class Options {
 
   Options(this._run);
 
-  bool add(String text, {String named}) {
-    return _addOption(new Option(text, named: named));
+  bool add(String text, {String named, Duration delay: Duration.ZERO}) {
+    return _addOption(new Option(text, named: named), delay: delay);
   }
 
   /// Adds all of the options, and binds them together such that the use of any
@@ -37,7 +37,7 @@ class Options {
   ///
   /// The [Iterable] may include [Option]s or [String]s. An `Option` created
   /// from a `String` uses that `String` for both its text and name.
-  void addExclusive(Iterable<dynamic> options) {
+  void addExclusive(Iterable<dynamic> options, {Duration delay: Duration.ZERO}) {
     Set<Option> exclusiveSet =
         options.map((o) => o is Option ? o : new Option(o)).toSet();
     exclusiveSet.forEach(_addOption);
@@ -102,10 +102,10 @@ class Options {
 
   Stream<UseOptionEvent> get uses => _run.every((e) => e is UseOptionEvent);
 
-  bool _addOption(Option option) {
+  bool _addOption(Option option, {Duration delay: Duration.ZERO}) {
     if (!_opts.containsKey(option.name)) {
       _opts[option.name] = option;
-      _run.emit(new AddOptionEvent(option));
+      _run.emit(new AddOptionEvent(option), delay: delay);
       return true;
     }
     return false;
