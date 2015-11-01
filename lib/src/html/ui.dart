@@ -98,7 +98,7 @@ class DialogElement {
       var replyContainer = new UListElement()
         ..classes.add('replies')
         ..children.addAll(replies);
-      
+
       dialogElement.children.add(replyContainer);
     }
 

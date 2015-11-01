@@ -8,11 +8,12 @@ import 'package:august/modules.dart';
 import 'package:august/html.dart';
 
 main() {
-  var container = querySelector("body");
+  var container = querySelector(".ui-container");
 
   start(jackAndJillV1,
       uis: [SimpleHtmlUi.forContainer(container)],
-      persistence: new NoopPersistance() /*new HtmlPersistence(jackAndJillV1)*/);
+      persistence:
+          new NoopPersistance() /*new HtmlPersistence(jackAndJillV1)*/);
 }
 
 var jackAndJillV1 = new Script(
@@ -42,8 +43,17 @@ var jackAndJillV1 = new Script(
     emit("Jill gets to top of hill alone",
         delay: const Duration(seconds: 10), canceller: jillBeatsJack);
 
-    once("Jill gets to top of hill alone").then((_) {
+    once("Jill gets to top of hill alone").then((_) async {
       options.removeIn(["Follow Jill", "Try to run past Jill"]);
+
+      dialog.clear();
+      await dialog.add("I beat you!", from: "Jill", to: "Jack");
+
+      await dialog.add("C'mon, I'll wait.",
+          from: "Jill", to: "Jack", delay: const Duration(seconds: 2));
+
+      options.add("Climb up hill alone.",
+          named: "Follow Jill", delay: const Duration(seconds: 1));
     });
 
     once("Follow Jill").then((_) async {
