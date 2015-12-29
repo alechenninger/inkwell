@@ -1,4 +1,12 @@
-part of august.html;
+// Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
+// is governed by a BSD-style license that can be found in the LICENSE file.
+
+library august.ui.html.persistence;
+
+import 'dart:convert';
+import 'dart:html';
+
+import 'package:august/august.dart';
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;

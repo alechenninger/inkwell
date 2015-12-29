@@ -1,17 +1,18 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-library august.core;
+library august;
 
 import 'dart:async';
 import 'dart:collection';
 
-export 'dart:async';
-
+import 'package:august/ui.dart';
 import 'package:quiver/time.dart';
 
-part 'src/core/modules.dart';
-part 'src/core/persistence.dart';
+export 'dart:async';
+
+part 'src/modules.dart';
+part 'src/persistence.dart';
 
 /// Creates a new [Run] for this script by instantiating the modules it
 /// requires, then calls the script's [Block], and replays back any saved events
@@ -82,10 +83,6 @@ class Script {
 /// `Block`s. Define separate block functions and call them, passing in the
 /// `Run` and module map from the parent block.
 typedef void Block(Run run, Map modules);
-
-/// Function which takes a map of module types to "interfaces": objects specific
-/// to that module which a UI can use to interact with the current [Run].
-typedef dynamic CreateUi(Map interfaces);
 
 /// A [Run] encapsulates the state of a currently _actively_ running script.
 /// Current saved progress of a player's playthrough is not encapsulated in a

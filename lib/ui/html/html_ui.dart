@@ -1,7 +1,13 @@
-// Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source code
+// Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of august.html;
+library august.ui.html;
+
+import 'dart:html';
+
+import 'package:august/dialog.dart';
+import 'package:august/options.dart';
+import 'package:august/ui.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {

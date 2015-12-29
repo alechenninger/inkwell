@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
-import 'package:august/core.dart';
-import 'package:august/modules.dart';
+import 'package:august/august.dart';
+import 'package:august/options.dart';
 import 'package:quiver/time.dart';
 
 main() {

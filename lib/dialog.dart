@@ -1,4 +1,11 @@
-part of august.modules;
+// Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
+// is governed by a BSD-style license that can be found in the LICENSE file.
+
+library august.dialog;
+
+import 'package:august/august.dart';
+import 'package:quiver/core.dart' as quiver show hash2, hashObjects;
+import 'package:collection/equality.dart';
 
 class DialogDefinition implements InterfaceModuleDefinition<Dialog> {
   Dialog createModule(Run run, Map modules) {

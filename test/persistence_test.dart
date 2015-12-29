@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:august/core.dart';
+import 'package:august/august.dart';
 
 import 'util/fake_async.dart' show FakeAsync;
 

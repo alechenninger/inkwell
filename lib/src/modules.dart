@@ -1,4 +1,4 @@
-part of august.core;
+part of august;
 
 /// Factory for module and optional additional related objects (see
 /// [InterfaceModuleDefinition]).
@@ -36,3 +36,7 @@ abstract class InterfaceHandler {
 /// bridges these serializable player actions with the underlying module
 /// implementation.
 abstract class Interface {}
+
+class NoopInterfaceHandler implements InterfaceHandler {
+  void handle(action, args) {}
+}

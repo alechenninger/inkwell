@@ -1,4 +1,4 @@
-part of august.core;
+part of august;
 
 abstract class Persistence {
   List<InterfaceEvent> get savedEvents;
@@ -167,25 +167,20 @@ class _FastForwarderTimer implements Timer {
   final Duration duration;
   final Function callback;
   final bool isPeriodic;
-  final _FastForwarder time;
+  final _FastForwarder ff;
   Duration nextCall;
 
-  // TODO: In browser JavaScript, timers can only run every 4 milliseconds once
-  // sufficiently nested:
-  //     http://www.w3.org/TR/html5/webappapis.html#timer-nesting-level
-  // Without some sort of delay this can lead to infinitely looping timers.
-  // What do the dart VM and dart2js timers do here?
   static const _minDuration = Duration.ZERO;
 
   _FastForwarderTimer(
-      Duration duration, this.callback, this.isPeriodic, this.time)
+      Duration duration, this.callback, this.isPeriodic, this.ff)
       : duration = duration < _minDuration ? _minDuration : duration {
-    nextCall = time._elapsed + duration;
+    nextCall = ff._elapsed + duration;
   }
 
-  bool get isActive => time._hasTimer(this);
+  bool get isActive => ff._hasTimer(this);
 
-  cancel() => time._cancelTimer(this);
+  cancel() => ff._cancelTimer(this);
 }
 
 class _TrackingTimer implements Timer {
