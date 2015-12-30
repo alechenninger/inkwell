@@ -50,7 +50,7 @@ class Dialog {
     _previousDialogNames.add(event.name);
 
     if (replies.modal) {
-      _run.changeMode(this, new MustReplyMode(_run, event.name, this));
+      // TODO: rework this
     }
 
     return _run.emit(event, delay: delay);
@@ -239,34 +239,6 @@ class Replies {
       const IterableEquality().equals(available, other.available);
 
   int get hashCode => quiver.hash2(modal, available);
-}
-
-class MustReplyMode implements Mode {
-  final Run _run;
-  final String _dialogEventName;
-  final Mode _previous;
-  final Dialog _dialog;
-  bool _hasReplied = false;
-
-  MustReplyMode(Run run, this._dialogEventName, this._dialog)
-      : _run = run,
-        _previous = run.currentMode;
-
-  bool canChangeMode(module, Mode to) => _hasReplied;
-
-  Mode getNewMode(Mode to) => to;
-
-  void handleInterfaceEvent(
-      String action, Map<String, dynamic> args, InterfaceHandler handler) {
-    if (handler is DialogInterfaceHandler &&
-        action == 'reply' &&
-        new DialogEvent.fromJson(args['dialogEvent']).name ==
-            _dialogEventName) {
-      _hasReplied = true;
-      _run.changeMode(_dialog, _previous);
-      handler.handle(action, args);
-    }
-  }
 }
 
 class NarrationEvent {

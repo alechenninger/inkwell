@@ -91,14 +91,10 @@ typedef void Block(Run run, Map modules);
 /// A `Run`'s focus is on managing events emitted and subscribed to from
 /// `Module`s and the consuming [Script]. See the [start] function.
 class Run {
-  Mode _mode = const Free();
-
   final StreamController<dynamic> _ctrl =
       new StreamController<dynamic>.broadcast(sync: true);
 
   final GetCurrentPlayTime _currentPlayTime;
-
-  Mode get currentMode => _mode;
 
   Run(this._currentPlayTime, {verbose: false}) {
     if (verbose) {
@@ -136,17 +132,6 @@ class Run {
   Stream every(bool test(event)) => _ctrl.stream.where(test);
 
   Duration currentPlayTime() => _currentPlayTime();
-
-  void changeMode(dynamic requestingModule, Mode to) {
-    if (_mode.canChangeMode(requestingModule, to)) {
-      _mode = _mode.getNewMode(to);
-      return;
-    }
-
-    throw new StateError("Current mode is not allowing mode change. "
-        "Current mode is $_mode. Module requesting change is "
-        "${requestingModule.runtimeType}. It is requesting a change to $to.");
-  }
 }
 
 /// Adds an event listener for the next (and only the next) event that matches
@@ -216,7 +201,7 @@ class RunModules {
 
       persistence.saveEvent(event);
 
-      run._mode.handleInterfaceEvent(action, args, handler);
+      handler.handle(action, args);
     });
 
     _putInterface(module.runtimeType, interface);
@@ -236,31 +221,6 @@ class RunModules {
   _putInterfaceHandler(Type moduleType, InterfaceHandler handler) {
     interfaceHandlers[moduleType] = handler;
     interfaceHandlers['$moduleType'] = handler;
-  }
-}
-
-/// User interaction through an interface is governed by the current [Mode] of
-/// the [Run]. The default `mode` is [Free].
-abstract class Mode {
-  bool canChangeMode(dynamic module, Mode to);
-  Mode getNewMode(Mode to);
-  void handleInterfaceEvent(
-      String action, Map<String, dynamic> args, InterfaceHandler handler);
-}
-
-/// A [Mode] which may freely by changed, does not augment the mode being
-/// changed to, and passes all interface events through to their normal
-/// [InterfaceHandler]s.
-class Free implements Mode {
-  const Free();
-
-  bool canChangeMode(module, Mode to) => true;
-
-  Mode getNewMode(Mode to) => to;
-
-  void handleInterfaceEvent(
-      String action, Map<String, dynamic> args, InterfaceHandler handler) {
-    handler.handle(action, args);
   }
 }
 
