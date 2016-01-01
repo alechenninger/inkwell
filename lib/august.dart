@@ -13,6 +13,7 @@ export 'dart:async';
 
 part 'src/modules.dart';
 part 'src/persistence.dart';
+part 'src/scope.dart';
 
 /// Creates a new [Run] for this script by instantiating the modules it
 /// requires, then calls the script's [Block], and replays back any saved events
@@ -91,7 +92,7 @@ typedef void Block(Run run, Map modules);
 /// A `Run`'s focus is on managing events emitted and subscribed to from
 /// `Module`s and the consuming [Script]. See the [start] function.
 class Run {
-  final StreamController<dynamic> _ctrl =
+  final StreamController<dynamic> _events =
       new StreamController<dynamic>.broadcast(sync: true);
 
   final GetCurrentPlayTime _currentPlayTime;
@@ -109,7 +110,7 @@ class Run {
 
     return new Future.delayed(delay, () {
       if (canceller.cancelled) return _never;
-      _ctrl.add(event);
+      _events.add(event);
       return event;
     });
   }
@@ -125,11 +126,11 @@ class Run {
         ? (e) => e is NamedEvent && e.name == eventNameOrTest
         : eventNameOrTest;
 
-    return _ctrl.stream.firstWhere(test);
+    return _events.stream.firstWhere(test);
   }
 
   /// Listens to events happening in the script run. See [Every].
-  Stream every(bool test(event)) => _ctrl.stream.where(test);
+  Stream every(bool test(event)) => _events.stream.where(test);
 
   Duration currentPlayTime() => _currentPlayTime();
 }

@@ -30,7 +30,8 @@ class Options {
 
   Options(this._run);
 
-  bool add(String text, {String named, Duration delay: Duration.ZERO}) {
+  Future<AddOptionEvent> add(String text,
+      {String named, Duration delay: Duration.ZERO}) {
     return _addOption(new Option(text, named: named), delay: delay);
   }
 
@@ -43,7 +44,8 @@ class Options {
   ///
   /// The [Iterable] may include [Option]s or [String]s. An `Option` created
   /// from a `String` uses that `String` for both its text and name.
-  void addExclusive(Iterable<dynamic> options, {Duration delay: Duration.ZERO}) {
+  void addExclusive(Iterable<dynamic> options,
+      {Duration delay: Duration.ZERO}) {
     Set<Option> exclusiveSet =
         options.map((o) => o is Option ? o : new Option(o)).toSet();
     exclusiveSet.forEach(_addOption);
@@ -98,7 +100,7 @@ class Options {
   Set<String> get available => new Set.from(_opts.keys);
 
   Future<UseOptionEvent> once(String option) =>
-      uses.firstWhere((u) => u.name == option);
+      uses.firstWhere((u) => u.option.name == option);
 
   Stream<AddOptionEvent> get additions =>
       _run.every((e) => e is AddOptionEvent);
@@ -108,13 +110,27 @@ class Options {
 
   Stream<UseOptionEvent> get uses => _run.every((e) => e is UseOptionEvent);
 
-  bool _addOption(Option option, {Duration delay: Duration.ZERO}) {
-    if (!_opts.containsKey(option.name)) {
-      _opts[option.name] = option;
-      _run.emit(new AddOptionEvent(option), delay: delay);
-      return true;
+  Future<AddOptionEvent> _addOption(Option option,
+      {Duration delay: Duration.ZERO}) {
+    if (delay.inMicroseconds == 0) {
+      if (!_opts.containsKey(option.name)) {
+        _opts[option.name] = option;
+
+        return _run.emit(new AddOptionEvent(option));
+        // onEnter: option.enable() or options.enable(option);
+        // onExit: option.disable(); or options.disable(option);
+      }
+
+      return new Future.value(null);
     }
-    return false;
+
+    return new Future.delayed(delay, () {
+      if (!_opts.containsKey(option.name)) {
+        _opts[option.name] = option;
+        return _run.emit(new AddOptionEvent(option));
+      }
+      return null;
+    });
   }
 }
 
@@ -132,9 +148,9 @@ class OptionsInterface implements Interface {
 
   Stream<Option> get additions => _options.additions.map((e) => e.option);
 
-  Stream<String> get removals => _options.removals.map((e) => e.name);
+  Stream<Option> get removals => _options.removals.map((e) => e.option);
 
-  Stream<String> get uses => _options.uses.map((e) => e.name);
+  Stream<Option> get uses => _options.uses.map((e) => e.option);
 }
 
 class OptionsInterfaceHandler implements InterfaceHandler {
@@ -150,6 +166,50 @@ class OptionsInterfaceHandler implements InterfaceHandler {
   }
 }
 
+class Option {
+  // TODO: Maybe allow mutable text too?
+  final String text;
+  final Run _run;
+  final SettableScope _hasUses = new SettableScope.notEntered();
+  final int allowedUseCount; // TODO: Allow mutate
+  int _useCount = 0;
+  int get useCount => _useCount;
+  Scoped _available;
+
+  Option(this.text, this._run, {this.allowedUseCount: 1}) {
+    _available = new Scoped(onEnter: _add, onExit: _remove);
+    if (allowedUseCount > 0) {
+      _hasUses.enter(null);
+    }
+  }
+
+  /// Set a scope which contributes to determining this options availability.
+  /// An option's availability is always governed by its [useCount] and
+  /// [allowedUseCount] in addition to the provided scope.
+  ///
+  /// See [isAvailable] and [availability].
+  void available(Scope scope) {
+    _available.within(new AndScope(scope, _hasUses));
+  }
+
+  // TODO: How does use affect availability?
+  // 1. It does not at all. Availability may be set to include `untilUsed(n)`.
+  // 2. Once used n times, sets availability = never.
+
+  bool get isAvailable => _available.isInScope;
+
+  /// A scope that is entered whenever this option is available.
+  Scope get availability => _available.scope;
+
+  void _add(_) {
+    _run.emit(new AddOptionEvent(this));
+  }
+
+  void _remove(_) {
+    _run.emit(new RemoveOptionEvent(this));
+  }
+}
+
 class AddOptionEvent {
   final Option option;
 
@@ -157,27 +217,13 @@ class AddOptionEvent {
 }
 
 class RemoveOptionEvent {
-  final String name;
+  final Option option;
 
-  RemoveOptionEvent(Option option) : this.name = option.name;
+  RemoveOptionEvent(this.option);
 }
 
-class UseOptionEvent implements NamedEvent {
-  final String name;
+class UseOptionEvent {
+  final Option option;
 
-  UseOptionEvent(Option option) : this.name = option.name;
-}
-
-class Option {
-  final String text;
-  final String name;
-
-  Option(String text, {String named})
-      : this.text = text,
-        this.name = (named == null) ? text : named;
-
-  bool operator ==(other) =>
-      other.runtimeType == Option && other.text == text && other.name == name;
-
-  int get hashCode => quiver.hash2(text, name);
+  UseOptionEvent(this.option);
 }
