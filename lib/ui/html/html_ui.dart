@@ -41,19 +41,19 @@ class SimpleHtmlUi {
       _optionsContainer.children
           .add(new LIElement()..children.add(new SpanElement()
             ..classes.add('option')
-            ..attributes['name'] = o.name
+            ..attributes['name'] = _toId(o.text)
             ..innerHtml = o.text
-            ..onClick.listen((e) => options.use(o.name))));
+            ..onClick.listen((e) => options.use(o.text))));
     });
 
     options.removals.listen((o) {
       _optionsContainer.children
-          .removeWhere((e) => e.children[0].attributes['name'] == o);
+          .removeWhere((e) => e.children[0].attributes['name'] == _toId(o.text));
     });
 
     options.uses.listen((o) {
       _optionsContainer.children
-          .removeWhere((e) => e.children[0].attributes['name'] == o);
+          .removeWhere((e) => e.children[0].attributes['name'] == _toId(o.text));
     });
   }
 }

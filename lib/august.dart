@@ -107,9 +107,9 @@ class Run {
       {Duration delay: Duration.ZERO,
       Canceller canceller: const _Uncancellable()}) {
     event = event is String ? new NamedEvent(event) : event;
-
     return new Future.delayed(delay, () {
       if (canceller.cancelled) return _never;
+      event = event is Function ? event() : event;
       _events.add(event);
       return event;
     });

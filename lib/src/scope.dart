@@ -12,14 +12,16 @@ part of august;
 /// Scopes are used to control availability or state of other story objects like
 /// options or dialog.
 abstract class Scope<T> {
-  /// Immediately available. That is, visible just prior to onEnter or onExit
-  /// events being emitted.
+  /// Immediately available in the current event loop, just before onEnter and
+  /// onExit events are fired.
   bool get isEntered;
 
-  /// Streams are broadcast streams, which means if the scope is entered before
-  /// entries are listened to, the listener will _not_ get an entry event,
-  /// because it already happened. You can check if a scope is currently entered
-  /// using [isEntered].
+  /// Streams are synchronous broadcast streams, which means if the scope is
+  /// entered before entries are listened to, the listener will _not_ get an
+  /// entry event, because it already happened. You can check if a scope is
+  /// currently entered using [isEntered].
+  ///
+  /// Listeners will be fired immediately in the same event loop.
   ///
   /// Some scopes may enter and exit multiple times.
   ///
@@ -27,10 +29,12 @@ abstract class Scope<T> {
   /// entered.
   Stream<T> get onEnter;
 
-  /// Streams are broadcast streams, which means if the scope is exited before
-  /// exits are listened to, the listener will _not_ get an exit event, because
-  /// it already happened. You can check if a scope is currently entered using
-  /// [isEntered].
+  /// Streams are synchronous broadcast streams, which means if the scope is
+  /// exited before exits are listened to, the listener will _not_ get an exit
+  /// event, because it already happened. You can check if a scope is currently
+  /// entered using [isEntered].
+  ///
+  /// Listeners will be fired immediately in the same event loop.
   ///
   /// Some scopes may enter and exit multiple times.
   ///
@@ -44,8 +48,8 @@ typedef ScopeListener(event);
 // TODO: Could add value computations for value when in scope and value when
 // not in scope
 class Scoped {
-  final SettableScope _scope = new SettableScope.notEntered();
-  Scope get scope => _scope;
+  final SettableScope _mirrorScope = new SettableScope.notEntered();
+  Scope get scope => _mirrorScope;
 
   ScopeListener _onEnter;
   ScopeListener _onExit;
@@ -73,17 +77,17 @@ class Scoped {
 
     if (scope.isEntered) {
       _onEnter(null);
-      _scope.enter(null);
+      _mirrorScope.enter(null);
     }
 
     _enterSubscription = _currentScope.onEnter.listen((e) {
       _onEnter(e);
-      _scope.enter(e);
+      _mirrorScope.enter(e);
     });
 
     _exitSubscription = _currentScope.onExit.listen((e) {
       _onExit(e);
-      _scope.exit(e);
+      _mirrorScope.exit(e);
     });
   }
 }
@@ -171,23 +175,33 @@ class AndScope implements Scope<dynamic> {
 }
 
 class SettableScope implements Scope {
+  // TODO: API for closing scope
   final StreamController _enters = new StreamController.broadcast(sync: true);
   final StreamController _exits = new StreamController.broadcast(sync: true);
 
-  SettableScope.entered() {
-    _isEntered = true;
+  SettableScope._(this._isEntered) {
+    _onEnter = _enters.stream;
+    _onExit = _exits.stream;
   }
 
-  SettableScope.notEntered() {
-    _isEntered = false;
-  }
+  SettableScope.entered(): this._(true);
 
+  SettableScope.notEntered(): this._(false);
+
+  /// Note it is possible to enter and exit within the same loop which will fire
+  /// both enter and exit listeners.
   void enter(event) {
+    if (_isEntered) return;
+
     _isEntered = true;
     _enters.add(event);
   }
 
+  /// Note it is possible to enter and exit within the same loop which will fire
+  /// both enter and exit listeners.
   void exit(event) {
+    if (!isEntered) return;
+
     _isEntered = false;
     _exits.add(event);
   }
