@@ -83,7 +83,7 @@ class Option {
   final int allowedUseCount; // TODO: Allow mutate
   int _useCount = 0;
   int get useCount => _useCount;
-  Scoped _available;
+  Scoped<bool> _available;
 
   Option(this.text, this._run, {this.allowedUseCount: 1}) {
     if (allowedUseCount < 0) {
@@ -91,7 +91,7 @@ class Option {
           "Allowed use count must be non-negative.");
     }
 
-    _available = new Scoped(onEnter: _add, onExit: _remove);
+    _available = new Scoped(false, onEnter: _getAvailable, onExit: _getNotAvailable);
 
     if (allowedUseCount > 0) {
       _hasUses.enter(null);
@@ -124,17 +124,19 @@ class Option {
     });
   }
 
-  bool get isAvailable => _available.isInScope;
+  bool get isAvailable => _available.currentValue;
 
   /// A scope that is entered whenever this option is available.
   Scope get availability => _available.scope;
 
-  void _add(_) {
+  bool _getAvailable(_) {
     _run.emit(new AddOptionEvent(this));
+    return true;
   }
 
-  void _remove(_) {
+  bool _getNotAvailable(_) {
     _run.emit(new RemoveOptionEvent(this));
+    return true;
   }
 }
 

@@ -45,49 +45,48 @@ abstract class Scope<T> {
 
 typedef ScopeListener(event);
 
-// TODO: Could add value computations for value when in scope and value when
-// not in scope
-class Scoped {
-  final SettableScope _mirrorScope = new SettableScope.notEntered();
+class Scoped<T> {
+  final _mirrorScope = new ForwardingScope();
   Scope get scope => _mirrorScope;
-
-  ScopeListener _onEnter;
-  ScopeListener _onExit;
 
   Scope _currentScope = const Never();
 
   StreamSubscription _enterSubscription;
   StreamSubscription _exitSubscription;
 
-  Scoped({ScopeListener onEnter: _noop, ScopeListener onExit: _noop})
-      : _onEnter = onEnter,
-        _onExit = onExit;
+  Function _onEnter;
+  Function _onExit;
 
-  bool get isInScope => _currentScope.isEntered;
+  T _currentValue;
+  T get currentValue => _currentValue;
 
-  void within(Scope scope,
-      {ScopeListener onEnter: null, ScopeListener onExit: null}) {
+  Scoped(T initialValue, {T onEnter(event), T onExit(event)}) {
+    _currentValue = initialValue;
+    _onEnter = onEnter ?? (e) => null;
+    _onExit = onExit ?? (e) => null;
+  }
+
+  Future within(Scope scope,
+      {ScopeListener onEnter: null, ScopeListener onExit: null}) async {
     _enterSubscription?.cancel();
     _exitSubscription?.cancel();
 
     _currentScope = scope;
+    _mirrorScope.delegate = _currentScope;
 
     if (onEnter != null) _onEnter = onEnter;
     if (onExit != null) _onExit = onExit;
 
-    if (scope.isEntered) {
-      _onEnter(null);
-      _mirrorScope.enter(null);
+    if (_currentScope.isEntered) {
+      _currentValue = _onEnter(null);
     }
 
     _enterSubscription = _currentScope.onEnter.listen((e) {
-      _onEnter(e);
-      _mirrorScope.enter(e);
+      new Future(() => _currentValue = _onEnter(e));
     });
 
     _exitSubscription = _currentScope.onExit.listen((e) {
-      _onExit(e);
-      _mirrorScope.exit(e);
+      new Future(() => _currentValue = _onExit(e));
     });
   }
 }
@@ -113,11 +112,11 @@ class AndScope implements Scope<dynamic> {
   final Scope _second;
   final StreamController _enters = new StreamController.broadcast(sync: true);
   final StreamController _exits = new StreamController.broadcast(sync: true);
-  bool _previouslyEntered;
+  bool _currentlyEntered;
 
   AndScope(this._first, this._second) {
     // TODO: Properly clean up once _enters and _exits have no listeners
-    _previouslyEntered = isEntered;
+    _currentlyEntered = isEntered;
 
     int enterDoneCount = 0;
     int exitDoneCount = 0;
@@ -134,35 +133,31 @@ class AndScope implements Scope<dynamic> {
       }
     }
 
-    _first.onEnter
-        .where((e) => _second.isEntered && !_previouslyEntered)
-        .listen((e) {
+    _first.onEnter.where((e) => _second.isEntered && !_currentlyEntered).listen(
+        (e) {
       _enters.add(e);
     }, onDone: enterDone);
 
-    _second.onEnter
-        .where((e) => _first.isEntered && !_previouslyEntered)
-        .listen((e) {
+    _second.onEnter.where((e) => _first.isEntered && !_currentlyEntered).listen(
+        (e) {
       _enters.add(e);
     }, onDone: enterDone);
 
-    _first.onExit
-        .where((e) => !_second.isEntered && _previouslyEntered)
-        .listen((e) {
+    _first.onExit.where((e) => !_second.isEntered && _currentlyEntered).listen(
+        (e) {
       _exits.add(e);
     }, onDone: exitDone);
 
-    _second.onExit
-        .where((e) => !_first.isEntered && _previouslyEntered)
-        .listen((e) {
+    _second.onExit.where((e) => !_first.isEntered && _currentlyEntered).listen(
+        (e) {
       _exits.add(e);
     }, onDone: exitDone);
 
     _onEnter = _enters.stream;
     _onExit = _exits.stream;
 
-    _onEnter.listen((_) => _previouslyEntered = true);
-    _onExit.listen((_) => _previouslyEntered = false);
+    _onEnter.listen((_) => _currentlyEntered = true);
+    _onExit.listen((_) => _currentlyEntered = false);
   }
 
   bool get isEntered => _first.isEntered && _second.isEntered;
@@ -184,12 +179,14 @@ class SettableScope implements Scope {
     _onExit = _exits.stream;
   }
 
-  SettableScope.entered(): this._(true);
+  SettableScope.entered() : this._(true);
 
-  SettableScope.notEntered(): this._(false);
+  SettableScope.notEntered() : this._(false);
 
-  /// Note it is possible to enter and exit within the same loop which will fire
-  /// both enter and exit listeners.
+  /// Immediately changes scope state and calls onEnter listeners.
+  ///
+  /// If called multiple times before an [exit], listeners are only fired for
+  /// the first call.
   void enter(event) {
     if (_isEntered) return;
 
@@ -197,10 +194,12 @@ class SettableScope implements Scope {
     _enters.add(event);
   }
 
-  /// Note it is possible to enter and exit within the same loop which will fire
-  /// both enter and exit listeners.
+  /// Immediately changes scope state and calls onExit listeners.
+  ///
+  /// If called multiple times before an [enter], listeners are only fired for
+  /// the first call.
   void exit(event) {
-    if (!isEntered) return;
+    if (!_isEntered) return;
 
     _isEntered = false;
     _exits.add(event);
@@ -216,6 +215,63 @@ class SettableScope implements Scope {
   Stream get onExit => _onExit;
 }
 
+class ForwardingScope implements Scope {
+  // TODO: API for closing scope
+  final StreamController _enters = new StreamController.broadcast(sync: true);
+  final StreamController _exits = new StreamController.broadcast(sync: true);
+
+  Scope _delegate;
+  StreamSubscription _delegateEnterSubscription;
+  StreamSubscription _delegateExitSubscription;
+
+  void set delegate(Scope delegate) {
+    if (_delegate != null) {
+      _delegateEnterSubscription.cancel();
+      _delegateExitSubscription.cancel();
+    }
+
+    _delegate = delegate;
+    if (_delegate.isEntered) {
+      _enters.add(null);
+    }
+    _delegateEnterSubscription = _delegate.onEnter.listen(_enters.add);
+    _delegateExitSubscription = _delegate.onExit.listen(_exits.add);
+  }
+
+  ForwardingScope([delegate = const Never()]) {
+    this.delegate = delegate;
+    _onEnter = _enters.stream;
+    _onExit = _exits.stream;
+  }
+
+  bool get isEntered => _delegate.isEntered;
+
+  Stream _onEnter;
+  Stream get onEnter => _onEnter;
+
+  Stream _onExit;
+  Stream get onExit => _onExit;
+}
+
+class ListeningScope implements Scope {
+  SettableScope _settable = new SettableScope.notEntered();
+
+  ListeningScope(Run run,
+      {EventTest isEnterEvent: _noEvents, EventTest isExitEvent: _noEvents}) {
+    run.every(isEnterEvent).listen(_settable.enter);
+    run.every(isExitEvent).listen(_settable.exit);
+  }
+
+  bool get isEntered => _settable.isEntered;
+
+  Stream get onEnter => _settable.onEnter;
+
+  Stream get onExit => _settable.onExit;
+}
+
 typedef Scope GetScope();
 
-void _noop(event) {}
+dynamic _noop(event) => null;
+bool _noEvents(e) {
+  return false;
+}
