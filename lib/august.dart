@@ -14,6 +14,7 @@ export 'dart:async';
 part 'src/modules.dart';
 part 'src/persistence.dart';
 part 'src/scope.dart';
+part 'src/observable.dart';
 
 /// Creates a new [Run] for this script by instantiating the modules it
 /// requires, then calls the script's [Block], and replays back any saved events

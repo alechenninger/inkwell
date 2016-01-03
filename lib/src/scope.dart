@@ -43,19 +43,28 @@ abstract class Scope<T> {
   Stream<T> get onExit;
 }
 
-typedef ScopeListener(event);
+typedef dynamic ScopeListener(event);
 
+/// Models a value which changes only when a scope is entered or exited.
 class Scoped<T> {
-  final _mirrorScope = new ForwardingScope();
-  Scope get scope => _mirrorScope;
+  final SettableScope _postScope = new SettableScope.notEntered();
 
-  Scope _currentScope = const Never();
+  /// A scope that enters and exits when the [currentValue] has changed.
+  ///
+  /// [currentValue] may change when some scope `S1` is entered and exited, as
+  /// defined by [within]. That is different from the scope provided by this
+  /// property, `S2`. `S2` enters in another event loop _after_ the property has
+  /// changed as a result of `S1` entering. `S2` exits in another event loop
+  /// _after_ the property has changed as a result of `S1` exiting.
+  Scope get scope => _postScope;
+
+  Scope _preScope = const Never();
 
   StreamSubscription _enterSubscription;
   StreamSubscription _exitSubscription;
 
-  Function _onEnter;
-  Function _onExit;
+  ScopeListener _onEnter;
+  ScopeListener _onExit;
 
   T _currentValue;
   T get currentValue => _currentValue;
@@ -67,27 +76,44 @@ class Scoped<T> {
   }
 
   Future within(Scope scope,
-      {ScopeListener onEnter: null, ScopeListener onExit: null}) async {
+      {T onEnter(event): null, T onExit(event): null}) async {
     _enterSubscription?.cancel();
     _exitSubscription?.cancel();
 
-    _currentScope = scope;
-    _mirrorScope.delegate = _currentScope;
+    _preScope = scope;
 
     if (onEnter != null) _onEnter = onEnter;
     if (onExit != null) _onExit = onExit;
 
-    if (_currentScope.isEntered) {
-      _currentValue = _onEnter(null);
+    if (_preScope.isEntered) {
+      _enter(null);
     }
 
-    _enterSubscription = _currentScope.onEnter.listen((e) {
-      new Future(() => _currentValue = _onEnter(e));
+    _enterSubscription = _preScope.onEnter.listen((e) {
+      new Future(() => _enter(e));
     });
 
-    _exitSubscription = _currentScope.onExit.listen((e) {
-      new Future(() => _currentValue = _onExit(e));
+    _exitSubscription = _preScope.onExit.listen((e) {
+      new Future(() => _exit(e));
     });
+  }
+
+  void _enter(event) {
+    var newValue = _onEnter(event);
+    if (_currentValue != newValue) {
+      // TODO: Might want to make the event used here a diff event
+      new Future(() => _postScope.enter(event));
+    }
+    _currentValue = newValue;
+  }
+
+  void _exit(event) {
+    var newValue = _onExit(event);
+    if (_currentValue != newValue) {
+      // TODO: Might want to make the event used here a diff event
+      new Future(() => _postScope.exit(event));
+    }
+    _currentValue = newValue;
   }
 }
 
@@ -254,12 +280,20 @@ class ForwardingScope implements Scope {
 }
 
 class ListeningScope implements Scope {
-  SettableScope _settable = new SettableScope.notEntered();
+  final SettableScope _settable;
 
-  ListeningScope(Run run,
-      {EventTest isEnterEvent: _noEvents, EventTest isExitEvent: _noEvents}) {
-    run.every(isEnterEvent).listen(_settable.enter);
-    run.every(isExitEvent).listen(_settable.exit);
+  ListeningScope.entered(Stream eventStream,
+      {EventTest isEnterEvent: _noEvents, EventTest isExitEvent: _noEvents})
+      : _settable = new SettableScope.entered() {
+    eventStream.where(isEnterEvent).listen(_settable.enter);
+    eventStream.where(isExitEvent).listen(_settable.exit);
+  }
+
+  ListeningScope.notEntered(Stream eventStream,
+      {EventTest enterWhen: _noEvents, EventTest exitWhen: _noEvents})
+      : _settable = new SettableScope.notEntered() {
+    eventStream.where(enterWhen).listen(_settable.enter);
+    eventStream.where(exitWhen).listen(_settable.exit);
   }
 
   bool get isEntered => _settable.isEntered;
