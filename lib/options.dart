@@ -80,23 +80,19 @@ class Option {
   final String text;
   final Run _run;
   final SettableScope _hasUses = new SettableScope.notEntered();
+
   final int allowedUseCount; // TODO: Allow mutate
+
   int _useCount = 0;
   int get useCount => _useCount;
-  Scoped<bool> _available;
+
+  final ScopeAsValue _available = new ScopeAsValue();
 
   Option(this.text, this._run, {this.allowedUseCount: 1}) {
     if (allowedUseCount < 0) {
       throw new ArgumentError.value(allowedUseCount, "allowedUseCount",
           "Allowed use count must be non-negative.");
     }
-
-    _available = new Scoped.ofImmutable(false,
-        enterValue: (_) => true, exitValue: (_) => false);
-
-    _availability = new ListeningScope.notEntered(_available.onChange,
-        enterWhen: (e) => e.newValue == true,
-        exitWhen: (e) => e.newValue == false);
 
     if (allowedUseCount > 0) {
       _hasUses.enter(null);
@@ -111,6 +107,11 @@ class Option {
   void available(Scope scope) {
     _available.within(new AndScope(scope, _hasUses));
   }
+
+  bool get isAvailable => _available.isInScope;
+
+  /// A scope that is entered whenever this option is available.
+  Scope get availability => _available.asScope;
 
   Future<UseOptionEvent> use() {
     return _run.emit(() {
@@ -128,12 +129,6 @@ class Option {
       return event;
     });
   }
-
-  bool get isAvailable => _available.value;
-
-  /// A scope that is entered whenever this option is available.
-  Scope _availability;
-  Scope get availability => _availability;
 }
 
 class AddOptionEvent {

@@ -93,6 +93,28 @@ class Scoped<T> {
   }
 }
 
+class ScopeAsValue {
+  Scoped<bool> _scoped;
+
+  bool get isInScope => _scoped.value;
+
+  ListeningScope _valueScope;
+  Scope get asScope => _valueScope;
+
+  ScopeAsValue() {
+    _scoped = new Scoped.ofImmutable(false,
+        enterValue: (_) => true, exitValue: (_) => false);
+
+    _valueScope = new ListeningScope.notEntered(_scoped.onChange,
+        enterWhen: (e) => e.newValue == true,
+        exitWhen: (e) => e.newValue == false);
+  }
+
+  void within(Scope scope) {
+    _scoped.within(scope);
+  }
+}
+
 class Always implements Scope<Null> {
   final bool isEntered = true;
   final onEnter = const Stream.empty();
