@@ -43,77 +43,53 @@ abstract class Scope<T> {
   Stream<T> get onExit;
 }
 
-typedef dynamic ScopeListener(event);
+typedef dynamic GetNewValue(currentValue);
 
-/// Models a value which changes only when a scope is entered or exited.
 class Scoped<T> {
-  final SettableScope _postScope = new SettableScope.notEntered();
+  Scope _backingScope = const Never();
 
-  /// A scope that enters and exits when the [currentValue] has changed.
-  ///
-  /// [currentValue] may change when some scope `S1` is entered and exited, as
-  /// defined by [within]. That is different from the scope provided by this
-  /// property, `S2`. `S2` enters in another event loop _after_ the property has
-  /// changed as a result of `S1` entering. `S2` exits in another event loop
-  /// _after_ the property has changed as a result of `S1` exiting.
-  Scope get scope => _postScope;
+  final Observable<T> _observable;
+  T get value => _observable.value;
 
-  Scope _preScope = const Never();
+  Stream<StateChangeEvent<T>> get onChange => _observable.onChange;
+
+  GetNewValue _enterValue;
+  GetNewValue _exitValue;
 
   StreamSubscription _enterSubscription;
   StreamSubscription _exitSubscription;
 
-  ScopeListener _onEnter;
-  ScopeListener _onExit;
+  final ForwardingScope _mirrorScope = new ForwardingScope();
+  Scope get scope => _mirrorScope;
 
-  T _currentValue;
-  T get currentValue => _currentValue;
+  Scoped.ofImmutable(T initialValue,
+      {T enterValue(T value): _identity, T exitValue(T value): _identity})
+      : _observable = new Observable<T>.ofImmutable(initialValue),
+        _enterValue = enterValue,
+        _exitValue = exitValue;
 
-  Scoped(T initialValue, {T onEnter(event), T onExit(event)}) {
-    _currentValue = initialValue;
-    _onEnter = onEnter ?? (e) => null;
-    _onExit = onExit ?? (e) => null;
-  }
-
-  Future within(Scope scope,
-      {T onEnter(event): null, T onExit(event): null}) async {
+  void within(Scope scope,
+      {T enterValue(T value): null, T exitValue(T value): null}) {
     _enterSubscription?.cancel();
     _exitSubscription?.cancel();
 
-    _preScope = scope;
+    _backingScope = scope;
+    _mirrorScope.delegate = scope;
 
-    if (onEnter != null) _onEnter = onEnter;
-    if (onExit != null) _onExit = onExit;
+    if (enterValue != null) _enterValue = enterValue;
+    if (exitValue != null) _exitValue = exitValue;
 
-    if (_preScope.isEntered) {
-      _enter(null);
+    if (_backingScope.isEntered) {
+      _observable.set(_enterValue);
     }
 
-    _enterSubscription = _preScope.onEnter.listen((e) {
-      new Future(() => _enter(e));
+    _enterSubscription = _backingScope.onEnter.listen((e) {
+      _observable.set(_enterValue);
     });
 
-    _exitSubscription = _preScope.onExit.listen((e) {
-      new Future(() => _exit(e));
+    _exitSubscription = _backingScope.onExit.listen((e) {
+      _observable.set(_exitValue);
     });
-  }
-
-  void _enter(event) {
-    var newValue = _onEnter(event);
-    if (_currentValue != newValue) {
-      // TODO: Might want to make the event used here a diff event
-      new Future(() => _postScope.enter(event));
-    }
-    _currentValue = newValue;
-  }
-
-  void _exit(event) {
-    var newValue = _onExit(event);
-    if (_currentValue != newValue) {
-      // TODO: Might want to make the event used here a diff event
-      new Future(() => _postScope.exit(event));
-    }
-    _currentValue = newValue;
   }
 }
 
@@ -305,7 +281,8 @@ class ListeningScope implements Scope {
 
 typedef Scope GetScope();
 
-dynamic _noop(event) => null;
+dynamic _identity(value) => value;
+
 bool _noEvents(e) {
   return false;
 }

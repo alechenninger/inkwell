@@ -83,7 +83,7 @@ class Option {
   final int allowedUseCount; // TODO: Allow mutate
   int _useCount = 0;
   int get useCount => _useCount;
-  Scoped<Observable<bool>> _available;
+  Scoped<bool> _available;
 
   Option(this.text, this._run, {this.allowedUseCount: 1}) {
     if (allowedUseCount < 0) {
@@ -91,11 +91,10 @@ class Option {
           "Allowed use count must be non-negative.");
     }
 
-    _available = new Scoped(new Observable.ofImmutable(false),
-        onEnter: _getAvailable, onExit: _getNotAvailable);
+    _available = new Scoped.ofImmutable(false,
+        enterValue: (_) => true, exitValue: (_) => false);
 
-    _availability = new ListeningScope.notEntered(
-        _available.currentValue.onChange,
+    _availability = new ListeningScope.notEntered(_available.onChange,
         enterWhen: (e) => e.newValue == true,
         exitWhen: (e) => e.newValue == false);
 
@@ -130,19 +129,11 @@ class Option {
     });
   }
 
-  bool get isAvailable => _available.currentValue.value;
+  bool get isAvailable => _available.value;
 
   /// A scope that is entered whenever this option is available.
   Scope _availability;
   Scope get availability => _availability;
-
-  Observable<bool> _getAvailable(_) {
-    return _available.currentValue..set((a) => true);
-  }
-
-  Observable<bool> _getNotAvailable(_) {
-    return _available.currentValue..set((a) => false);
-  }
 }
 
 class AddOptionEvent {
