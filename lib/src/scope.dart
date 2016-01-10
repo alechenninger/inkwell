@@ -49,7 +49,10 @@ class Scoped<T> {
   Scope _backingScope = const Never();
 
   final Observable<T> _observable;
+
   T get value => _observable.value;
+
+  T get nextValue => _observable.nextValue;
 
   Stream<StateChangeEvent<T>> get onChange => _observable.onChange;
 
@@ -81,6 +84,8 @@ class Scoped<T> {
 
     if (_backingScope.isEntered) {
       _observable.set(_enterValue);
+    } else {
+      _observable.set(_exitValue);
     }
 
     _enterSubscription = _backingScope.onEnter.listen((e) {
@@ -96,7 +101,8 @@ class Scoped<T> {
 class ScopeAsValue {
   Scoped<bool> _scoped;
 
-  bool get isInScope => _scoped.value;
+  bool get value => _scoped.value;
+  bool get nextValue => _scoped.nextValue;
 
   ListeningScope _valueScope;
   Scope get asScope => _valueScope;
@@ -167,12 +173,12 @@ class AndScope implements Scope<dynamic> {
       _enters.add(e);
     }, onDone: enterDone);
 
-    _first.onExit.where((e) => !_second.isEntered && _currentlyEntered).listen(
+    _first.onExit.where((e) => _currentlyEntered).listen(
         (e) {
       _exits.add(e);
     }, onDone: exitDone);
 
-    _second.onExit.where((e) => !_first.isEntered && _currentlyEntered).listen(
+    _second.onExit.where((e) => _currentlyEntered).listen(
         (e) {
       _exits.add(e);
     }, onDone: exitDone);
@@ -281,10 +287,10 @@ class ListeningScope implements Scope {
   final SettableScope _settable;
 
   ListeningScope.entered(Stream eventStream,
-      {EventTest isEnterEvent: _noEvents, EventTest isExitEvent: _noEvents})
+      {EventTest enterWhen: _noEvents, EventTest exitWhen: _noEvents})
       : _settable = new SettableScope.entered() {
-    eventStream.where(isEnterEvent).listen(_settable.enter);
-    eventStream.where(isExitEvent).listen(_settable.exit);
+    eventStream.where(enterWhen).listen(_settable.enter);
+    eventStream.where(exitWhen).listen(_settable.exit);
   }
 
   ListeningScope.notEntered(Stream eventStream,

@@ -108,26 +108,23 @@ class Option {
     _available.within(new AndScope(scope, _hasUses));
   }
 
-  bool get isAvailable => _available.isInScope;
+  bool get isAvailable => _available.value;
 
   /// A scope that is entered whenever this option is available.
   Scope get availability => _available.asScope;
 
   Future<UseOptionEvent> use() {
-    return _run.emit(() {
-      if (!isAvailable) {
-        throw new StateError("Option is not available to be used.");
-      }
+    if (_available.nextValue == false) {
+      return new Future.error(new OptionNotAvailableException(this));
+    }
 
-      _useCount += 1;
-      var event = new UseOptionEvent(this);
+    _useCount += 1;
 
-      if (_useCount == allowedUseCount) {
-        _hasUses.exit(event);
-      }
+    if(_useCount == allowedUseCount) {
+      _hasUses.exit(null);
+    }
 
-      return event;
-    });
+    return _run.emit(new UseOptionEvent(this));
   }
 }
 
@@ -147,4 +144,10 @@ class UseOptionEvent {
   final Option option;
 
   UseOptionEvent(this.option);
+}
+
+class OptionNotAvailableException implements Exception {
+  final Option option;
+
+  OptionNotAvailableException(this.option);
 }

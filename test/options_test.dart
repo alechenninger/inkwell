@@ -23,7 +23,7 @@ main() {
     });
 
     group("when made available", () {
-      test("enteres availability scope", () {
+      test("enters availability scope", () {
         opt.available(const Always());
         expect(opt.availability.onEnter.first, completes);
       });
@@ -39,18 +39,21 @@ main() {
         expect(opt.isAvailable, isTrue);
       });
 
-      test("emits availability in future after updating isAvailable", () async {
+      test("emits availability same future as updating isAvailable", () async {
         opt.available(const Always());
         var order = [];
-        new Future(() => order.add("future isAvailable: ${opt.isAvailable}"));
-        await opt.availability.onEnter.first.then(
+        var future = new Future(
+            () => order.add("future isAvailable: ${opt.isAvailable}"));
+        opt.availability.onEnter.first.then(
             (e) => order.add("availability isAvailable: ${opt.isAvailable}"));
+
+        await future;
 
         expect(
             order,
             equals([
-              "future isAvailable: true",
-              "availability isAvailable: true"
+              "availability isAvailable: true",
+              "future isAvailable: true"
             ]));
       });
 
@@ -67,22 +70,67 @@ main() {
           expect(opt.isAvailable, isFalse);
         });
 
-        test("emits availability in future after updating isAvailable",
+        test("emits availability in same future as updating isAvailable",
             () async {
           customScope.enter(null);
           var order = [];
-          new Future(() => order.add("future isAvailable: ${opt.isAvailable}"));
-          await opt.availability.onEnter.first.then(
+          var future = new Future(
+              () => order.add("future isAvailable: ${opt.isAvailable}"));
+          opt.availability.onEnter.first.then(
               (e) => order.add("availability isAvailable: ${opt.isAvailable}"));
+          await future;
 
           expect(
               order,
               equals([
-                "future isAvailable: true",
-                "availability isAvailable: true"
+                "availability isAvailable: true",
+                "future isAvailable: true"
               ]));
         });
       });
-    }, timeout: const Timeout(const Duration(milliseconds: 100)));
-  });
+    });
+
+    group("when used", () {
+      setUp(() {
+        opt.available(const Always());
+        return opt.availability.onEnter.first;
+      });
+
+      test("is not immediately made unavailable", () {
+        opt.use();
+        expect(opt.isAvailable, isTrue);
+      });
+
+      test("makes an option unavailable to new futures", () {
+        opt.use();
+        expect(new Future(() => opt.isAvailable), completion(isFalse));
+      });
+
+      test("completes with error if option is scheduled to be unavailable", () {
+        opt.available(const Never());
+        expect(opt.use(), throws);
+      });
+
+      test("completes with error if option is already unavailable", () async {
+        opt.available(const Never());
+        await opt.availability.onExit.first;
+        expect(opt.use(), throws);
+      });
+
+      test("emits UseOptionEvent", () {
+        opt.use();
+        expect(run.once((e) => e is UseOptionEvent), completes);
+      });
+
+      test("does not emit UseOptionEvent if not available to be used", () {
+        opt.available(const Never());
+        opt.use().catchError((e) {});
+        expect(
+            run
+                .once((e) => e is UseOptionEvent)
+                .timeout(const Duration(milliseconds: 250)),
+            throws);
+      });
+    });
+  }, timeout: const Timeout(const Duration(milliseconds: 500)));
 }

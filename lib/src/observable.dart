@@ -5,8 +5,13 @@ part of august;
 
 // TODO: Interface will change if type is mutable
 abstract class Observable<T> {
-  /// The current value being observed.
+  /// The current value being observed. Will not change in the current event
+  /// loop.
   T get value;
+
+  /// The value that will be visible after all events are handled in the current
+  /// event queue.
+  T get nextValue;
 
   Stream<StateChangeEvent<T>> get onChange;
 
@@ -22,7 +27,7 @@ abstract class Observable<T> {
 
   /// Schedules a change to this value in a future.
   ///
-  /// Listeners will be fired in a future thereafter.
+  /// [onChange] listeners will be fired synchronously, immediately thereafter.
   ///
   /// Returned future completes once all listeners are fired.
   ///
@@ -37,22 +42,34 @@ abstract class Observable<T> {
 class _ObservableOfImmutable<T> implements Observable<T> {
   T _currentValue;
   T get value => _currentValue;
+  T _nextValue;
+  T get nextValue => _nextValue;
 
   final _changes = new StreamController.broadcast(sync: true);
   Stream<StateChangeEvent<T>> get onChange => _changes.stream;
 
-  _ObservableOfImmutable(this._currentValue);
+  _ObservableOfImmutable(this._currentValue) {
+    _nextValue = _currentValue;
+  }
 
-  Future<StateChangeEvent<T>> set(T getNewValue(T currentValue)) async {
-    var newValue = getNewValue(_currentValue);
+  Future<StateChangeEvent<T>> set(T getNewValue(T currentValue)) {
+    _nextValue = getNewValue(_nextValue);
 
-    if (newValue == _currentValue) {
-      return new StateChangeEvent(_currentValue);
-    }
+    return new Future(() {
+      var newValue = getNewValue(_currentValue);
 
-    _currentValue = newValue;
+      if (newValue == _currentValue) {
+        return null;
+      }
 
-    return new Future(() => _changes.add(new StateChangeEvent(_currentValue)));
+      _currentValue = newValue;
+
+      var event = new StateChangeEvent(_currentValue);
+
+      _changes.add(event);
+
+      return event;
+    });
   }
 }
 
