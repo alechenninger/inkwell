@@ -83,7 +83,7 @@ class Option {
 
   final int allowedUseCount; // TODO: Allow mutate
 
-  Observable<int> _useCount = new Observable.ofImmutable(0);
+  final Observable<int> _useCount = new Observable.ofImmutable(0);
   Observed<int> get useCount => _useCount;
 
   final ScopeAsValue _available = new ScopeAsValue();

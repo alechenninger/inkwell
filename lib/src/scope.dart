@@ -16,6 +16,9 @@ abstract class Scope<T> {
   /// onExit events are fired.
   bool get isEntered;
 
+  /// See [isEntered]
+  bool get isNotEntered => !isEntered;
+
   /// Streams are synchronous broadcast streams, which means if the scope is
   /// entered before entries are listened to, the listener will _not_ get an
   /// entry event, because it already happened. You can check if a scope is
@@ -116,7 +119,8 @@ class ScopeAsValue {
 }
 
 class Always implements Scope<Null> {
-  final bool isEntered = true;
+  final isEntered = true;
+  final isNotEntered = false;
   final onEnter = const Stream.empty();
   final onExit = const Stream.empty();
 
@@ -124,14 +128,15 @@ class Always implements Scope<Null> {
 }
 
 class Never implements Scope<Null> {
-  final bool isEntered = false;
+  final isEntered = false;
+  final isNotEntered = true;
   final onEnter = const Stream.empty();
   final onExit = const Stream.empty();
 
   const Never();
 }
 
-class AndScope implements Scope<dynamic> {
+class AndScope extends Scope<dynamic> {
   final Scope _first;
   final Scope _second;
   final StreamController _enters = new StreamController.broadcast(sync: true);
@@ -191,7 +196,7 @@ class AndScope implements Scope<dynamic> {
   Stream get onExit => _onExit;
 }
 
-class SettableScope implements Scope {
+class SettableScope extends Scope {
   // TODO: API for closing scope
   final StreamController _enters = new StreamController.broadcast(sync: true);
   final StreamController _exits = new StreamController.broadcast(sync: true);
@@ -237,7 +242,7 @@ class SettableScope implements Scope {
   Stream get onExit => _onExit;
 }
 
-class ForwardingScope implements Scope {
+class ForwardingScope extends Scope {
   // TODO: API for closing scope
   final StreamController _enters = new StreamController.broadcast(sync: true);
   final StreamController _exits = new StreamController.broadcast(sync: true);
@@ -275,7 +280,7 @@ class ForwardingScope implements Scope {
   Stream get onExit => _onExit;
 }
 
-class ListeningScope implements Scope {
+class ListeningScope extends Scope {
   final SettableScope _settable;
 
   ListeningScope.entered(Stream eventStream,
