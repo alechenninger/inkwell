@@ -83,8 +83,8 @@ class Option {
 
   final int allowedUseCount; // TODO: Allow mutate
 
-  int _useCount = 0;
-  int get useCount => _useCount;
+  Observable<int> _useCount = new Observable.ofImmutable(0);
+  Observed<int> get useCount => _useCount;
 
   final ScopeAsValue _available = new ScopeAsValue();
 
@@ -118,9 +118,9 @@ class Option {
       return new Future.error(new OptionNotAvailableException(this));
     }
 
-    _useCount += 1;
+    _useCount.set((c) => c + 1);
 
-    if(_useCount == allowedUseCount) {
+    if(_useCount.nextValue == allowedUseCount) {
       _hasUses.exit(null);
     }
 
