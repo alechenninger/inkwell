@@ -108,13 +108,13 @@ class Option {
     _available.within(new AndScope(scope, _hasUses));
   }
 
-  bool get isAvailable => _available.value;
+  bool get isAvailable => _available.observed.value;
 
   /// A scope that is entered whenever this option is available.
   Scope get availability => _available.asScope;
 
   Future<UseOptionEvent> use() {
-    if (_available.nextValue == false) {
+    if (_available.observed.nextValue == false) {
       return new Future.error(new OptionNotAvailableException(this));
     }
 

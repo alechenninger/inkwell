@@ -97,13 +97,13 @@ main() {
       });
 
       test("is not immediately made unavailable", () {
-        opt.use();
+        opt.use().catchError((_) {});
         expect(opt.isAvailable, isTrue);
       });
 
-      test("makes an option unavailable to new futures", () {
-        opt.use();
-        expect(new Future(() => opt.isAvailable), completion(isFalse));
+      test("cannot be used again", () async {
+        opt.use().catchError((_) {});
+        expect(opt.use(), throws);
       });
 
       test("completes with error if option is scheduled to be unavailable", () {
@@ -122,8 +122,9 @@ main() {
         expect(run.once((e) => e is UseOptionEvent), completes);
       });
 
-      test("does not emit UseOptionEvent if not available to be used", () {
+      test("does not emit UseOptionEvent if not available to be used", () async {
         opt.available(const Never());
+        await opt.availability.onExit.first;
         opt.use().catchError((e) {});
         expect(
             run

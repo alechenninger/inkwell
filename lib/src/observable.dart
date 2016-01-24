@@ -4,20 +4,10 @@
 part of august;
 
 // TODO: Interface will change if type is mutable
-abstract class Observable<T> {
-  /// The current value being observed. Will not change in the current event
-  /// loop.
-  T get value;
-
-  /// The value that will be visible after all events are handled in the current
-  /// event queue.
-  T get nextValue;
-
-  Stream<StateChangeEvent<T>> get onChange;
-
+abstract class Observable<T> extends Observed<T> {
   /// Create an `Observable` of an immutable _value_, like a primitive type. The
-  /// reference is mutable, so the property is changeable, but each assigned
-  /// value should be immutable.
+  /// reference is mutable, so the value of this `Observable` may still change,
+  /// but each assigned value should be immutable.
   ///
   /// For mutable values like [List]s, there is no guarantee that references to
   /// the value mutate it outside of the scope of the observable.
@@ -25,9 +15,11 @@ abstract class Observable<T> {
     return new _ObservableOfImmutable(initialValue);
   }
 
-  /// Schedules a change to this value in a future.
+  /// Schedules a change of the observed value to the result of the provided
+  /// function in a future.
   ///
-  /// [onChange] listeners will be fired synchronously, immediately thereafter.
+  /// [onChange] listeners will be fired synchronously in the same future,
+  /// immediately after the value is changed.
   ///
   /// Returned future completes once all listeners are fired.
   ///
@@ -37,6 +29,18 @@ abstract class Observable<T> {
   /// should not mutate this value in the listener_ but return a new instance to
   /// be used.
   Future<StateChangeEvent<T>> set(T getNewValue(T currentValue));
+}
+
+abstract class Observed<T> {
+  /// The current value being observed. Will not change in the current event
+  /// loop.
+  T get value;
+
+  /// The value that will be visible after all events are handled in the current
+  /// event queue.
+  T get nextValue;
+
+  Stream<StateChangeEvent<T>> get onChange;
 }
 
 class _ObservableOfImmutable<T> implements Observable<T> {

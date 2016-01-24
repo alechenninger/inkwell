@@ -49,12 +49,7 @@ class Scoped<T> {
   Scope _backingScope = const Never();
 
   final Observable<T> _observable;
-
-  T get value => _observable.value;
-
-  T get nextValue => _observable.nextValue;
-
-  Stream<StateChangeEvent<T>> get onChange => _observable.onChange;
+  Observed<T> get observed => _observable;
 
   GetNewValue _enterValue;
   GetNewValue _exitValue;
@@ -101,8 +96,7 @@ class Scoped<T> {
 class ScopeAsValue {
   Scoped<bool> _scoped;
 
-  bool get value => _scoped.value;
-  bool get nextValue => _scoped.nextValue;
+  Observed<bool> get observed => _scoped.observed;
 
   ListeningScope _valueScope;
   Scope get asScope => _valueScope;
@@ -111,7 +105,7 @@ class ScopeAsValue {
     _scoped = new Scoped.ofImmutable(false,
         enterValue: (_) => true, exitValue: (_) => false);
 
-    _valueScope = new ListeningScope.notEntered(_scoped.onChange,
+    _valueScope = new ListeningScope.notEntered(_scoped.observed.onChange,
         enterWhen: (e) => e.newValue == true,
         exitWhen: (e) => e.newValue == false);
   }
@@ -173,13 +167,11 @@ class AndScope implements Scope<dynamic> {
       _enters.add(e);
     }, onDone: enterDone);
 
-    _first.onExit.where((e) => _currentlyEntered).listen(
-        (e) {
+    _first.onExit.where((e) => _currentlyEntered).listen((e) {
       _exits.add(e);
     }, onDone: exitDone);
 
-    _second.onExit.where((e) => _currentlyEntered).listen(
-        (e) {
+    _second.onExit.where((e) => _currentlyEntered).listen((e) {
       _exits.add(e);
     }, onDone: exitDone);
 
