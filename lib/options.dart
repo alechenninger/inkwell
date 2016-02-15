@@ -5,64 +5,65 @@ library august.options;
 
 import 'package:august/august.dart';
 
-class OptionsDefinition implements ModuleDefinition, InterfaceModuleDefinition {
-  final name = 'Options';
+class OptionsModule {
+  final StreamController _ctrl = new StreamController.broadcast(sync: true);
 
-  Options createModule(Run run, Map modules) {
-    return new Options(run);
+  Options get scriptOptions => new Options(this);
+
+  OptionsInterface get interfaceOptions => new OptionsInterface(this);
+
+  parseCommand(String name, Map args) {
+    switch (name) {
+      case "use":
+      default:
+        throw new ArgumentError.value(name, "name", "Unknown command");
+    }
   }
 
-  OptionsInterface createInterface(Options options, InterfaceEmit emit) {
-    return new OptionsInterface(options, emit);
-  }
+  final List<Option> _options = [];
 
-  OptionsInterfaceHandler createInterfaceHandler(Options options) {
-    return new OptionsInterfaceHandler(options);
+  Option _newOption(String text) {
+    return new Option(text)
+      ..onUse.listen((u) => _ctrl.add(new UseOptionEvent(u.option)))
+      ..availability.onEnter.listen((e) {
+        _options.add(e.owner);
+        _ctrl.add(new AddOptionEvent(e.owner));
+      })
+      ..availability.onExit.listen((e) {
+        _options.remove(e.owner);
+        _ctrl.add(new RemoveOptionEvent(e.owner));
+      });
   }
 }
 
 class Options {
-  final List<Option> _available = <Option>[];
-  final Run _run;
+  final OptionsModule _module;
 
-  Options(this._run) {
-    additions.listen((e) => _available.add(e.option));
-    removals.listen((e) => _available.remove(e.option));
-  }
+  Options(this._module);
 
-  List<Option> get available =>
-      // Check for availability explicitly because events may not have been
-      // received yet.
-      new List.unmodifiable(_available.where((Option o) => o.isAvailable));
+  Option newOption(String text) => _module._newOption(text);
+}
 
-  Stream<AddOptionEvent> get additions =>
-      _run.every((e) => e is AddOptionEvent);
+class UiOption {
 
-  Stream<RemoveOptionEvent> get removals =>
-      _run.every((e) => e is RemoveOptionEvent);
-
-  Stream<UseOptionEvent> get uses => _run.every((e) => e is UseOptionEvent);
 }
 
 class OptionsInterface implements Interface {
-  final Options _options;
-  final InterfaceEmit _emit;
+  final OptionsModule _options;
 
-  OptionsInterface(this._options, this._emit);
+  OptionsInterface(this._options);
 
-  void use(String option) {
-    _emit("use", {"option": option});
+  void use(UiOption option) {
+
   }
 
-  // TODO: UI shouldn't access native Options directly
-  // must keep track of UI events, persist them
-  List<Option> get available => _options.available;
+  List<UiOption> get available => null;
 
-  Stream<Option> get additions => _options.additions.map((e) => e.option);
+  Stream<UiOption> get additions => null;
 
-  Stream<Option> get removals => _options.removals.map((e) => e.option);
+  Stream<UiOption> get removals => null;
 
-  Stream<Option> get uses => _options.uses.map((e) => e.option);
+  Stream<UiOption> get uses => null;
 }
 
 class OptionsInterfaceHandler implements InterfaceHandler {
@@ -76,19 +77,28 @@ class OptionsInterfaceHandler implements InterfaceHandler {
 }
 
 class Option {
-  // TODO: Maybe allow mutable text too?
   final String text;
-  final Run _run;
-  final SettableScope _hasUses = new SettableScope.notEntered();
 
-  final int allowedUseCount; // TODO: Allow mutate
+  final int allowedUseCount;
 
-  final Observable<int> _useCount = new Observable.ofImmutable(0);
   Observed<int> get useCount => _useCount;
 
-  final ScopeAsValue _available = new ScopeAsValue();
+  bool get isAvailable => _available.observed.value;
 
-  Option(this.text, this._run, {this.allowedUseCount: 1}) {
+  /// A scope that is entered whenever this option is available.
+  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+
+  Stream<UseOptionEvent> get onUse => _uses.stream;
+
+  final SettableScope _hasUses = new SettableScope.notEntered();
+  final StreamController _uses = new StreamController.broadcast(sync: true);
+  Observable<int> _useCount;
+  ScopeAsValue _available;
+
+  Option(this.text, {this.allowedUseCount: 1}) {
+    _useCount = new Observable.ofImmutable(0, owner: this);
+    _available = new ScopeAsValue(owner: this);
+
     if (allowedUseCount < 0) {
       throw new ArgumentError.value(allowedUseCount, "allowedUseCount",
           "Allowed use count must be non-negative.");
@@ -108,11 +118,6 @@ class Option {
     _available.within(new AndScope(scope, _hasUses));
   }
 
-  bool get isAvailable => _available.observed.value;
-
-  /// A scope that is entered whenever this option is available.
-  Scope get availability => _available.asScope;
-
   Future<UseOptionEvent> use() {
     if (_available.observed.nextValue == false) {
       return new Future.error(new OptionNotAvailableException(this));
@@ -124,7 +129,11 @@ class Option {
       _hasUses.exit(null);
     }
 
-    return _run.emit(new UseOptionEvent(this));
+    return new Future(() {
+      var event = new UseOptionEvent(this);
+      _uses.add(event);
+      return event;
+    });
   }
 }
 

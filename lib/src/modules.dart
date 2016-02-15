@@ -40,3 +40,12 @@ abstract class Interface {}
 class NoopInterfaceHandler implements InterfaceHandler {
   void handle(action, args) {}
 }
+
+/*
+We need an interface for scripts to use
+we need an interface for ui to use
+the impl for ui must record actions
+something needs to be able to play back those actions
+both interfaces are backed by the same state
+
+ */

@@ -11,6 +11,7 @@ part of august;
 ///
 /// Scopes are used to control availability or state of other story objects like
 /// options or dialog.
+// TODO: Rethink parameterized type usage here
 abstract class Scope<T> {
   /// Immediately available in the current event loop, just before onEnter and
   /// onExit events are fired.
@@ -64,8 +65,9 @@ class Scoped<T> {
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,
-      {T enterValue(T value): _identity, T exitValue(T value): _identity})
-      : _observable = new Observable<T>.ofImmutable(initialValue),
+      {T enterValue(T value): _identity, T exitValue(T value): _identity,
+      dynamic owner})
+      : _observable = new Observable<T>.ofImmutable(initialValue, owner: owner),
         _enterValue = enterValue,
         _exitValue = exitValue;
 
@@ -101,11 +103,11 @@ class ScopeAsValue {
 
   Observed<bool> get observed => _scoped.observed;
 
-  ListeningScope _valueScope;
-  Scope get asScope => _valueScope;
+  ListeningScope<StateChangeEvent<bool>> _valueScope;
+  Scope<StateChangeEvent<bool>> get asScope => _valueScope;
 
-  ScopeAsValue() {
-    _scoped = new Scoped.ofImmutable(false,
+  ScopeAsValue({dynamic owner}) {
+    _scoped = new Scoped.ofImmutable(false, owner: owner,
         enterValue: (_) => true, exitValue: (_) => false);
 
     _valueScope = new ListeningScope.notEntered(_scoped.observed.onChange,
@@ -196,10 +198,10 @@ class AndScope extends Scope<dynamic> {
   Stream get onExit => _onExit;
 }
 
-class SettableScope extends Scope {
+class SettableScope<T> extends Scope<T> {
   // TODO: API for closing scope
-  final StreamController _enters = new StreamController.broadcast(sync: true);
-  final StreamController _exits = new StreamController.broadcast(sync: true);
+  final StreamController<T> _enters = new StreamController.broadcast(sync: true);
+  final StreamController<T> _exits = new StreamController.broadcast(sync: true);
 
   SettableScope._(this._isEntered) {
     _onEnter = _enters.stream;
@@ -214,7 +216,7 @@ class SettableScope extends Scope {
   ///
   /// If called multiple times before an [exit], listeners are only fired for
   /// the first call.
-  void enter(event) {
+  void enter(T event) {
     if (_isEntered) return;
 
     _isEntered = true;
@@ -225,7 +227,7 @@ class SettableScope extends Scope {
   ///
   /// If called multiple times before an [enter], listeners are only fired for
   /// the first call.
-  void exit(event) {
+  void exit(T event) {
     if (!_isEntered) return;
 
     _isEntered = false;
@@ -280,17 +282,17 @@ class ForwardingScope extends Scope {
   Stream get onExit => _onExit;
 }
 
-class ListeningScope extends Scope {
-  final SettableScope _settable;
+class ListeningScope<T> extends Scope<T> {
+  final SettableScope<T> _settable;
 
-  ListeningScope.entered(Stream eventStream,
-      {EventTest enterWhen: _noEvents, EventTest exitWhen: _noEvents})
+  ListeningScope.entered(Stream<T> eventStream,
+      {bool enterWhen(T event): _noEvents, bool exitWhen(T event): _noEvents})
       : _settable = new SettableScope.entered() {
     eventStream.where(enterWhen).listen(_settable.enter);
     eventStream.where(exitWhen).listen(_settable.exit);
   }
 
-  ListeningScope.notEntered(Stream eventStream,
+  ListeningScope.notEntered(Stream<T> eventStream,
       {EventTest enterWhen: _noEvents, EventTest exitWhen: _noEvents})
       : _settable = new SettableScope.notEntered() {
     eventStream.where(enterWhen).listen(_settable.enter);
@@ -299,9 +301,9 @@ class ListeningScope extends Scope {
 
   bool get isEntered => _settable.isEntered;
 
-  Stream get onEnter => _settable.onEnter;
+  Stream<T> get onEnter => _settable.onEnter;
 
-  Stream get onExit => _settable.onExit;
+  Stream<T> get onExit => _settable.onExit;
 }
 
 typedef Scope GetScope();
