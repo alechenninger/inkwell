@@ -4,75 +4,22 @@
 library august.options;
 
 import 'package:august/august.dart';
-
-class OptionsModule {
-  final StreamController _ctrl = new StreamController.broadcast(sync: true);
-
-  Options get scriptOptions => new Options(this);
-
-  OptionsInterface get interfaceOptions => new OptionsInterface(this);
-
-  parseCommand(String name, Map args) {
-    switch (name) {
-      case "use":
-      default:
-        throw new ArgumentError.value(name, "name", "Unknown command");
-    }
-  }
-
-  final List<Option> _options = [];
-
-  Option _newOption(String text) {
-    return new Option(text)
-      ..onUse.listen((u) => _ctrl.add(new UseOptionEvent(u.option)))
-      ..availability.onEnter.listen((e) {
-        _options.add(e.owner);
-        _ctrl.add(new AddOptionEvent(e.owner));
-      })
-      ..availability.onExit.listen((e) {
-        _options.remove(e.owner);
-        _ctrl.add(new RemoveOptionEvent(e.owner));
-      });
-  }
-}
+import 'package:august/ui.dart';
 
 class Options {
-  final OptionsModule _module;
+  final StreamController<Option> _ctrl =
+      new StreamController.broadcast(sync: true);
+  final List<Option> _options = [];
 
-  Options(this._module);
+  Stream<Option> get onOptionAvailable => _ctrl.stream;
 
-  Option newOption(String text) => _module._newOption(text);
-}
-
-class UiOption {
-
-}
-
-class OptionsInterface implements Interface {
-  final OptionsModule _options;
-
-  OptionsInterface(this._options);
-
-  void use(UiOption option) {
-
-  }
-
-  List<UiOption> get available => null;
-
-  Stream<UiOption> get additions => null;
-
-  Stream<UiOption> get removals => null;
-
-  Stream<UiOption> get uses => null;
-}
-
-class OptionsInterfaceHandler implements InterfaceHandler {
-  final Options _options;
-
-  OptionsInterfaceHandler(this._options);
-
-  void handle(String action, Map args) {
-    // TODO: Reimplement
+  Option newOption(String text) {
+    return new Option(text)
+      ..availability.onEnter.listen((e) {
+        var option = e.owner as Option;
+        _options.add(option);
+        _ctrl.add(option);
+      });
   }
 }
 
@@ -88,6 +35,7 @@ class Option {
   /// A scope that is entered whenever this option is available.
   Scope<StateChangeEvent<bool>> get availability => _available.asScope;
 
+  // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
   final SettableScope _hasUses = new SettableScope.notEntered();
@@ -125,7 +73,7 @@ class Option {
 
     _useCount.set((c) => c + 1);
 
-    if(_useCount.nextValue == allowedUseCount) {
+    if (_useCount.nextValue == allowedUseCount) {
       _hasUses.exit(null);
     }
 
@@ -137,16 +85,56 @@ class Option {
   }
 }
 
-class AddOptionEvent {
-  final Option option;
+class OptionsUi {
+  final Options _options;
+  final Sink<Interaction> _interactions;
 
-  AddOptionEvent(this.option);
+  OptionsUi(this._options, this._interactions);
+
+  Stream<UiOption> get onOptionAvailable => _options._ctrl.stream
+      .map((o) => new UiOption(_options, _interactions, o));
 }
 
-class RemoveOptionEvent {
-  final Option option;
+class UiOption {
+  final Options _options;
+  final Option _option;
+  final Sink<Interaction> _interactions;
 
-  RemoveOptionEvent(this.option);
+  String get text => _option.text;
+
+  UiOption(this._options, this._interactions, this._option);
+
+  void use() {
+    _interactions.add(new UseOption(_option));
+  }
+}
+
+class UseOption implements Interaction {
+  final Option _option;
+
+  UseOption(this._option);
+
+  factory UseOption.fromJson(Map<String, dynamic> json, Options options) {
+    if (!json.containsKey('text')) {
+      throw new ArgumentError.value(json, 'json', 'Expected json to contain '
+          '"text" field.');
+    }
+
+    var text = json['text'];
+    var found = options._options.firstWhere((o) => o.text == text, orElse: null);
+
+    if (found == null) {
+      throw new StateError('No option found from text "$text".');
+    }
+
+    return new UseOption(found);
+  }
+
+  Future run() => _option.use();
+
+  Map<String, dynamic> toJson() => {
+    "text": _option.text
+  };
 }
 
 class UseOptionEvent {

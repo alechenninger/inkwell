@@ -20,7 +20,7 @@ class SimpleHtmlUi {
       new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog]);
 
   SimpleHtmlUi(
-      this._container, OptionsInterface options, DialogInterface dialog) {
+      this._container, OptionsUi options, DialogInterface dialog) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
     // TODO: Add options and dialog already present
