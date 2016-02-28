@@ -16,44 +16,38 @@ class SimpleHtmlUi {
   final HtmlElement _optionsContainer = new UListElement()
     ..classes.add('options');
 
-  static CreateUi forContainer(HtmlElement container) => (interfaces) =>
-      new SimpleHtmlUi(container, interfaces[Options], interfaces[Dialog]);
+  static CreateUi forContainer(HtmlElement container) =>
+      (interfaces) => new SimpleHtmlUi(container, interfaces[Options]);
 
-  SimpleHtmlUi(
-      this._container, OptionsUi options, DialogInterface dialog) {
+  SimpleHtmlUi(this._container, OptionsUi options) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
     // TODO: Add options and dialog already present
 
-    dialog.dialog.listen(
-        (e) => _dialogContainer.children.add(_getDialogElement(e, dialog)));
+//    dialog.dialog.listen(
+//        (e) => _dialogContainer.children.add(_getDialogElement(e, dialog)));
+//
+//    dialog.narration
+//        .listen((e) => _dialogContainer.children.add(new DivElement()
+//          ..classes.add('narration')
+//          ..innerHtml = e.narration));
+//
+//    dialog.clears.listen((e) {
+//      _dialogContainer.children.clear();
+//    });
 
-    dialog.narration
-        .listen((e) => _dialogContainer.children.add(new DivElement()
-          ..classes.add('narration')
-          ..innerHtml = e.narration));
+    options.onOptionAvailable.listen((o) {
+      _optionsContainer.children.add(new LIElement()
+        ..children.add(new SpanElement()
+          ..classes.add('option')
+          ..attributes['name'] = _toId(o.text)
+          ..innerHtml = o.text
+          ..onClick.listen((e) => o.use())));
 
-    dialog.clears.listen((e) {
-      _dialogContainer.children.clear();
-    });
-
-    options.additions.listen((o) {
-      _optionsContainer.children
-          .add(new LIElement()..children.add(new SpanElement()
-            ..classes.add('option')
-            ..attributes['name'] = _toId(o.text)
-            ..innerHtml = o.text
-            ..onClick.listen((e) => options.use(o.text))));
-    });
-
-    options.removals.listen((o) {
-      _optionsContainer.children
-          .removeWhere((e) => e.children[0].attributes['name'] == _toId(o.text));
-    });
-
-    options.uses.listen((o) {
-      _optionsContainer.children
-          .removeWhere((e) => e.children[0].attributes['name'] == _toId(o.text));
+      o.onUnavailable.listen((o) {
+        _optionsContainer.children.removeWhere(
+            (e) => e.children[0].attributes['name'] == _toId(o.text));
+      });
     });
   }
 }
@@ -68,15 +62,19 @@ DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
     ..innerHtml = '${e.dialog}');
 
   if (e.to != null) {
-    dialogElement.children.insert(0, new DivElement()
-      ..classes.add('target')
-      ..innerHtml = "${e.to}");
+    dialogElement.children.insert(
+        0,
+        new DivElement()
+          ..classes.add('target')
+          ..innerHtml = "${e.to}");
   }
 
   if (e.from != null) {
-    dialogElement.children.insert(0, new DivElement()
-      ..classes.add('speaker')
-      ..innerHtml = e.to == null ? e.from : "${e.from} to...");
+    dialogElement.children.insert(
+        0,
+        new DivElement()
+          ..classes.add('speaker')
+          ..innerHtml = e.to == null ? e.from : "${e.from} to...");
   }
 
   if (e.replies.available.isNotEmpty) {

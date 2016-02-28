@@ -110,6 +110,8 @@ class UiOption {
     _interactions.add(new UseOption(_option));
   }
 
+  Stream<UiOption> get onUse => _option.onUse.map((e) => this);
+
   Stream<UiOption> get onUnavailable =>
       _option.availability.onExit.map((e) => this);
 }
