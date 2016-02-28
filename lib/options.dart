@@ -85,28 +85,33 @@ class Option {
   }
 }
 
-class OptionsUi {
+class OptionsUi implements Ui {
   final Options _options;
-  final Sink<Interaction> _interactions;
+  final StreamController<Interaction> _interactions =
+      new StreamController.broadcast(sync: true);
 
-  OptionsUi(this._options, this._interactions);
+  OptionsUi(this._options);
 
   Stream<UiOption> get onOptionAvailable => _options._ctrl.stream
-      .map((o) => new UiOption(_options, _interactions, o));
+      .map((o) => new UiOption(_interactions, o));
+
+  Stream<Interaction> get onInteraction => _interactions.stream;
 }
 
 class UiOption {
-  final Options _options;
   final Option _option;
   final Sink<Interaction> _interactions;
 
   String get text => _option.text;
 
-  UiOption(this._options, this._interactions, this._option);
+  UiOption(this._interactions, this._option);
 
   void use() {
     _interactions.add(new UseOption(_option));
   }
+
+  Stream<UiOption> get onUnavailable =>
+      _option.availability.onExit.map((e) => this);
 }
 
 class UseOption implements Interaction {
@@ -116,12 +121,16 @@ class UseOption implements Interaction {
 
   factory UseOption.fromJson(Map<String, dynamic> json, Options options) {
     if (!json.containsKey('text')) {
-      throw new ArgumentError.value(json, 'json', 'Expected json to contain '
+      throw new ArgumentError.value(
+          json,
+          'json',
+          'Expected json to contain '
           '"text" field.');
     }
 
     var text = json['text'];
-    var found = options._options.firstWhere((o) => o.text == text, orElse: null);
+    var found =
+        options._options.firstWhere((o) => o.text == text, orElse: null);
 
     if (found == null) {
       throw new StateError('No option found from text "$text".');
@@ -132,9 +141,7 @@ class UseOption implements Interaction {
 
   Future run() => _option.use();
 
-  Map<String, dynamic> toJson() => {
-    "text": _option.text
-  };
+  Map<String, dynamic> toJson() => {"text": _option.text};
 }
 
 class UseOptionEvent {

@@ -1,25 +1,13 @@
-import 'package:test/test.dart';
 import 'package:august/august.dart';
 import 'package:august/options.dart';
-import 'package:quiver/time.dart';
+import 'package:test/test.dart';
 
 main() {
-  Run run;
-  Options options;
-
-  setUp(() {
-    var clock = new Clock();
-    var startTime = clock.now();
-
-    run = new Run(() => clock.now().difference(startTime));
-    options = new Options(run);
-  });
-
   group("An Option", () {
     Option opt;
 
     setUp(() {
-      opt = new Option("", run);
+      opt = new Option("");
     });
 
     group("when made available", () {
@@ -117,19 +105,19 @@ main() {
         expect(opt.use(), throws);
       });
 
-      test("emits UseOptionEvent", () {
+      test("fires use listeners", () {
+        var listener = opt.onUse.first;
         opt.use();
-        expect(run.once((e) => e is UseOptionEvent), completes);
+        expect(listener, completes);
       });
 
-      test("does not emit UseOptionEvent if not available to be used", () async {
+      test("does not fire use listeners if not available to be used", () async {
         opt.available(const Never());
         await opt.availability.onExit.first;
+        var listener = opt.onUse.first;
         opt.use().catchError((e) {});
         expect(
-            run
-                .once((e) => e is UseOptionEvent)
-                .timeout(const Duration(milliseconds: 250)),
+            listener.timeout(const Duration(milliseconds: 250)),
             throws);
       });
     });

@@ -8,7 +8,8 @@ export 'dart:async';
 typedef dynamic CreateUi(Map interfaces);
 
 abstract class Ui {
-  Stream<Interaction> onInteraction;
+  // TODO: Is their something lighter weight than full Stream API?
+  Stream<Interaction> get onInteraction;
 }
 
 abstract class Interaction {
