@@ -65,12 +65,12 @@ class Script {
   /// See [Block]
   final Block block;
 
-  final List<ModuleDefinition> modules;
+  final List<Module> modules;
 
   /// The [name] and [version] of the script are import for loading previous
   /// progress and ensuring compatibility.
   ///
-  /// The [List] of [ModuleDefinition]s defines what modules will be injected
+  /// The [List] of [Module]s defines what modules will be injected
   /// into the [block]. Modules add functionality to scripts, and may expose
   /// similar functionality to a UI layer.
   Script(this.name, this.version, this.modules, this.block);
@@ -86,82 +86,13 @@ class Script {
 /// `Run` and module map from the parent block.
 typedef void Block(Run run, Map modules);
 
-/// A [Run] encapsulates the state of a currently _actively_ running script.
-/// Current saved progress of a player's playthrough is not encapsulated in a
-/// `Run`. This state is managed elsewhere.
-///
-/// A `Run`'s focus is on managing events emitted and subscribed to from
-/// `Module`s and the consuming [Script]. See the [start] function.
+// TODO: Is this needed anymore?
 class Run {
-  final StreamController<dynamic> _events =
-      new StreamController<dynamic>.broadcast(sync: true);
-
   final GetCurrentPlayTime _currentPlayTime;
 
-  Run(this._currentPlayTime, {verbose: false}) {
-    if (verbose) {
-      every((e) => true).listen((e) => print("${currentPlayTime()}: ${e}"));
-    }
-  }
-
-  Future emit(dynamic event,
-      {Duration delay: Duration.ZERO,
-      Canceller canceller: const _Uncancellable()}) {
-    event = event is String ? new NamedEvent(event) : event;
-    return new Future.delayed(delay, () {
-      if (canceller.cancelled) return _never;
-      event = event is Function ? event() : event;
-      _events.add(event);
-      return event;
-    });
-  }
-
-  /// Listens to events happening in the script run. See [Once].
-  Future once(dynamic eventNameOrTest) {
-    if (eventNameOrTest is! String && eventNameOrTest is! EventTest) {
-      throw new ArgumentError.value(eventNameOrTest, "eventNameOrTest",
-          "Must be a String or EventTest, was ${eventNameOrTest.runtimeType}");
-    }
-
-    var test = eventNameOrTest is String
-        ? (e) => e is NamedEvent && e.name == eventNameOrTest
-        : eventNameOrTest;
-
-    return _events.stream.firstWhere(test);
-  }
-
-  /// Listens to events happening in the script run. See [Every].
-  Stream every(bool test(event)) => _events.stream.where(test);
+  Run(this._currentPlayTime, {verbose: false});
 
   Duration currentPlayTime() => _currentPlayTime();
-}
-
-/// Adds an event listener for the next (and only the next) event that matches
-/// the [eventNameOrTest]. This may be a String or an [EventTest]. If a String
-/// is passed, this is equivalent to passing the `EventTest` function,
-/// `(e) => e is NamedEvent && e.alias == eventNameOrTest`.
-typedef Future<dynamic> Once(dynamic eventNameOrTest);
-
-typedef Stream<dynamic> Every(EventTest eventTest);
-
-/// Emits an event object with an optional [delay]. Returns a [Future] which
-/// completes when the event has been emitted and all listeners have received
-/// it. Optionally pass a [Canceller] to later cancel an event from being
-/// emitted, if it has not already been.
-typedef Future<dynamic> Emit(dynamic event,
-    {Duration delay, Canceller canceller});
-
-typedef bool EventTest(dynamic event);
-
-/// Special kind of event which is identified by its [name] only. [Run.emit] and
-/// [Run.once] have terse syntax for [NamedEvent]s: it assumes a [String] in
-/// place of an [Event] is a [NamedEvent].
-class NamedEvent {
-  final String name;
-
-  NamedEvent(this.name);
-
-  toString() => name;
 }
 
 /// Returns the current play time, which is a [Duration] since the beginning of

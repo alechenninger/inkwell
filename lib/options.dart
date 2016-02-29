@@ -6,6 +6,21 @@ library august.options;
 import 'package:august/august.dart';
 import 'package:august/ui.dart';
 
+class OptionsModule implements UiModule {
+  final Options module = new Options();
+
+  OptionsUi _ui;
+  OptionsUi get ui => _ui;
+
+  OptionsInteractionDeserializer _interactionDeserializer;
+  OptionsInteractionDeserializer get interactionDeserializer => _interactionDeserializer;
+
+  OptionsModule() {
+    _ui = new OptionsUi(module);
+    _interactionDeserializer = new OptionsInteractionDeserializer(module);
+  }
+}
+
 class Options {
   final StreamController<Option> _ctrl =
       new StreamController.broadcast(sync: true);
@@ -144,6 +159,20 @@ class UseOption implements Interaction {
   Future run() => _option.use();
 
   Map<String, dynamic> toJson() => {"text": _option.text};
+}
+
+class OptionsInteractionDeserializer implements InteractionDeserializer {
+  final Options _options;
+
+  OptionsInteractionDeserializer(this._options);
+
+  Interaction deserializeInteraction(String type, Map<String, dynamic> json) {
+    if (type == "$UseOption") {
+      return new UseOption.fromJson(json, _options);
+    }
+
+    throw new ArgumentError.value(type, 'type', 'Unknown interaction type');
+  }
 }
 
 class UseOptionEvent {
