@@ -44,7 +44,8 @@ class Option {
 
   final int allowedUseCount;
 
-  Observed<int> get useCount => _useCount;
+  /// Ticks as soon as [use] is called should the use be permitted.
+  int get useCount => _useCount;
 
   bool get isAvailable => _available.observed.value;
 
@@ -57,11 +58,10 @@ class Option {
   final SettableScope _hasUses = new SettableScope.notEntered();
   final StreamController<UseOptionEvent> _uses =
       new StreamController.broadcast(sync: true);
-  Observable<int> _useCount;
+  int _useCount = 0;
   ScopeAsValue _available;
 
   Option(this.text, {this.allowedUseCount: 1}) {
-    _useCount = new Observable.ofImmutable(0, owner: this);
     _available = new ScopeAsValue(owner: this);
 
     if (allowedUseCount < 0) {
@@ -88,9 +88,9 @@ class Option {
       return new Future.error(new OptionNotAvailableException(this));
     }
 
-    _useCount.set((c) => c + 1);
+    _useCount += 1;
 
-    if (_useCount.nextValue == allowedUseCount) {
+    if (_useCount == allowedUseCount) {
       _hasUses.exit(null);
     }
 
