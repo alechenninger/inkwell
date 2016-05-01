@@ -52,67 +52,67 @@ class SimpleHtmlUi {
   }
 }
 
-DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
-  var dialogElement = new DivElement()
-    ..classes.add('dialog')
-    ..id = _toId(e.name);
-
-  dialogElement.children.add(new DivElement()
-    ..classes.add('what')
-    ..innerHtml = '${e.dialog}');
-
-  if (e.to != null) {
-    dialogElement.children.insert(
-        0,
-        new DivElement()
-          ..classes.add('target')
-          ..innerHtml = "${e.to}");
-  }
-
-  if (e.from != null) {
-    dialogElement.children.insert(
-        0,
-        new DivElement()
-          ..classes.add('speaker')
-          ..innerHtml = e.to == null ? e.from : "${e.from} to...");
-  }
-
-  if (e.replies.available.isNotEmpty) {
-    var replied = false;
-
-    Iterable<DivElement> replies =
-        e.replies.available.map((r) => new LIElement()
-          ..children.add(new SpanElement()
-            ..classes.addAll(['reply', 'reply-available'])
-            ..innerHtml = r
-            ..onClick.first.then((clickEvent) {
-              if (!replied) dialog.reply(r, e);
-            })));
-
-    dialog.replies
-        .firstWhere((r) => r.dialogEvent.name == e.name)
-        .then((ReplyEvent r) {
-      replied = true;
-
-      for (var replyElement
-          in querySelectorAll("#${_toId(e.name)} .reply-available")) {
-        replyElement.classes.remove('reply-available');
-
-        if (replyElement.innerHtml == r.reply) {
-          replyElement.classes.add('reply-chosen');
-        } else {
-          replyElement.classes.add('reply-not-chosen');
-        }
-      }
-    });
-
-    dialogElement.children.add(new UListElement()
-      ..classes.add('replies')
-      ..children.addAll(replies));
-  }
-
-  return dialogElement;
-}
+// DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
+//   var dialogElement = new DivElement()
+//     ..classes.add('dialog')
+//     ..id = _toId(e.name);
+//
+//   dialogElement.children.add(new DivElement()
+//     ..classes.add('what')
+//     ..innerHtml = '${e.dialog}');
+//
+//   if (e.to != null) {
+//     dialogElement.children.insert(
+//         0,
+//         new DivElement()
+//           ..classes.add('target')
+//           ..innerHtml = "${e.to}");
+//   }
+//
+//   if (e.from != null) {
+//     dialogElement.children.insert(
+//         0,
+//         new DivElement()
+//           ..classes.add('speaker')
+//           ..innerHtml = e.to == null ? e.from : "${e.from} to...");
+//   }
+//
+//   if (e.replies.available.isNotEmpty) {
+//     var replied = false;
+//
+//     Iterable<DivElement> replies =
+//         e.replies.available.map((r) => new LIElement()
+//           ..children.add(new SpanElement()
+//             ..classes.addAll(['reply', 'reply-available'])
+//             ..innerHtml = r
+//             ..onClick.first.then((clickEvent) {
+//               if (!replied) dialog.reply(r, e);
+//             })));
+//
+//     dialog.replies
+//         .firstWhere((r) => r.dialogEvent.name == e.name)
+//         .then((ReplyEvent r) {
+//       replied = true;
+//
+//       for (var replyElement
+//           in querySelectorAll("#${_toId(e.name)} .reply-available")) {
+//         replyElement.classes.remove('reply-available');
+//
+//         if (replyElement.innerHtml == r.reply) {
+//           replyElement.classes.add('reply-chosen');
+//         } else {
+//           replyElement.classes.add('reply-not-chosen');
+//         }
+//       }
+//     });
+//
+//     dialogElement.children.add(new UListElement()
+//       ..classes.add('replies')
+//       ..children.addAll(replies));
+//   }
+//
+//   return dialogElement;
+// }
 
 String _toId(String name) {
   return name.replaceAll(new RegExp("[ :\\[\\],\\?\\.!']"), '_');

@@ -15,10 +15,3 @@ part 'src/modules.dart';
 part 'src/persistence.dart';
 part 'src/scope.dart';
 part 'src/observable.dart';
-
-class Script {
-  final String name;
-  final String version;
-
-  Script(this.name, this.version);
-}

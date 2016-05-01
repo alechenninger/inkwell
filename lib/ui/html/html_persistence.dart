@@ -12,8 +12,7 @@ class HtmlPersistence implements Persistence {
   final String _scriptHandle;
   final List<InterfaceEvent> _savedEvents = [];
 
-  HtmlPersistence(Script script, [Storage _storage])
-      : _scriptHandle = script.name + script.version {
+  HtmlPersistence(this._scriptHandle, [Storage _storage]) {
     var storage = _storage == null ? window.localStorage : _storage;
 
     if (storage.containsKey(_scriptHandle)) {

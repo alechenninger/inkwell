@@ -24,7 +24,7 @@ class InterfaceEvent {
   InterfaceEvent.fromJson(Map json)
       : moduleName = json['moduleName'],
         action = json['action'],
-        args = json['args'],
+        args = json['args'] as Map<String, dynamic>,
         offset = new Duration(milliseconds: json['offsetMillis']);
 
   Map toJson() => {
@@ -82,7 +82,8 @@ class _FastForwarder {
       createPeriodicTimer: (_, parent, zone, duration, callback) =>
           _createTimer(parent, zone, duration, callback, true),
       scheduleMicrotask: (_, parent, zone, microtask) => _useParentZone
-          ? parent.scheduleMicrotask(microtask)
+          // TODO: not sure if passing right zone to scheduleMicrotask here
+          ? parent.scheduleMicrotask(zone, microtask)
           : _microtasks.add(microtask));
 
   _runTimersUntil(Duration elapsingTo) {
@@ -104,8 +105,9 @@ class _FastForwarder {
       Function callback, bool isPeriodic) {
     if (_useParentZone) {
       return isPeriodic
-          ? parent.createPeriodicTimer(zone, duration, callback)
-          : parent.createTimer(zone, duration, callback);
+          ? parent.createPeriodicTimer(
+              zone, duration, callback as TimerCallback)
+          : parent.createTimer(zone, duration, callback as Callback);
     }
     var timer = new _FastForwarderTimer(duration, callback, isPeriodic, this);
     _timers.add(timer);
@@ -138,7 +140,7 @@ class _FastForwarder {
     _switchedToParent = _realClock.now();
 
     while (_microtasks.isNotEmpty) {
-      _zone.parent.scheduleMicrotask(_microtasks.removeFirst());
+      _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
     }
 
     while (_timers.isNotEmpty) {
@@ -148,11 +150,12 @@ class _FastForwarder {
           var trackingTimer = new _TrackingTimer();
           t.callback(trackingTimer);
           if (trackingTimer.isActive) {
-            _zone.parent.createPeriodicTimer(t.duration, t.callback);
+            _zone.parent
+                .createPeriodicTimer(t.duration, t.callback as TimerCallback);
           }
         });
       } else {
-        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback);
+        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback as Callback);
       }
       _timers.remove(t);
     }
@@ -189,3 +192,6 @@ class _TrackingTimer implements Timer {
     isActive = false;
   }
 }
+
+typedef void Callback();
+typedef void TimerCallback(Timer timer);
