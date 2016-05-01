@@ -104,8 +104,7 @@ class Option {
 
 class OptionsUi implements Ui {
   final Options _options;
-  final StreamController<Interaction> _interactions =
-      new StreamController.broadcast(sync: true);
+  final _interactions = new StreamController<Interaction>.broadcast(sync: true);
 
   OptionsUi(this._options);
 
