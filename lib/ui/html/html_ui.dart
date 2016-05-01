@@ -42,7 +42,7 @@ class SimpleHtmlUi {
           ..classes.add('option')
           ..attributes['name'] = _toId(o.text)
           ..innerHtml = o.text
-          ..onClick.listen((e) => o.use())));
+          ..onClick.listen((_) => o.use())));
 
       o.onUnavailable.listen((o) {
         _optionsContainer.children.removeWhere(

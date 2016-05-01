@@ -6,7 +6,7 @@ abstract class Persistence {
 }
 
 class NoopPersistance implements Persistence {
-  final List savedEvents = const [];
+  final savedEvents = const [];
   void saveEvent(_) {}
 
   const NoopPersistance();
@@ -185,5 +185,7 @@ class _FastForwarderTimer implements Timer {
 
 class _TrackingTimer implements Timer {
   bool isActive = true;
-  cancel() => isActive = false;
+  cancel() {
+    isActive = false;
+  }
 }

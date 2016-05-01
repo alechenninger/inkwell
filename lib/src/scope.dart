@@ -47,7 +47,7 @@ abstract class Scope<T> {
   Stream<T> get onExit;
 }
 
-typedef dynamic GetNewValue(currentValue);
+typedef T GetNewValue<T>(T currentValue);
 
 class Scoped<T> {
   Scope _backingScope = const Never();
@@ -55,8 +55,8 @@ class Scoped<T> {
   final Observable<T> _observable;
   Observed<T> get observed => _observable;
 
-  GetNewValue _enterValue;
-  GetNewValue _exitValue;
+  GetNewValue<T> _enterValue;
+  GetNewValue<T> _exitValue;
 
   StreamSubscription _enterSubscription;
   StreamSubscription _exitSubscription;
@@ -65,7 +65,8 @@ class Scoped<T> {
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,
-      {T enterValue(T value): _identity, T exitValue(T value): _identity,
+      {T enterValue(T value): _identity,
+      T exitValue(T value): _identity,
       dynamic owner})
       : _observable = new Observable<T>.ofImmutable(initialValue, owner: owner),
         _enterValue = enterValue,
@@ -107,8 +108,8 @@ class ScopeAsValue {
   Scope<StateChangeEvent<bool>> get asScope => _valueScope;
 
   ScopeAsValue({dynamic owner}) {
-    _scoped = new Scoped.ofImmutable(false, owner: owner,
-        enterValue: (_) => true, exitValue: (_) => false);
+    _scoped = new Scoped.ofImmutable(false,
+        owner: owner, enterValue: (_) => true, exitValue: (_) => false);
 
     _valueScope = new ListeningScope.notEntered(_scoped.observed.onChange,
         enterWhen: (e) => e.newValue == true,
@@ -200,7 +201,8 @@ class AndScope extends Scope<dynamic> {
 
 class SettableScope<T> extends Scope<T> {
   // TODO: API for closing scope
-  final StreamController<T> _enters = new StreamController.broadcast(sync: true);
+  final StreamController<T> _enters =
+      new StreamController.broadcast(sync: true);
   final StreamController<T> _exits = new StreamController.broadcast(sync: true);
 
   SettableScope._(this._isEntered) {
@@ -237,11 +239,11 @@ class SettableScope<T> extends Scope<T> {
   bool _isEntered;
   bool get isEntered => _isEntered;
 
-  Stream _onEnter;
-  Stream get onEnter => _onEnter;
+  Stream<T> _onEnter;
+  Stream<T> get onEnter => _onEnter;
 
-  Stream _onExit;
-  Stream get onExit => _onExit;
+  Stream<T> _onExit;
+  Stream<T> get onExit => _onExit;
 }
 
 class ForwardingScope extends Scope {
@@ -293,7 +295,7 @@ class ListeningScope<T> extends Scope<T> {
   }
 
   ListeningScope.notEntered(Stream<T> eventStream,
-      {EventTest enterWhen: _noEvents, EventTest exitWhen: _noEvents})
+      {bool enterWhen(T event): _noEvents, bool exitWhen(T event): _noEvents})
       : _settable = new SettableScope.notEntered() {
     eventStream.where(enterWhen).listen(_settable.enter);
     eventStream.where(exitWhen).listen(_settable.exit);
@@ -308,8 +310,6 @@ class ListeningScope<T> extends Scope<T> {
 
 typedef Scope GetScope();
 
-dynamic _identity(value) => value;
+dynamic/*=T*/ _identity/*<T>*/(dynamic/*=T*/ value) => value;
 
-bool _noEvents(e) {
-  return false;
-}
+bool _noEvents(e) => false;

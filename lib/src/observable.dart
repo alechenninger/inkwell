@@ -49,8 +49,9 @@ class _ObservableOfImmutable<T> implements Observable<T> {
   T _nextValue;
   T get nextValue => _nextValue;
 
-  final dynamic _owner;
-  final _changes = new StreamController.broadcast(sync: true);
+  final _owner;
+  final _changes =
+      new StreamController<StateChangeEvent<T>>.broadcast(sync: true);
   Stream<StateChangeEvent<T>> get onChange => _changes.stream;
 
   _ObservableOfImmutable(this._currentValue, this._owner) {
@@ -64,12 +65,12 @@ class _ObservableOfImmutable<T> implements Observable<T> {
       var newValue = getNewValue(_currentValue);
 
       if (newValue == _currentValue) {
-        return null;
+        return null; // TODO probably bad idea
       }
 
       _currentValue = newValue;
 
-      var event = new StateChangeEvent(_currentValue, _owner);
+      var event = new StateChangeEvent<T>(_currentValue, _owner);
 
       _changes.add(event);
 
@@ -79,6 +80,7 @@ class _ObservableOfImmutable<T> implements Observable<T> {
 }
 
 class StateChangeEvent<T> {
+  // TODO consider parameterizing type of owner
   final dynamic owner;
   final T newValue;
 

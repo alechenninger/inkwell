@@ -13,7 +13,8 @@ class OptionsModule implements UiModule {
   OptionsUi get ui => _ui;
 
   OptionsInteractionDeserializer _interactionDeserializer;
-  OptionsInteractionDeserializer get interactionDeserializer => _interactionDeserializer;
+  OptionsInteractionDeserializer get interactionDeserializer =>
+      _interactionDeserializer;
 
   OptionsModule() {
     _ui = new OptionsUi(module);
@@ -22,18 +23,18 @@ class OptionsModule implements UiModule {
 }
 
 class Options {
-  final StreamController<Option> _ctrl =
-      new StreamController.broadcast(sync: true);
-  final List<Option> _options = [];
+  final _optionAvailability =
+      new StreamController<Option>.broadcast(sync: true);
+  final _options = <Option>[];
 
-  Stream<Option> get onOptionAvailable => _ctrl.stream;
+  Stream<Option> get onOptionAvailable => _optionAvailability.stream;
 
   Option newOption(String text) {
     return new Option(text)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;
         _options.add(option);
-        _ctrl.add(option);
+        _optionAvailability.add(option);
       });
   }
 }
@@ -54,7 +55,8 @@ class Option {
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
   final SettableScope _hasUses = new SettableScope.notEntered();
-  final StreamController _uses = new StreamController.broadcast(sync: true);
+  final StreamController<UseOptionEvent> _uses =
+      new StreamController.broadcast(sync: true);
   Observable<int> _useCount;
   ScopeAsValue _available;
 
@@ -107,7 +109,7 @@ class OptionsUi implements Ui {
 
   OptionsUi(this._options);
 
-  Stream<UiOption> get onOptionAvailable => _options._ctrl.stream
+  Stream<UiOption> get onOptionAvailable => _options._optionAvailability.stream
       .map((o) => new UiOption(_interactions, o));
 
   Stream<Interaction> get onInteraction => _interactions.stream;
