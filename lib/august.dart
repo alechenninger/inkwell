@@ -20,7 +20,7 @@ part 'src/observable.dart';
 /// requires, then calls the script's [Block], and replays back any saved events
 /// provided in [persistence]. Finally, we create the provided [ui]s.
 start(Script script,
-    {List<CreateUi> uis: const [],
+    {List<UiFactory> uis: const [],
     Persistence persistence: const NoopPersistance()}) {
   var clock = new Clock();
   var run;

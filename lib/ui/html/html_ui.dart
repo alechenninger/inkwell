@@ -16,7 +16,7 @@ class SimpleHtmlUi {
   final HtmlElement _optionsContainer = new UListElement()
     ..classes.add('options');
 
-  static CreateUi forContainer(HtmlElement container) =>
+  static UiFactory forContainer(HtmlElement container) =>
       (interfaces) => new SimpleHtmlUi(container, interfaces[Options]);
 
   SimpleHtmlUi(this._container, OptionsUi options) {

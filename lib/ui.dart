@@ -7,7 +7,7 @@ export 'dart:async';
 
 /// Function which takes a map of module types to "interfaces": objects specific
 /// to that module which a UI can use to interact with the current [Run].
-typedef dynamic CreateUi(Map interfaces);
+typedef dynamic UiFactory(Map interfaces);
 
 abstract class UiModule implements Module {
   Ui get ui;

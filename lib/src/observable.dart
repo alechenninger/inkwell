@@ -40,6 +40,8 @@ abstract class Observed<T> {
   /// event queue.
   T get nextValue;
 
+  /// Fired synchronously in the same event loop as the observed value change,
+  /// immediately after the value change.
   Stream<StateChangeEvent<T>> get onChange;
 }
 

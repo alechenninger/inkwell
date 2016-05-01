@@ -116,9 +116,7 @@ main() {
         await opt.availability.onExit.first;
         var listener = opt.onUse.first;
         opt.use().catchError((e) {});
-        expect(
-            listener.timeout(const Duration(milliseconds: 250)),
-            throws);
+        expect(listener.timeout(const Duration(milliseconds: 250)), throws);
       });
     });
   }, timeout: const Timeout(const Duration(milliseconds: 500)));

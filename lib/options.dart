@@ -7,7 +7,7 @@ import 'package:august/august.dart';
 import 'package:august/ui.dart';
 
 class OptionsModule implements UiModule {
-  final Options module = new Options();
+  final module = new Options();
 
   OptionsUi _ui;
   OptionsUi get ui => _ui;
