@@ -98,7 +98,7 @@ void main() {
 
 class InMemoryPersistence implements Persistence {
   List _savedEvents = [];
-  List get savedEvents => new List.from(_savedEvents);
+  List<InterfaceEvent> get savedEvents => new List.from(_savedEvents);
   saveEvent(InterfaceEvent e) {
     _savedEvents.add(e);
   }
