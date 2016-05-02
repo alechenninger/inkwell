@@ -1,27 +1,28 @@
 part of august;
 
 abstract class Persistence {
-  List<InterfaceEvent> get savedEvents;
-  void saveEvent(InterfaceEvent event);
+  List<SavedInteraction> get savedInteractions;
+  void saveEvent(Duration offset, String moduleName, String actionType,
+      Map<String, dynamic> interactionJson);
 }
 
-class NoopPersistance implements Persistence {
-  final savedEvents = const [];
-  void saveEvent(_) {}
+class NoopPersistence implements Persistence {
+  final savedInteractions = const [];
+  void saveEvent(Duration offset, String moduleName, String actionType,
+      Map<String, dynamic> args) {}
 
-  const NoopPersistance();
+  const NoopPersistence();
 }
 
-class InterfaceEvent {
+class SavedInteraction {
   final Duration offset;
   final String moduleName;
   final String action;
   final Map<String, dynamic> args;
 
-  InterfaceEvent(Type moduleType, this.action, this.args, this.offset)
-      : this.moduleName = '$moduleType';
+  SavedInteraction(this.moduleName, this.action, this.args, this.offset);
 
-  InterfaceEvent.fromJson(Map json)
+  SavedInteraction.fromJson(Map json)
       : moduleName = json['moduleName'],
         action = json['action'],
         args = json['args'] as Map<String, dynamic>,

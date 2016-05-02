@@ -23,18 +23,21 @@ class OptionsModule implements UiModule {
 }
 
 class Options {
-  final _optionAvailability =
-      new StreamController<Option>.broadcast(sync: true);
+  final _availableOptCtrl = new StreamController<Option>.broadcast(sync: true);
   final _options = <Option>[];
 
-  Stream<Option> get onOptionAvailable => _optionAvailability.stream;
+  Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
 
   Option newOption(String text) {
     return new Option(text)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;
         _options.add(option);
-        _optionAvailability.add(option);
+        _availableOptCtrl.add(option);
+      })
+      ..availability.onExit.listen((e) {
+        var option = e.owner as Option;
+        _options.remove(option);
       });
   }
 }
@@ -46,7 +49,9 @@ class Option {
 
   /// Ticks as soon as [use] is called should the use be permitted.
   int get useCount => _useCount;
+  int _useCount = 0;
 
+  ScopeAsValue _available;
   bool get isAvailable => _available.observed.value;
 
   /// A scope that is entered whenever this option is available.
@@ -55,11 +60,8 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final SettableScope _hasUses = new SettableScope.notEntered();
-  final StreamController<UseOptionEvent> _uses =
-      new StreamController.broadcast(sync: true);
-  int _useCount = 0;
-  ScopeAsValue _available;
+  final _hasUses = new SettableScope.notEntered();
+  final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
 
   Option(this.text, {this.allowedUseCount: 1}) {
     _available = new ScopeAsValue(owner: this);
@@ -100,6 +102,12 @@ class Option {
       return event;
     });
   }
+
+  String toString() => "Option{"
+      "text='$text',"
+      "allowedUseCount=$allowedUseCount,"
+      "useCount=$_useCount"
+      "}";
 }
 
 class OptionsUi implements Ui {
@@ -108,9 +116,11 @@ class OptionsUi implements Ui {
 
   OptionsUi(this._options);
 
-  Stream<UiOption> get onOptionAvailable => _options._optionAvailability.stream
+  Stream<UiOption> get onOptionAvailable => _options._availableOptCtrl.stream
       .map((o) => new UiOption(_interactions, o));
 
+  // TODO: maybe this is the wrong place for this actually
+  // Could go to Module ?
   Stream<Interaction> get onInteraction => _interactions.stream;
 }
 
