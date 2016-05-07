@@ -26,10 +26,10 @@ class HtmlPersistence implements Persistence {
     });
   }
 
-  void saveEvent(Duration offset, String moduleName, String actionType,
-      Map<String, dynamic> args) {
+  void saveInteraction(Duration offset, String moduleName,
+      String interactionName, Map<String, dynamic> parameters) {
     var interaction =
-        new SavedInteraction(moduleName, actionType, args, offset);
+        new SavedInteraction(moduleName, interactionName, parameters, offset);
     _savedInteractions.add(interaction);
   }
 

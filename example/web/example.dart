@@ -8,28 +8,34 @@ import 'package:august/options.dart';
 import 'package:august/ui/html/html_ui.dart';
 import 'package:august/ui/html/html_persistence.dart';
 import 'package:quiver/time.dart';
+import 'package:august/ui.dart';
 
 import 'dart:html';
 
 main() {
+  // Boilerplate time tracking
   var clock = new Clock();
-  var options = new OptionsModule();
-  var ui = new SimpleHtmlUi(querySelector("#example"), options.ui);
-  var persistence = new HtmlPersistence("example");
-
   var startTime = clock.now();
 
-  Duration currentPlayTime() {
+  Duration currentOffset() {
     return clock.now().difference(startTime);
   }
 
-  options.ui.onInteraction.listen((interaction) {
-    persistence.saveEvent(
-        currentPlayTime(), "Options", "$interaction", interaction.toJson());
-    interaction.run();
-  });
+  // Instantiate modules
+  var options = new Options();
 
-  example(options.module);
+  // Need a persistence strategy
+  var persistence = new HtmlPersistence("example");
+
+  // Create interactions manager using modules, persistence, and time tracking.
+  var interactionsMngr = new InteractionManager(
+      currentOffset, persistence, [new OptionsInteractor(options)]);
+
+  // Create user interface objects using interactions manager.
+  var optionsUi = new OptionsUi(options, interactionsMngr);
+  var ui = new SimpleHtmlUi(querySelector("#example"), optionsUi);
+
+  example(options);
 }
 
 example(Options options) {

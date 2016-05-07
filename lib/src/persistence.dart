@@ -2,36 +2,37 @@ part of august;
 
 abstract class Persistence {
   List<SavedInteraction> get savedInteractions;
-  void saveEvent(Duration offset, String moduleName, String actionType,
-      Map<String, dynamic> interactionJson);
+  void saveInteraction(Duration offset, String moduleName,
+      String interactionName, Map<String, dynamic> parameters);
 }
 
-class NoopPersistence implements Persistence {
+class NoPersistence implements Persistence {
   final savedInteractions = const [];
-  void saveEvent(Duration offset, String moduleName, String actionType,
-      Map<String, dynamic> args) {}
+  void saveInteraction(Duration offset, String moduleName,
+      String interactionName, Map<String, dynamic> parameters) {}
 
-  const NoopPersistence();
+  const NoPersistence();
 }
 
 class SavedInteraction {
   final Duration offset;
   final String moduleName;
-  final String action;
-  final Map<String, dynamic> args;
+  final String interaction;
+  final Map<String, dynamic> parameters;
 
-  SavedInteraction(this.moduleName, this.action, this.args, this.offset);
+  SavedInteraction(
+      this.moduleName, this.interaction, this.parameters, this.offset);
 
   SavedInteraction.fromJson(Map json)
       : moduleName = json['moduleName'],
-        action = json['action'],
-        args = json['args'] as Map<String, dynamic>,
+        interaction = json['action'],
+        parameters = json['args'] as Map<String, dynamic>,
         offset = new Duration(milliseconds: json['offsetMillis']);
 
   Map toJson() => {
         'moduleName': moduleName,
-        'action': action,
-        'args': args,
+        'action': interaction,
+        'args': parameters,
         'offsetMillis': offset.inMilliseconds
       };
 }

@@ -6,22 +6,6 @@ library august.options;
 import 'package:august/august.dart';
 import 'package:august/ui.dart';
 
-class OptionsModule implements UiModule {
-  final module = new Options();
-
-  OptionsUi _ui;
-  OptionsUi get ui => _ui;
-
-  OptionsInteractionDeserializer _interactionDeserializer;
-  OptionsInteractionDeserializer get interactionDeserializer =>
-      _interactionDeserializer;
-
-  OptionsModule() {
-    _ui = new OptionsUi(module);
-    _interactionDeserializer = new OptionsInteractionDeserializer(module);
-  }
-}
-
 class Options {
   final _availableOptCtrl = new StreamController<Option>.broadcast(sync: true);
   final _options = <Option>[];
@@ -110,18 +94,14 @@ class Option {
       "}";
 }
 
-class OptionsUi implements Ui {
+class OptionsUi {
   final Options _options;
-  final _interactions = new StreamController<Interaction>.broadcast(sync: true);
+  final Sink<Interaction> _interactions;
 
-  OptionsUi(this._options);
+  OptionsUi(this._options, this._interactions);
 
   Stream<UiOption> get onOptionAvailable => _options._availableOptCtrl.stream
       .map((o) => new UiOption(_interactions, o));
-
-  // TODO: maybe this is the wrong place for this actually
-  // Could go to Module ?
-  Stream<Interaction> get onInteraction => _interactions.stream;
 }
 
 class UiOption {
@@ -133,7 +113,7 @@ class UiOption {
   UiOption(this._interactions, this._option);
 
   void use() {
-    _interactions.add(new UseOption(_option));
+    _interactions.add(new _UseOption(_option));
   }
 
   Stream<UiOption> get onUse => _option.onUse.map((e) => this);
@@ -142,21 +122,27 @@ class UiOption {
       _option.availability.onExit.map((e) => this);
 }
 
-class UseOption implements Interaction {
-  final Option _option;
+class _UseOption implements Interaction {
+  final String moduleName = "$Options";
+  final String name = "$_UseOption";
 
-  UseOption(this._option);
+  Map<String, dynamic> _params;
+  Map<String, dynamic> get parameters => _params;
 
-  factory UseOption.fromJson(Map<String, dynamic> json, Options options) {
-    if (!json.containsKey('text')) {
+  _UseOption(Option option) {
+    _params = {"text": option.text};
+  }
+
+  static void run(Map<String, dynamic> parameters, Options options) {
+    if (!parameters.containsKey('text')) {
       throw new ArgumentError.value(
-          json,
-          'json',
+          parameters,
+          'parameters',
           'Expected json to contain '
           '"text" field.');
     }
 
-    var text = json['text'];
+    var text = parameters['text'];
     var found =
         options._options.firstWhere((o) => o.text == text, orElse: null);
 
@@ -164,26 +150,25 @@ class UseOption implements Interaction {
       throw new StateError('No option found from text "$text".');
     }
 
-    return new UseOption(found);
+    found.use();
   }
-
-  Future run() => _option.use();
-
-  Map<String, dynamic> toJson() => {"text": _option.text};
 }
 
-class OptionsInteractionDeserializer implements InteractionDeserializer {
+class OptionsInteractor implements Interactor {
   final Options _options;
 
-  OptionsInteractionDeserializer(this._options);
+  OptionsInteractor(this._options);
 
-  Interaction deserializeInteraction(String type, Map<String, dynamic> json) {
-    if (type == "$UseOption") {
-      return new UseOption.fromJson(json, _options);
+  void run(String interaction, Map<String, dynamic> parameters) {
+    if (interaction == "$_UseOption") {
+      _UseOption.run(parameters, _options);
     }
 
-    throw new ArgumentError.value(type, 'type', 'Unknown interaction type');
+    throw new UnsupportedError("Unsupported interaction: $interaction");
   }
+
+  @override
+  String get moduleName => "$Options";
 }
 
 class UseOptionEvent {
