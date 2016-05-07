@@ -43,8 +43,8 @@ example(Options options) {
   var befriendTheDragon = options.newOption("Befriend the dragon.");
 
   // Mutually exclusive... should make this easier to do for lots of options.
-  slayTheDragon.available(befriendTheDragon.availability);
-  befriendTheDragon.available(slayTheDragon.availability);
+  slayTheDragon.available(const Always());
+  befriendTheDragon.available(const Always());
 
   slayTheDragon.onUse.listen((_) {
     print("The dragon eats you.");
