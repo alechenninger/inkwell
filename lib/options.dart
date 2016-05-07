@@ -162,9 +162,9 @@ class OptionsInteractor implements Interactor {
   void run(String interaction, Map<String, dynamic> parameters) {
     if (interaction == "$_UseOption") {
       _UseOption.run(parameters, _options);
+    } else {
+      throw new UnsupportedError("Unsupported interaction: $interaction");
     }
-
-    throw new UnsupportedError("Unsupported interaction: $interaction");
   }
 
   @override
