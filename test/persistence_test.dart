@@ -21,8 +21,8 @@ void main() {
 
   Duration currentOffset() => interactionMngr.currentOffset;
 
-  group("starting a script with saved events", () {
-    test("triggers saved events in order", () {
+  group("Running a script with saved interactions", () {
+    test("replays saved interactions in order", () {
       var occurred = [];
 
       persistence.saveInteraction(
@@ -42,7 +42,7 @@ void main() {
       expect(occurred, equals(["first", "second"]));
     });
 
-    test("keeps track of play time while fast forwarding saved events", () {
+    test("replays saved interactions with original offsets", () {
       var times = {};
 
       persistence.saveInteraction(
@@ -69,8 +69,7 @@ void main() {
           }));
     });
 
-    test("switches to parent zone after fast forwarding up to last saved event",
-        () {
+    test("maintains remaining delays after last replayed interaction", () {
       new FakeAsync().run((async) {
         var occurred = [];
 
@@ -132,6 +131,6 @@ class TestInteractor implements Interactor {
 
   @override
   void run(String action, Map<String, dynamic> parameters) {
-    _module._ctrl.add(action);
+    _module.emit(action);
   }
 }
