@@ -14,31 +14,30 @@ class NoPersistence implements Persistence {
   const NoPersistence();
 }
 
-class SavedInteraction {
+class SavedInteraction implements Interaction {
   final Duration offset;
   final String moduleName;
-  final String interaction;
+  final String name;
   final Map<String, dynamic> parameters;
 
-  SavedInteraction(
-      this.moduleName, this.interaction, this.parameters, this.offset);
+  SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
 
   SavedInteraction.fromJson(Map json)
       : moduleName = json['moduleName'],
-        interaction = json['action'],
-        parameters = json['args'] as Map<String, dynamic>,
+        name = json['name'],
+        parameters = json['parameters'] as Map<String, dynamic>,
         offset = new Duration(milliseconds: json['offsetMillis']);
 
   Map toJson() => {
         'moduleName': moduleName,
-        'action': interaction,
-        'args': parameters,
+        'name': name,
+        'parameters': parameters,
         'offsetMillis': offset.inMilliseconds
       };
 }
 
 // Adapted from quiver's FakeAsync
-class _FastForwarder {
+class FastForwarder {
   Zone _zone;
   Duration _elapsed = Duration.ZERO;
   Duration _elapsingTo;
@@ -48,7 +47,7 @@ class _FastForwarder {
   DateTime _switchedToParent;
   final Clock _realClock;
 
-  _FastForwarder(this._realClock);
+  FastForwarder(this._realClock);
 
   Duration getCurrentPlayTime() => _useParentZone
       ? _elapsed + _realClock.now().difference(_switchedToParent)
@@ -71,7 +70,7 @@ class _FastForwarder {
     _elapsingTo = null;
   }
 
-  run(callback(_FastForwarder self)) {
+  run(callback(FastForwarder self)) {
     if (_zone == null) {
       _zone = Zone.current.fork(specification: _zoneSpec);
     }
@@ -172,7 +171,7 @@ class _FastForwarderTimer implements Timer {
   final Duration duration;
   final Function callback;
   final bool isPeriodic;
-  final _FastForwarder ff;
+  final FastForwarder ff;
   Duration nextCall;
 
   static const _minDuration = Duration.ZERO;
