@@ -11,7 +11,6 @@ import 'package:quiver/time.dart';
 export 'dart:async';
 export 'package:quiver/time.dart' show Clock;
 
-part 'src/modules.dart';
 part 'src/persistence.dart';
 part 'src/scope.dart';
 part 'src/observable.dart';
