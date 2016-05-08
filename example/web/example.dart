@@ -3,7 +3,6 @@
 
 library august.example;
 
-import 'package:august/august.dart';
 import 'package:august/options.dart';
 import 'package:august/ui/html/html_ui.dart';
 import 'package:august/ui/html/html_persistence.dart';
@@ -33,7 +32,7 @@ main() {
 
   // Create user interface objects using interactions manager.
   var optionsUi = new OptionsUi(options, interactionsMngr);
-  var ui = new SimpleHtmlUi(querySelector("#example"), optionsUi);
+  new SimpleHtmlUi(querySelector("#example"), optionsUi);
 
   example(options);
 }
@@ -43,8 +42,10 @@ example(Options options) {
   var befriendTheDragon = options.newOption("Befriend the dragon.");
 
   // Mutually exclusive... should make this easier to do for lots of options.
-  slayTheDragon.available(const Always());
-  befriendTheDragon.available(const Always());
+  befriendTheDragon.availability.onEnter.first.then((_) {
+    slayTheDragon.available(befriendTheDragon.availability);
+    befriendTheDragon.available(slayTheDragon.availability);
+  });
 
   slayTheDragon.onUse.listen((_) {
     print("The dragon eats you.");

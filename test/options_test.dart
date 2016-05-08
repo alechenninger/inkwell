@@ -10,6 +10,10 @@ main() {
       opt = new Option("");
     });
 
+    test("is eventually available", () {
+      expect(opt.availability.onEnter.first, completes);
+    });
+
     group("when made available", () {
       test("enters availability scope", () {
         opt.available(const Always());

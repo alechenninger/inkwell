@@ -32,11 +32,19 @@ class Option {
   final int allowedUseCount;
 
   /// Ticks as soon as [use] is called should the use be permitted.
+  // TODO: Should be observed as immediate state changes are unreliable (lossy).
+  // A consumer may like to know what the use count was before other listeners
+  // fired in this event loop.
   int get useCount => _useCount;
   int _useCount = 0;
 
   ScopeAsValue _available;
+
+  /// As of the start of this event loop. If the option is used, this will be
+  /// reflected on the next event loop.
   bool get isAvailable => _available.observed.value;
+
+  bool get willBeAvailable => _available.observed.nextValue;
 
   /// A scope that is entered whenever this option is available.
   Scope<StateChangeEvent<bool>> get availability => _available.asScope;
@@ -48,12 +56,12 @@ class Option {
   final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
 
   Option(this.text, {this.allowedUseCount: 1}) {
-    _available = new ScopeAsValue(owner: this);
-
     if (allowedUseCount < 0) {
       throw new ArgumentError.value(allowedUseCount, "allowedUseCount",
           "Allowed use count must be non-negative.");
     }
+
+    _available = new ScopeAsValue(owner: this)..within(_hasUses);
 
     if (allowedUseCount > 0) {
       _hasUses.enter(null);
@@ -69,9 +77,14 @@ class Option {
     _available.within(new AndScope(scope, _hasUses));
   }
 
+  /// Schedules option to be used at the end of the current event queue.
+  ///
+  /// The return future completes with success when the option is used and all
+  /// listeners receive it. It completes with an error if the option is not
+  /// available to be used.
   Future<UseOptionEvent> use() {
     if (_available.observed.nextValue == false) {
-      return new Future.error(new OptionNotAvailableException(this));
+      return new Future.error(new OptionNotAvailableError(this));
     }
 
     _useCount += 1;
@@ -100,8 +113,8 @@ class OptionsUi {
 
   OptionsUi(this._options, this._interactions);
 
-  Stream<UiOption> get onOptionAvailable => _options._availableOptCtrl.stream
-      .map((o) => new UiOption(_interactions, o));
+  Stream<UiOption> get onOptionAvailable =>
+      _options.onOptionAvailable.map((o) => new UiOption(_interactions, o));
 }
 
 class UiOption {
@@ -177,8 +190,8 @@ class UseOptionEvent {
   UseOptionEvent(this.option);
 }
 
-class OptionNotAvailableException implements Exception {
+class OptionNotAvailableError implements Exception {
   final Option option;
 
-  OptionNotAvailableException(this.option);
+  OptionNotAvailableError(this.option);
 }

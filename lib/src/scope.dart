@@ -3,14 +3,15 @@
 
 part of august;
 
-/// Cached knowledge of a particular story state.
+/// Defines a period of time by enter and exit event streams.
 ///
-/// Any boundaries of particular events may be defined as a "scope." It can be
-/// defined by boundaries such as a period of time, while in a specific location
-/// or locations, while in a scene, or any combination of the above.
+/// `Scope`s are used to control availability or state of other story objects
+/// like options or dialog.
 ///
-/// Scopes are used to control availability or state of other story objects like
-/// options or dialog.
+/// Any boundaries of particular events may be defined as a `Scope`. For
+/// example, boundaries can be defined by specific date times or any predicate
+/// on story state like location or inventory. `Scope`s are very flexible and
+/// intended as a core building block for arbitrarily complicated state rules.
 // TODO: Rethink parameterized type usage here
 abstract class Scope<T> {
   /// Immediately available in the current event loop, just before onEnter and
@@ -50,6 +51,7 @@ abstract class Scope<T> {
 typedef T GetNewValue<T>(T currentValue);
 
 class Scoped<T> {
+  /// The mutable scope used to determine the [observed] value.
   Scope _backingScope = const Never();
 
   final Observable<T> _observable;
@@ -61,6 +63,8 @@ class Scoped<T> {
   StreamSubscription _enterSubscription;
   StreamSubscription _exitSubscription;
 
+  /// An immutable scope instance which always matches the current
+  /// [_backingScope] exactly, even if it is reassigned.
   final ForwardingScope _mirrorScope = new ForwardingScope();
   Scope get scope => _mirrorScope;
 
@@ -105,8 +109,14 @@ class ScopeAsValue {
   Observed<bool> get observed => _scoped.observed;
 
   ListeningScope<StateChangeEvent<bool>> _valueScope;
+
+  /// Treats the observed scope change itself as a scope. This is not to be
+  /// confused with the scope that determines the observed value.
   Scope<StateChangeEvent<bool>> get asScope => _valueScope;
 
+  Scope get scope => _scoped.scope;
+
+  /// Starts as not entered until a scope is set. Set a scope with [within].
   ScopeAsValue({dynamic owner}) {
     _scoped = new Scoped.ofImmutable(false,
         owner: owner, enterValue: (_) => true, exitValue: (_) => false);
