@@ -3,135 +3,135 @@ import 'package:august/august.dart';
 
 import 'util/fake_async.dart' show FakeAsync;
 
-// void main() {
-//   var persistence;
-//
-//   setUp(() {
-//     persistence = new InMemoryPersistence();
-//   });
-//
-//   group("starting a script with saved events", () {
-//     test("triggers saved events in order", () {
-//       var occurred = [];
-//
-//       var script = new Script("test", "1", [new TestEmitterModule()],
-//           (Run run, Map modules) {
-//         run.once("first").then((_) {
-//           occurred.add("first");
-//         });
-//         run.once("second").then((_) {
-//           occurred.add("second");
-//         });
-//       });
-//
-//       persistence.saveEvent(new InterfaceEvent(
-//           TestEmitter, 'emit', {'alias': 'first'}, const Duration(seconds: 1)));
-//       persistence.saveEvent(new InterfaceEvent(TestEmitter, 'emit',
-//           {'alias': 'second'}, const Duration(seconds: 5)));
-//
-//       start(script, persistence: persistence);
-//
-//       expect(occurred, equals(["first", "second"]));
-//     });
-//
-//     test("keeps track of play time while fast forwarding saved events", () {
-//       var times = {};
-//
-//       var script = new Script("test", "1", [new TestEmitterModule()],
-//           (Run run, Map modules) {
-//         times[0] = run.currentPlayTime();
-//         run.once("first").then((_) {
-//           times[1] = run.currentPlayTime();
-//         });
-//         run.once("second").then((_) {
-//           times[2] = run.currentPlayTime();
-//         });
-//       });
-//
-//       persistence.saveEvent(new InterfaceEvent(
-//           TestEmitter, 'emit', {'alias': 'first'}, const Duration(seconds: 1)));
-//       persistence.saveEvent(new InterfaceEvent(TestEmitter, 'emit',
-//           {'alias': 'second'}, const Duration(seconds: 5)));
-//
-//       start(script, persistence: persistence);
-//
-//       expect(
-//           times,
-//           equals({
-//             0: Duration.ZERO,
-//             1: const Duration(seconds: 1),
-//             2: const Duration(seconds: 5)
-//           }));
-//     });
-//
-//     test("switches to parent zone after fast forwarding up to last saved event",
-//         () {
-//       new FakeAsync().run((async) {
-//         var occurred = [];
-//
-//         var script = new Script("test", "1", [new TestEmitterModule()],
-//             (Run run, Map modules) {
-//           run.once("first").then((_) {
-//             occurred.add("first");
-//             run.emit("second", delay: const Duration(seconds: 3));
-//           });
-//           run.once("second").then((_) {
-//             occurred.add("second");
-//           });
-//         });
-//
-//         persistence.saveEvent(new InterfaceEvent(TestEmitter, 'emit',
-//             {'alias': 'first'}, const Duration(seconds: 1)));
-//         persistence.saveEvent(new InterfaceEvent(TestEmitter, 'emit',
-//             {'alias': 'some event'}, const Duration(seconds: 2)));
-//
-//         start(script, persistence: persistence);
-//
-//         async.elapse(const Duration(seconds: 1, milliseconds: 999));
-//         expect(occurred, equals(["first"]));
-//         async.elapse(const Duration(milliseconds: 1));
-//         expect(occurred, equals(["first", "second"]));
-//       });
-//     });
-//   });
-// }
-//
-// class InMemoryPersistence implements Persistence {
-//   List _savedEvents = [];
-//   List<InterfaceEvent> get savedEvents => new List.from(_savedEvents);
-//   saveEvent(InterfaceEvent e) {
-//     _savedEvents.add(e);
-//   }
-// }
-//
-// class TestEmitterModule implements ModuleDefinition, InterfaceModuleDefinition {
-//   TestEmitter createModule(Run run, Map modules) => new TestEmitter(run);
-//   TestEmitterInterface createInterface(module, emit) =>
-//       new TestEmitterInterface();
-//   TestEmitterHandler createInterfaceHandler(TestEmitter emitter) =>
-//       new TestEmitterHandler(emitter);
-// }
-//
-// class TestEmitter {
-//   Run _run;
-//
-//   TestEmitter(this._run);
-//
-//   emit(String alias) {
-//     _run.emit(alias);
-//   }
-// }
-//
-// class TestEmitterInterface implements Interface {}
-//
-// class TestEmitterHandler implements InterfaceHandler {
-//   TestEmitter _emitter;
-//
-//   TestEmitterHandler(this._emitter);
-//
-//   handle(String action, Map args) {
-//     if (action == "emit") {
-//       _emitter.emit(args['alias']);
-//     }
-//   }
-// }
+void main() {
+  Persistence persistence;
+  InteractionManager interactionMngr;
+  TestModule testModule;
+
+  setUp(() {
+    testModule = new TestModule();
+    persistence = new InMemoryPersistence();
+    interactionMngr = new InteractionManager(
+        new Clock(), persistence, [new TestInteractor(testModule)]);
+  });
+
+  run(Function script) {
+    interactionMngr.run(script);
+  }
+
+  Duration currentOffset() => interactionMngr.currentOffset;
+
+  group("starting a script with saved events", () {
+    test("triggers saved events in order", () {
+      var occurred = [];
+
+      persistence.saveInteraction(
+          const Duration(seconds: 1), "TestModule", "first", {});
+      persistence.saveInteraction(
+          const Duration(seconds: 5), "TestModule", "second", {});
+
+      run(() {
+        testModule.once("first").then((_) {
+          occurred.add("first");
+        });
+        testModule.once("second").then((_) {
+          occurred.add("second");
+        });
+      });
+
+      expect(occurred, equals(["first", "second"]));
+    });
+
+    test("keeps track of play time while fast forwarding saved events", () {
+      var times = {};
+
+      persistence.saveInteraction(
+          const Duration(seconds: 1), "TestModule", "first", {});
+      persistence.saveInteraction(
+          const Duration(seconds: 5), "TestModule", "second", {});
+
+      run(() {
+        times[0] = currentOffset();
+        testModule.once("first").then((_) {
+          times[1] = currentOffset();
+        });
+        testModule.once("second").then((_) {
+          times[2] = currentOffset();
+        });
+      });
+
+      expect(
+          times,
+          equals({
+            0: Duration.ZERO,
+            1: const Duration(seconds: 1),
+            2: const Duration(seconds: 5)
+          }));
+    });
+
+    test("switches to parent zone after fast forwarding up to last saved event",
+        () {
+      new FakeAsync().run((async) {
+        var occurred = [];
+
+        persistence.saveInteraction(
+            const Duration(seconds: 1), "TestModule", "first", {});
+        persistence.saveInteraction(
+            const Duration(seconds: 2), "TestModule", "some event", {});
+
+        run(() {
+          testModule.once("first").then((_) {
+            occurred.add("first");
+            testModule.emit("second", delay: const Duration(seconds: 3));
+          });
+          testModule.once("second").then((_) {
+            occurred.add("second");
+          });
+        });
+
+        async.elapse(const Duration(seconds: 1, milliseconds: 999));
+        expect(occurred, equals(["first"]));
+        async.elapse(const Duration(milliseconds: 1));
+        expect(occurred, equals(["first", "second"]));
+      });
+    });
+  });
+}
+
+class InMemoryPersistence implements Persistence {
+  List _saved = [];
+  List<SavedInteraction> get savedInteractions => new List.from(_saved);
+
+  @override
+  void saveInteraction(Duration offset, String moduleName, String name,
+      Map<String, dynamic> parameters) {
+    _saved.add(new SavedInteraction(moduleName, name, parameters, offset));
+  }
+}
+
+class TestModule {
+  final _ctrl = new StreamController<String>.broadcast();
+  Future<String> once(String event) =>
+      _ctrl.stream.where((e) => e == event).first;
+
+  Future<String> emit(String event, {Duration delay: Duration.ZERO}) {
+    return new Future.delayed(delay, () {
+      _ctrl.add(event);
+      return event;
+    });
+  }
+}
+
+class TestInteractor implements Interactor {
+  final TestModule _module;
+
+  TestInteractor(this._module);
+
+  @override
+  String get moduleName => "TestModule";
+
+  @override
+  void run(String action, Map<String, dynamic> parameters) {
+    _module._ctrl.add(action);
+  }
+}

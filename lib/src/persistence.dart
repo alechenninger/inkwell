@@ -8,8 +8,8 @@ abstract class Persistence {
 
 class NoPersistence implements Persistence {
   final savedInteractions = const [];
-  void saveInteraction(Duration offset, String moduleName,
-      String interactionName, Map<String, dynamic> parameters) {}
+  void saveInteraction(Duration offset, String moduleName, String name,
+      Map<String, dynamic> parameters) {}
 
   const NoPersistence();
 }
@@ -43,15 +43,26 @@ class FastForwarder {
   Duration _elapsingTo;
   Queue<Function> _microtasks = new Queue();
   Set<_FastForwarderTimer> _timers = new Set<_FastForwarderTimer>();
-  bool _useParentZone = false;
+  bool _useParentZone = true;
   DateTime _switchedToParent;
   final Clock _realClock;
 
-  FastForwarder(this._realClock);
+  FastForwarder(this._realClock) {
+    _switchedToParent = _realClock.now();
+  }
 
-  Duration getCurrentPlayTime() => _useParentZone
+  Duration get currentOffset => _useParentZone
       ? _elapsed + _realClock.now().difference(_switchedToParent)
       : _elapsed;
+
+  void runFastForwardable(callback(FastForwarder self)) {
+    _useParentZone = false;
+    if (_zone == null) {
+      _zone = Zone.current.fork(specification: _zoneSpec);
+    }
+    _zone.run(() => callback(this));
+    switchToParentZone();
+  }
 
   void fastForward(Duration offset) {
     if (_useParentZone) {
@@ -70,11 +81,30 @@ class FastForwarder {
     _elapsingTo = null;
   }
 
-  run(callback(FastForwarder self)) {
-    if (_zone == null) {
-      _zone = Zone.current.fork(specification: _zoneSpec);
+  void switchToParentZone() {
+    _useParentZone = true;
+    _switchedToParent = _realClock.now();
+
+    while (_microtasks.isNotEmpty) {
+      _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
     }
-    return _zone.run(() => callback(this));
+
+    while (_timers.isNotEmpty) {
+      var t = _timers.first;
+      if (t.isPeriodic) {
+        _zone.parent.createTimer(t.nextCall - _elapsed, () {
+          var trackingTimer = new _TrackingTimer();
+          t.callback(trackingTimer);
+          if (trackingTimer.isActive) {
+            _zone.parent
+                .createPeriodicTimer(t.duration, t.callback as TimerCallback);
+          }
+        });
+      } else {
+        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback as Callback);
+      }
+      _timers.remove(t);
+    }
   }
 
   ZoneSpecification get _zoneSpec => new ZoneSpecification(
@@ -133,32 +163,6 @@ class FastForwarder {
   _drainMicrotasks() {
     while (_microtasks.isNotEmpty) {
       _microtasks.removeFirst()();
-    }
-  }
-
-  void switchToParentZone() {
-    _useParentZone = true;
-    _switchedToParent = _realClock.now();
-
-    while (_microtasks.isNotEmpty) {
-      _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
-    }
-
-    while (_timers.isNotEmpty) {
-      var t = _timers.first;
-      if (t.isPeriodic) {
-        _zone.parent.createTimer(t.nextCall - _elapsed, () {
-          var trackingTimer = new _TrackingTimer();
-          t.callback(trackingTimer);
-          if (trackingTimer.isActive) {
-            _zone.parent
-                .createPeriodicTimer(t.duration, t.callback as TimerCallback);
-          }
-        });
-      } else {
-        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback as Callback);
-      }
-      _timers.remove(t);
     }
   }
 

@@ -4,7 +4,6 @@
 library august.options;
 
 import 'package:august/august.dart';
-import 'package:august/ui.dart';
 
 class Options {
   final _availableOptCtrl = new StreamController<Option>.broadcast(sync: true);

@@ -8,7 +8,6 @@ import 'package:august/options.dart';
 import 'package:august/ui/html/html_ui.dart';
 import 'package:august/ui/html/html_persistence.dart';
 import 'package:quiver/time.dart';
-import 'package:august/ui.dart';
 
 import 'dart:html';
 
