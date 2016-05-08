@@ -5,9 +5,7 @@ library august.ui.html;
 
 import 'dart:html';
 
-import 'package:august/dialog.dart';
 import 'package:august/options.dart';
-import 'package:august/ui.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
@@ -34,19 +32,28 @@ class SimpleHtmlUi {
 //    });
 
     options.onOptionAvailable.listen((o) {
-      _optionsContainer.children.add(new LIElement()
-        ..children.add(new SpanElement()
-          ..classes.add('option')
-          ..attributes['name'] = _toId(o.text)
-          ..innerHtml = o.text
-          ..onClick.listen((_) => o.use())));
+      _beforeNextPaint((_) {
+        _optionsContainer.children.add(new LIElement()
+          ..children.add(new SpanElement()
+            ..classes.add('option')
+            ..attributes['name'] = _toId(o.text)
+            ..innerHtml = o.text
+            ..onClick.listen((_) => o.use())));
+      });
 
       o.onUnavailable.listen((o) {
-        _optionsContainer.children.removeWhere(
-            (e) => e.children[0].attributes['name'] == _toId(o.text));
+        _beforeNextPaint((_) {
+          _optionsContainer.children.removeWhere(
+              (e) => e.children[0].attributes['name'] == _toId(o.text));
+        });
       });
     });
   }
+}
+
+// TODO: not sure if this is really helping anything
+_beforeNextPaint(void drawFrame(num msSincePageLoad)) {
+  window.animationFrame.then(drawFrame);
 }
 
 // DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
