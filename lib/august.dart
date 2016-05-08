@@ -23,7 +23,6 @@ class InteractionManager implements Sink<Interaction> {
   final Persistence _persistence;
   final Clock _clock;
 
-  DateTime _startTime;
   FastForwarder _ff;
 
   InteractionManager(
@@ -53,8 +52,6 @@ class InteractionManager implements Sink<Interaction> {
   }
 
   void run(Function script) {
-    _startTime = _clock.now();
-
     if (_persistence.savedInteractions.isNotEmpty) {
       _ff.runFastForwardable((ff) {
         script();
