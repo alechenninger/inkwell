@@ -15,8 +15,6 @@ part 'src/persistence.dart';
 part 'src/scope.dart';
 part 'src/observable.dart';
 
-typedef Duration CurrentOffset();
-
 class InteractionManager implements Sink<Interaction> {
   final _ctrl = new StreamController<Interaction>(sync: true);
   final _interactorsByModule = <String, Interactor>{};
@@ -30,6 +28,14 @@ class InteractionManager implements Sink<Interaction> {
     _ff = new FastForwarder(_clock);
 
     interactors.forEach((interactor) {
+      if (_interactorsByModule.containsKey(interactor.moduleName)) {
+        throw new ArgumentError.value(
+            interactors,
+            "interactors",
+            "List of interactors contained multiple interactors for the same"
+            "module name: ${interactor.moduleName}.");
+      }
+
       _interactorsByModule[interactor.moduleName] = interactor;
     });
 

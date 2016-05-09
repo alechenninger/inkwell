@@ -41,7 +41,7 @@ class SimpleHtmlUi {
             ..onClick.listen((_) => o.use())));
       });
 
-      o.onUnavailable.listen((o) {
+      o.onUnavailable.first.then((o) {
         _beforeNextPaint((_) {
           _optionsContainer.children.removeWhere(
               (e) => e.children[0].attributes['name'] == _toId(o.text));

@@ -11,8 +11,8 @@ class Options {
 
   Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
 
-  Option newOption(String text) {
-    return new Option(text)
+  Option newOption(String text, {Scope available}) {
+    var option = new Option(text)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;
         _options.add(option);
@@ -22,6 +22,17 @@ class Options {
         var option = e.owner as Option;
         _options.remove(option);
       });
+
+    if (available != null) {
+      option.available(available);
+    }
+
+    if (option.isAvailable) {
+      _options.add(option);
+      _availableOptCtrl.add(option);
+    }
+
+    return option;
   }
 }
 

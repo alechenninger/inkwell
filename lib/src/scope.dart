@@ -48,88 +48,8 @@ abstract class Scope<T> {
   Stream<T> get onExit;
 }
 
-typedef T GetNewValue<T>(T currentValue);
-
-class Scoped<T> {
-  /// The mutable scope used to determine the [observed] value.
-  Scope _backingScope = const Never();
-
-  final Observable<T> _observable;
-  Observed<T> get observed => _observable;
-
-  GetNewValue<T> _enterValue;
-  GetNewValue<T> _exitValue;
-
-  StreamSubscription _enterSubscription;
-  StreamSubscription _exitSubscription;
-
-  /// An immutable scope instance which always matches the current
-  /// [_backingScope] exactly, even if it is reassigned.
-  final ForwardingScope _mirrorScope = new ForwardingScope();
-  Scope get scope => _mirrorScope;
-
-  Scoped.ofImmutable(T initialValue,
-      {T enterValue(T value): _identity,
-      T exitValue(T value): _identity,
-      dynamic owner})
-      : _observable = new Observable<T>.ofImmutable(initialValue, owner: owner),
-        _enterValue = enterValue,
-        _exitValue = exitValue;
-
-  void within(Scope scope,
-      {T enterValue(T value): null, T exitValue(T value): null}) {
-    _enterSubscription?.cancel();
-    _exitSubscription?.cancel();
-
-    _backingScope = scope;
-    _mirrorScope.delegate = scope;
-
-    if (enterValue != null) _enterValue = enterValue;
-    if (exitValue != null) _exitValue = exitValue;
-
-    if (_backingScope.isEntered) {
-      _observable.set(_enterValue);
-    } else {
-      _observable.set(_exitValue);
-    }
-
-    _enterSubscription = _backingScope.onEnter.listen((e) {
-      _observable.set(_enterValue);
-    });
-
-    _exitSubscription = _backingScope.onExit.listen((e) {
-      _observable.set(_exitValue);
-    });
-  }
-}
-
-class ScopeAsValue {
-  Scoped<bool> _scoped;
-
-  Observed<bool> get observed => _scoped.observed;
-
-  ListeningScope<StateChangeEvent<bool>> _valueScope;
-
-  /// Treats the observed scope change itself as a scope. This is not to be
-  /// confused with the scope that determines the observed value.
-  Scope<StateChangeEvent<bool>> get asScope => _valueScope;
-
-  Scope get scope => _scoped.scope;
-
-  /// Starts as not entered until a scope is set. Set a scope with [within].
-  ScopeAsValue({dynamic owner}) {
-    _scoped = new Scoped.ofImmutable(false,
-        owner: owner, enterValue: (_) => true, exitValue: (_) => false);
-
-    _valueScope = new ListeningScope.notEntered(_scoped.observed.onChange,
-        enterWhen: (e) => e.newValue == true,
-        exitWhen: (e) => e.newValue == false);
-  }
-
-  void within(Scope scope) {
-    _scoped.within(scope);
-  }
-}
+const Scope always = const Always();
+const Scope never = const Never();
 
 class Always implements Scope<Null> {
   final isEntered = true;
@@ -210,7 +130,6 @@ class AndScope extends Scope<dynamic> {
 }
 
 class SettableScope<T> extends Scope<T> {
-  // TODO: API for closing scope
   final StreamController<T> _enters =
       new StreamController.broadcast(sync: true);
   final StreamController<T> _exits = new StreamController.broadcast(sync: true);
@@ -230,6 +149,9 @@ class SettableScope<T> extends Scope<T> {
   /// the first call.
   void enter(T event) {
     if (_isEntered) return;
+    if (_enters.isClosed) {
+      throw new StateError("Cannot enter a scope which has been closed.");
+    }
 
     _isEntered = true;
     _enters.add(event);
@@ -241,13 +163,24 @@ class SettableScope<T> extends Scope<T> {
   /// the first call.
   void exit(T event) {
     if (!_isEntered) return;
+    if (_exits.isClosed) {
+      throw new StateError("Cannot enter a scope which has been closed.");
+    }
 
     _isEntered = false;
     _exits.add(event);
   }
 
+  void close() {
+    _enters.close();
+    _exits.close();
+  }
+
   bool _isEntered;
   bool get isEntered => _isEntered;
+
+  bool get isClosed => _enters.isClosed;
+  bool get isNotClosed => !isClosed;
 
   Stream<T> _onEnter;
   Stream<T> get onEnter => _onEnter;
@@ -294,21 +227,46 @@ class ForwardingScope extends Scope {
   Stream get onExit => _onExit;
 }
 
+/// A scope which is entered, exited, and closed when events in a given stream
+/// match provided predicates.
 class ListeningScope<T> extends Scope<T> {
   final SettableScope<T> _settable;
 
   ListeningScope.entered(Stream<T> eventStream,
-      {bool enterWhen(T event): _noEvents, bool exitWhen(T event): _noEvents})
+      {bool enterWhen(T event): _never,
+      bool exitWhen(T event): _never,
+      bool closeWhen(T event): _never})
       : _settable = new SettableScope.entered() {
-    eventStream.where(enterWhen).listen(_settable.enter);
-    eventStream.where(exitWhen).listen(_settable.exit);
+    _init(eventStream, enterWhen, exitWhen, closeWhen);
   }
 
   ListeningScope.notEntered(Stream<T> eventStream,
-      {bool enterWhen(T event): _noEvents, bool exitWhen(T event): _noEvents})
+      {bool enterWhen(T event): _never,
+      bool exitWhen(T event): _never,
+      bool closeWhen(T event): _never})
       : _settable = new SettableScope.notEntered() {
-    eventStream.where(enterWhen).listen(_settable.enter);
-    eventStream.where(exitWhen).listen(_settable.exit);
+    _init(eventStream, enterWhen, exitWhen, closeWhen);
+  }
+
+  _init(Stream<T> eventStream, bool enterWhen(T event), bool exitWhen(T event),
+      bool closeWhen(T event)) {
+    eventStream.listen((e) {
+      bool shouldEnter = enterWhen(e);
+      bool shouldExit = exitWhen(e);
+      bool shouldClose = closeWhen(e);
+
+      if (shouldEnter && !shouldExit) {
+        _settable.enter(e);
+      }
+
+      if (shouldExit) {
+        _settable.exit(e);
+      }
+
+      if (shouldClose) {
+        _settable.close();
+      }
+    });
   }
 
   bool get isEntered => _settable.isEntered;
@@ -318,8 +276,92 @@ class ListeningScope<T> extends Scope<T> {
   Stream<T> get onExit => _settable.onExit;
 }
 
-typedef Scope GetScope();
+typedef T GetNewValue<T>(T currentValue);
+
+/// Encapsulates a value which changes based on a scope.
+class Scoped<T> {
+  /// The mutable scope used to determine the [observed] value.
+  Scope _backingScope = const Never();
+
+  final Observable<T> _observable;
+  Observed<T> get observed => _observable;
+
+  GetNewValue<T> _enterValue;
+  GetNewValue<T> _exitValue;
+
+  StreamSubscription _enterSubscription;
+  StreamSubscription _exitSubscription;
+
+  /// An immutable scope instance which always matches the current
+  /// [_backingScope] exactly, even if it is reassigned.
+  final ForwardingScope _mirrorScope = new ForwardingScope();
+  Scope get scope => _mirrorScope;
+
+  Scoped.ofImmutable(T initialValue,
+      {T enterValue(T value): _identity,
+      T exitValue(T value): _identity,
+      dynamic owner})
+      : _observable = new Observable<T>.ofImmutable(initialValue, owner: owner),
+        _enterValue = enterValue,
+        _exitValue = exitValue;
+
+  void within(Scope scope,
+      {T enterValue(T value): null, T exitValue(T value): null}) {
+    _enterSubscription?.cancel();
+    _exitSubscription?.cancel();
+
+    _backingScope = scope;
+    _mirrorScope.delegate = scope;
+
+    if (enterValue != null) _enterValue = enterValue;
+    if (exitValue != null) _exitValue = exitValue;
+
+    if (_backingScope.isEntered) {
+      _observable.set(_enterValue);
+    } else {
+      _observable.set(_exitValue);
+    }
+
+    _enterSubscription = _backingScope.onEnter.listen((e) {
+      _observable.set(_enterValue);
+    });
+
+    _exitSubscription = _backingScope.onExit.listen((e) {
+      _observable.set(_exitValue);
+    });
+  }
+}
+
+/// Scopes encode a simple boolean state: entered or not entered. Sometimes it
+/// is useful to use that flag as an [Observable] value.
+class ScopeAsValue {
+  Scoped<bool> _scoped;
+
+  Observed<bool> get observed => _scoped.observed;
+
+  ListeningScope<StateChangeEvent<bool>> _valueScope;
+
+  /// Treats the observed scope change itself as a scope. This is not to be
+  /// confused with the scope that determines the observed value.
+  Scope<StateChangeEvent<bool>> get asScope => _valueScope;
+
+  Scope get scope => _scoped.scope;
+
+  /// Starts as not entered until a scope is set. Set a scope with [within].
+  ScopeAsValue({dynamic owner}) {
+    _scoped = new Scoped.ofImmutable(false,
+        owner: owner, enterValue: (_) => true, exitValue: (_) => false);
+
+    _valueScope = new ListeningScope.notEntered(_scoped.observed.onChange,
+        enterWhen: (e) => e.newValue == true,
+        exitWhen: (e) => e.newValue == false);
+  }
+
+  void within(Scope scope) {
+    _scoped.within(scope);
+  }
+}
 
 dynamic/*=T*/ _identity/*<T>*/(dynamic/*=T*/ value) => value;
 
-bool _noEvents(e) => false;
+bool _never(e) => false;
