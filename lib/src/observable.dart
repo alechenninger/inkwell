@@ -11,7 +11,7 @@ abstract class Observable<T> extends Observed<T> {
   ///
   /// For mutable values like [List]s, there is no guarantee that references to
   /// the value mutate it outside of the scope of the observable.
-  factory Observable/*=T*/.ofImmutable(T initialValue, {owner}) {
+  factory Observable.ofImmutable(T initialValue, {owner}) {
     return new _ObservableOfImmutable<T>(initialValue, owner);
   }
 
