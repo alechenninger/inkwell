@@ -12,6 +12,9 @@ import 'package:august/ui/html/html_persistence.dart';
 import 'dart:html';
 
 main() {
+  // TODO: How will users know how to do this setup for all modules they want
+  // to use? How will we give feedback when not setup correctly?
+
   // Boilerplate time tracking
   var clock = new Clock();
 
@@ -86,5 +89,5 @@ example(Options options, Scenes scenes) async {
 }
 
 class Sword {
-  final Observable<bool> isBurnt = new Observable.ofImmutable(false);
+  final isBurnt = new Observable<bool>.ofImmutable(false);
 }

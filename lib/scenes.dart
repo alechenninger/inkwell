@@ -18,13 +18,17 @@ class SceneFactory {
 
   SceneFactory._(this._scenes);
 
-  /// Begins a new, non-reoccuring scene with the returned Future.
+  /// Begins a new, non-reoccuring scene when the returned [Future] completes.
   ///
   /// Once a non-reoccurring scene exits it will never be entered again.
   Future<Scene> once() async {
     return _init(new Scene._(_untilNextScene));
   }
 
+  /// Begins a new, reenterable scene when the returned [Future] completes.
+  ///
+  /// A reenterable scene may begin and end a number of times before it is
+  /// closed.
   Future<ReenterableScene> reenterable() async {
     return _init(new ReenterableScene._(_scenes));
   }
@@ -76,6 +80,7 @@ class ReenterableScene extends Scope<ReenterableScene> {
     });
   }
 
+  /// Fails if the scene is already [done].
   Future<ReenterableScene> reenter() async {
     if (_isDone) {
       throw new StateError("Reenterable scene is done; cannot reenter.");

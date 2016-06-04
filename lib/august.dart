@@ -32,8 +32,8 @@ class InteractionManager implements Sink<Interaction> {
         throw new ArgumentError.value(
             interactors,
             "interactors",
-            "List of interactors contained multiple interactors for the same"
-            "module name: ${interactor.moduleName}.");
+            "List of interactors contained multiple interactors for the same "
+            "module name: ${interactor.moduleName}");
       }
 
       _interactorsByModule[interactor.moduleName] = interactor;
@@ -61,12 +61,13 @@ class InteractionManager implements Sink<Interaction> {
     if (_persistence.savedInteractions.isNotEmpty) {
       _ff.runFastForwardable((ff) {
         script();
-        _persistence.savedInteractions.forEach((interaction) {
+        var saved = _persistence.savedInteractions;
+        saved.forEach((interaction) {
           new Future.delayed(interaction.offset, () {
             _runInteraction(interaction);
           });
         });
-        ff.fastForward(_persistence.savedInteractions.last.offset);
+        ff.fastForward(saved.last.offset);
       });
     } else {
       script();
@@ -80,6 +81,12 @@ class InteractionManager implements Sink<Interaction> {
 
   void _runInteraction(Interaction interaction) {
     var interactor = _interactorsByModule[interaction.moduleName];
+
+    if (interactor == null) {
+      throw new StateError("No interactor configured for module: "
+          "${interaction.moduleName}");
+    }
+
     interactor.run(interaction.name, interaction.parameters);
   }
 }
