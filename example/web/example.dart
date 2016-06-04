@@ -7,20 +7,21 @@ import 'package:august/august.dart';
 import 'package:august/options.dart';
 import 'package:august/scenes.dart';
 import 'package:august/ui/html/html_ui.dart';
-import 'package:august/ui/html/html_persistence.dart';
 
 import 'dart:html';
+
+// Instantiate modules top level for easy accessibility from script methods
+final options = new Options();
+final scenes = new Scenes();
 
 main() {
   // TODO: How will users know how to do this setup for all modules they want
   // to use? How will we give feedback when not setup correctly?
+  // Probably worth trimming and refactoring this so setup is very tiny, and
+  // invalid setup fails at compile time.
 
   // Boilerplate time tracking
   var clock = new Clock();
-
-  // Instantiate modules
-  var options = new Options();
-  var scenes = new Scenes();
 
   // Need a persistence strategy
   var persistence = new NoPersistence();
@@ -31,13 +32,13 @@ main() {
 
   // Create user interface objects using interactions manager.
   var optionsUi = new OptionsUi(options, interactionsMngr);
-  new SimpleHtmlUi(querySelector("#example"), optionsUi);
 
-  interactionsMngr.run(() => example(options, scenes));
+  new SimpleHtmlUi(querySelector("#example"), optionsUi);
+  interactionsMngr.run(example);
 }
 
-example(Options options, Scenes scenes) async {
-  var dragonStandoff = await scenes.begin.reenterable();
+example() async {
+  var dragonStandoff = await scenes.reenterable().enter();
   var sword = new Sword();
 
   print("A dragon stands before you!");
@@ -47,7 +48,7 @@ example(Options options, Scenes scenes) async {
   var runAway = options.newOption("Run away!", available: dragonStandoff);
 
   attack.onUse.listen((o) async {
-    var attacking = await scenes.begin.once();
+    var attacking = await scenes.oneTime().enter();
 
     print("The dragon readies its flame...");
 
@@ -61,24 +62,24 @@ example(Options options, Scenes scenes) async {
     deflectWithSword.onUse.listen((_) {
       print("You survive, but your sword is burnt.");
       sword.isBurnt.set((_) => true);
-      dragonStandoff.reenter();
+      dragonStandoff.enter();
     });
 
     deflectWithShield.onUse.listen((_) {
       print("Your shield sets aflame and you suffer terrible burns.");
-      scenes.begin.once();
+      scenes.oneTime().enter();
     });
 
     dash.onUse.listen((_) {
       print("You make it underneath the dragon, unharmed.");
-      scenes.begin.once();
+      scenes.oneTime().enter();
     });
   });
 
   runAway.onUse.listen((o) async {
     dragonStandoff.done();
 
-    var runningAway = await scenes.begin.once();
+    await scenes.oneTime(title: "Running away").enter();
 
     print("Running away.");
 

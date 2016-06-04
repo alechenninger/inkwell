@@ -1,53 +1,35 @@
 import 'package:august/august.dart';
 
 class Scenes {
-  final _newScenes = new StreamController<Scope>.broadcast(sync: true);
-  SceneFactory _sceneFactory;
+  final _newScenes = new StreamController<Scene>.broadcast(sync: true);
 
-  Scenes() {
-    _sceneFactory = new SceneFactory._(this);
-  }
+  /// Creates a new scene which will enter at most once.
+  Scene oneTime({String title}) => new _OneTimeScene(this);
 
-  SceneFactory get begin => _sceneFactory;
+  ReenterableScene reenterable({String title}) => new ReenterableScene._(this);
 
-  Stream<Scope> get onBegin => _newScenes.stream;
+  Stream<Scene> get onBegin => _newScenes.stream;
 }
 
-class SceneFactory {
+abstract class Scene<T extends Scene> extends Scope {
+  Future<Scene> enter();
+}
+
+class _OneTimeScene extends Scene {
+  final _scope = new SettableScope<Scene>.notEntered();
   final Scenes _scenes;
 
-  SceneFactory._(this._scenes);
+  _OneTimeScene(this._scenes);
 
-  /// Begins a new, non-reoccuring scene when the returned [Future] completes.
-  ///
-  /// Once a non-reoccurring scene exits it will never be entered again.
-  Future<Scene> once() async {
-    return _init(new Scene._(_untilNextScene));
+  Future<Scene> enter() async {
+    _scope.enter(this);
+    _scenes._newScenes.add(this);
+    _scenes.onBegin.first.then((_) {
+      _scope.exit(this);
+      _scope.close();
+    });
+    return this;
   }
-
-  /// Begins a new, reenterable scene when the returned [Future] completes.
-  ///
-  /// A reenterable scene may begin and end a number of times before it is
-  /// closed.
-  Future<ReenterableScene> reenterable() async {
-    return _init(new ReenterableScene._(_scenes));
-  }
-
-  Scope/*=T*/ _init/*<T extends Scope>*/(Scope/*=T*/ scene) {
-    _scenes._newScenes.add(scene);
-    return scene;
-  }
-
-  Scope<Scene> get _untilNextScene =>
-      // Exit and close as soon as there is a begin event.
-      new ListeningScope.entered(_scenes.onBegin.skip(1),
-          exitWhen: (scene) => true, closeWhen: (scene) => true);
-}
-
-class Scene extends Scope {
-  final Scope _scope;
-
-  Scene._(this._scope);
 
   @override
   bool get isEntered => _scope.isEntered;
@@ -59,7 +41,7 @@ class Scene extends Scope {
   Stream get onExit => _scope.onExit;
 }
 
-class ReenterableScene extends Scope<ReenterableScene> {
+class ReenterableScene extends Scene<ReenterableScene> {
   final Scenes _scenes;
   final _scope = new SettableScope<ReenterableScene>.entered();
   var _isDone = false;
@@ -80,8 +62,16 @@ class ReenterableScene extends Scope<ReenterableScene> {
     });
   }
 
+  void done() {
+    _isDone = true;
+    if (_scope.isNotEntered) {
+      _scope.close();
+    }
+  }
+
   /// Fails if the scene is already [done].
-  Future<ReenterableScene> reenter() async {
+  @override
+  Future<ReenterableScene> enter() async {
     if (_isDone) {
       throw new StateError("Reenterable scene is done; cannot reenter.");
     }
@@ -90,13 +80,6 @@ class ReenterableScene extends Scope<ReenterableScene> {
     _scenes._newScenes.add(this);
 
     return this;
-  }
-
-  void done() {
-    _isDone = true;
-    if (_scope.isNotEntered) {
-      _scope.close();
-    }
   }
 
   @override

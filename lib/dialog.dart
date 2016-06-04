@@ -3,7 +3,7 @@
 
 library august.dialog;
 
-import 'package:august/august.dart';
+// import 'package:august/august.dart';
 
 // import 'package:quiver/core.dart' as quiver show hash2, hashObjects;
 // import 'package:collection/equality.dart';

@@ -187,6 +187,8 @@ class SettableScope<T> extends Scope<T> {
 
   Stream<T> _onExit;
   Stream<T> get onExit => _onExit;
+
+  // TODO onClose ?
 }
 
 class ForwardingScope extends Scope {
