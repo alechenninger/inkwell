@@ -4,6 +4,7 @@
 library august.ui.html;
 
 import 'dart:html';
+import 'dart:collection';
 
 import 'package:august/options.dart';
 
@@ -13,6 +14,8 @@ class SimpleHtmlUi {
   final HtmlElement _dialogContainer = new DivElement()..classes.add('dialogs');
   final HtmlElement _optionsContainer = new UListElement()
     ..classes.add('options');
+
+  var _domQueue = new Queue<Function>();
 
   SimpleHtmlUi(this._container, OptionsUi options) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
@@ -32,7 +35,7 @@ class SimpleHtmlUi {
 //    });
 
     options.onOptionAvailable.listen((o) {
-      _beforeNextPaint((_) {
+      _beforeNextPaint(() {
         _optionsContainer.children.add(new LIElement()
           ..children.add(new SpanElement()
             ..classes.add('option')
@@ -42,18 +45,23 @@ class SimpleHtmlUi {
       });
 
       o.onUnavailable.first.then((o) {
-        _beforeNextPaint((_) {
+        _beforeNextPaint(() {
           _optionsContainer.children.removeWhere(
               (e) => e.children[0].attributes['name'] == _toId(o.text));
         });
       });
     });
   }
-}
 
-// TODO: not sure if this is really helping anything
-_beforeNextPaint(void drawFrame(num msSincePageLoad)) {
-  window.animationFrame.then(drawFrame);
+  // TODO: not sure if this is really helping anything
+  _beforeNextPaint(void domUpdate()) {
+    _domQueue.add(domUpdate);
+    window.animationFrame.then((_) {
+      while (_domQueue.isNotEmpty) {
+        _domQueue.removeFirst()();
+      }
+    });
+  }
 }
 
 // DivElement _getDialogElement(DialogEvent e, DialogInterface dialog) {
