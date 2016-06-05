@@ -3,7 +3,14 @@ import 'package:august/august.dart';
 class Scenes {
   final _newScenes = new StreamController<Scene>.broadcast(sync: true);
 
-  /// Creates a new scene which will enter at most once.
+  /// Creates a new scene which will enter at most once, and exits as soon as
+  /// another scene begins.
+  ///
+  /// To enter the created scene, call [Scene.enter].
+  ///
+  /// Accepts an optional [title] which is purely for annotation and not exposed
+  /// from the scene API intentionally to discourage non-type-safe scene
+  /// matching.
   Scene oneTime({String title}) => new _OneTimeScene(this);
 
   ReenterableScene reenterable({String title}) => new ReenterableScene._(this);

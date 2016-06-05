@@ -33,7 +33,11 @@ main() {
   // Create user interface objects using interactions manager.
   var optionsUi = new OptionsUi(options, interactionsMngr);
 
+  // Present the user interface(s) with HTML
   new SimpleHtmlUi(querySelector("#example"), optionsUi);
+
+  // Finally, start the story using the interaction manager so saved
+  // interactions are replayed.
   interactionsMngr.run(example);
 }
 
