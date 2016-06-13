@@ -1,5 +1,9 @@
+// Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
+// is governed by a BSD-style license that can be found in the LICENSE file.
+
 import 'package:august/august.dart';
 
+// TODO: Probably rethink this later
 class Scenes {
   final _newScenes = new StreamController<Scene>.broadcast(sync: true);
 
@@ -75,6 +79,23 @@ class ReenterableScene extends Scene<ReenterableScene> {
       _scope.close();
     }
   }
+
+  /// Returns a scope which is entered for only certain entrances of this
+  /// reenterable scene.
+  ///
+  /// Accepts an [isEntered] function which returns true or false based on
+  /// whether this entrance number should cause the scope to enter or exit.
+  ///
+  /// Similarly, an optional [isDone] function may be provide to finish the
+  /// scope. Once this returns true, the scope will never enter again.
+  // TODO: Name this function better
+  // TODO: Consider adding this to SettableScope
+  Scope subset(bool isEntered(int entranceNumber),
+      {bool isDone(int entranceNumber)}) {
+    throw "Not implemented";
+  }
+
+  Scope get first => subset((i) => i == 1, isDone: (i) => i > 1);
 
   /// Fails if the scene is already [done].
   @override

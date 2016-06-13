@@ -1,11 +1,10 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-library august.example;
-
 import 'package:august/august.dart';
 import 'package:august/options.dart';
 import 'package:august/scenes.dart';
+import 'package:august/dialog.dart';
 import 'package:august/ui/html/html_ui.dart';
 
 import 'dart:html';
@@ -13,6 +12,7 @@ import 'dart:html';
 // Instantiate modules top level for easy accessibility from script methods
 final options = new Options();
 final scenes = new Scenes();
+final dialogs = new Dialogs();
 
 main() {
   // TODO: How will users know how to do this setup for all modules they want
@@ -45,7 +45,10 @@ example() async {
   var dragonStandoff = await scenes.reenterable().enter();
   var sword = new Sword();
 
-  print("A dragon stands before you!");
+  // Another strategy for "first" entrance of this scene would be a custom
+  // scope that we manage via scope.exit()
+  // This would be equivalent to the old dialog.clear()
+  dialogs.narrate("A dragon stands before you!", scope: dragonStandoff.first);
 
   // Availability limited to current scene may make sense as default
   var attack = options.newOption("Attack it!", available: dragonStandoff);
@@ -83,13 +86,29 @@ example() async {
   runAway.onUse.listen((o) async {
     dragonStandoff.done();
 
-    await scenes.oneTime(title: "Running away").enter();
+    var runningAway = await scenes.oneTime().enter();
 
     print("Running away.");
 
     if (sword.isBurnt.value) {
       print("Your hot sword melts through its holster and tumbles behind you.");
     }
+
+    var thisWay = dialogs.add("This way!", scope: runningAway);
+    var follow = thisWay.addReply("Follow the mysterious voice");
+    var hide = thisWay.addReply("Hide");
+
+    follow.onUse.listen((_) async {
+      var toTheMysteryVoice = await scenes.oneTime().enter();
+
+      var player = dialogs.voice(name: "Bob");
+      var mysteriousVoice = dialogs.voice();
+
+      // Default scope of current scene may be nice
+      player.say("What are you doing here?", scope: toTheMysteryVoice);
+      mysteriousVoice.say("I could ask you the same thing.",
+          scope: toTheMysteryVoice);
+    });
   });
 }
 

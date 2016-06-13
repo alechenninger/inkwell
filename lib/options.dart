@@ -1,8 +1,6 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-library august.options;
-
 import 'package:august/august.dart';
 
 class Options {
@@ -94,7 +92,7 @@ class Option {
   /// available to be used.
   Future<UseOptionEvent> use() {
     if (_available.observed.nextValue == false) {
-      return new Future.error(new OptionNotAvailableError(this));
+      return new Future.error(new OptionNotAvailableException(this));
     }
 
     _useCount += 1;
@@ -200,8 +198,10 @@ class UseOptionEvent {
   UseOptionEvent(this.option);
 }
 
-class OptionNotAvailableError implements Exception {
+// Not sure if this should be error or exception
+// Depends on context, so probably exception
+class OptionNotAvailableException implements Exception {
   final Option option;
 
-  OptionNotAvailableError(this.option);
+  OptionNotAvailableException(this.option);
 }
