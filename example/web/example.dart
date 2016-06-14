@@ -99,15 +99,26 @@ example() async {
     var hide = thisWay.addReply("Hide");
 
     follow.onUse.listen((_) async {
-      var toTheMysteryVoice = await scenes.oneTime().enter();
-
+      var following = await scenes.oneTime().enter();
       var player = dialogs.voice(name: "Bob");
       var mysteriousVoice = dialogs.voice();
 
       // Default scope of current scene may be nice
-      player.say("What are you doing here?", scope: toTheMysteryVoice);
-      mysteriousVoice.say("I could ask you the same thing.",
-          scope: toTheMysteryVoice);
+      player.say("What are you doing here?", scope: following);
+
+      var toMysteryVoice = mysteriousVoice
+          .say("I could ask you the same thing.", scope: following);
+      var needDragonScales = toMysteryVoice.addReply("I need dragon scales");
+      var sayNothing = toMysteryVoice.addReply("Say nothing.");
+
+      needDragonScales.onUse.listen((_) {
+        player.say("I need dragon scales.", scope: following);
+        mysteriousVoice.say("Good luck with that.", scope: following);
+      });
+
+      sayNothing.onUse.listen((_) {
+
+      });
     });
   });
 }

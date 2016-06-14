@@ -3,28 +3,94 @@
 
 import 'package:august/august.dart';
 
-abstract class Dialogs {
-  Dialog narrate(String markup, {Scope scope});
-  Dialog add(String markup, {String speaker, String target, Scope scope});
-  Voice voice({String name});
+class Dialogs {
+  final _dialogs = new StreamController<Dialog>.broadcast(sync: true);
 
-  Stream<Dialog> get _onAddDialog;
+  // TODO: figure out defaults
+  Dialog narrate(String markup, {Scope scope}) {
+    var narration = new Dialog(markup, scope, '', '');
+    narration._scope.onEnter.listen((_) => _dialogs.add(narration));
+    return narration;
+  }
+
+  // TODO: figure out default
+  Dialog add(String markup,
+      {String speaker: '', String target: '', Scope scope}) {
+    var dialog = new Dialog(markup, scope, speaker, target);
+    dialog._scope.onEnter.listen((_) => _dialogs.add(dialog));
+    return dialog;
+  }
+
+  Voice voice({String name: ''}) => new Voice(name, this);
+
+  Stream<Dialog> get _onAddDialog => _dialogs.stream;
 }
 
-abstract class Voice {
-  void set name(String name);
-  Dialog say(String markup, {String speaker, String target, Scope scope});
+class Voice {
+  String name;
+
+  final Dialogs _dialogs;
+
+  Voice(this.name, this._dialogs);
+
+  Dialog say(String markup, {String target, Scope scope}) =>
+      _dialogs.add(markup, speaker: name, target: target, scope: scope);
 }
 
-abstract class Dialog {
-  Reply addReply(String markup, {Scope scope});
+class Dialog {
+  final String _markup;
+  final Scope _scope;
+  final String _speaker;
+  final String _target;
 
-  Stream<Dialog> get _onRemove;
-  Stream<Reply> get _onAddReply;
+  final _replies = new StreamController<Reply>.broadcast(sync: true);
+
+  Dialog(this._markup, this._scope, this._speaker, this._target);
+
+  Reply addReply(String markup, {Scope scope: const Always()}) {
+    var reply = new Reply(this, markup, scope);
+    reply.availability.onEnter.listen((_) => _replies.add(reply));
+    return reply;
+  }
+
+  Stream<Dialog> get _onRemove => _scope.onExit.map((_) => this);
+  Stream<Reply> get _onReplyAvailable => _replies.stream;
 }
 
-abstract class Reply {
-  Stream get onUse;
+class Reply {
+  final Dialog dialog;
+  final String _markup;
+  final _uses = new StreamController.broadcast(sync: true);
+
+  final _hasUses = new SettableScope.entered();
+  ScopeAsValue _available;
+
+  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+
+  bool get isAvailable => _available.observed.value;
+
+  bool get willBeAvailable => _available.observed.nextValue;
+
+  Stream get onUse => _uses.stream;
+
+  Reply(this.dialog, this._markup, Scope scope) {
+    _available = new ScopeAsValue(owner: this)
+      ..within(new AndScope(_hasUses, scope));
+  }
+
+  Future use() {
+    if (_available.observed.nextValue == false) {
+      return new Future.error(new ReplyNotAvailableException(this));
+    }
+
+    _hasUses.exit(null);
+
+    return new Future(() {
+      var event = new UseReplyEvent(this);
+      _uses.add(event);
+      return event;
+    });
+  }
 }
 
 class DialogUi {
@@ -44,8 +110,8 @@ class UiDialog {
   UiDialog(this._dialog, this._interactions);
 
   Stream<UiDialog> get onRemove => _dialog._onRemove.map((_) => this);
-  Stream<UiReply> get onAddReply =>
-      _dialog._onAddReply.map((r) => new UiReply(r, _interactions));
+  Stream<UiReply> get onReplyAvailable =>
+      _dialog._onReplyAvailable.map((r) => new UiReply(r, _interactions));
 }
 
 class UiReply {
@@ -76,5 +142,20 @@ class UseReplyAction implements Interaction {
 
   // TODO: implement parameters
   @override
-  Map<String, dynamic> get parameters => null;
+  Map<String, dynamic> get parameters => {
+        'dialog': {'markup': _reply.dialog._markup},
+        'markup': _reply._markup
+      };
+}
+
+class ReplyNotAvailableException implements Exception {
+  final Reply reply;
+
+  ReplyNotAvailableException(this.reply);
+}
+
+class UseReplyEvent {
+  final Reply reply;
+
+  UseReplyEvent(this.reply);
 }
