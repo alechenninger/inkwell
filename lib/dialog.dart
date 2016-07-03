@@ -3,41 +3,41 @@
 
 import 'package:august/august.dart';
 
-class Dialogs {
-  final _dialogs = new StreamController<Dialog>.broadcast(sync: true);
+class Dialog {
+  final _dialogs = new StreamController<Speech>.broadcast(sync: true);
 
   // TODO: figure out defaults
-  Dialog narrate(String markup, {Scope scope}) {
-    var narration = new Dialog(markup, scope, '', '');
+  Speech narrate(String markup, {Scope scope}) {
+    var narration = new Speech(markup, scope, '', '');
     narration._scope.onEnter.listen((_) => _dialogs.add(narration));
     return narration;
   }
 
   // TODO: figure out default
-  Dialog add(String markup,
+  Speech add(String markup,
       {String speaker: '', String target: '', Scope scope}) {
-    var dialog = new Dialog(markup, scope, speaker, target);
+    var dialog = new Speech(markup, scope, speaker, target);
     dialog._scope.onEnter.listen((_) => _dialogs.add(dialog));
     return dialog;
   }
 
   Voice voice({String name: ''}) => new Voice(name, this);
 
-  Stream<Dialog> get _onAddDialog => _dialogs.stream;
+  Stream<Speech> get _onAddDialog => _dialogs.stream;
 }
 
 class Voice {
   String name;
 
-  final Dialogs _dialogs;
+  final Dialog _dialogs;
 
   Voice(this.name, this._dialogs);
 
-  Dialog say(String markup, {String target, Scope scope}) =>
+  Speech say(String markup, {String target, Scope scope}) =>
       _dialogs.add(markup, speaker: name, target: target, scope: scope);
 }
 
-class Dialog {
+class Speech {
   final String _markup;
   final Scope _scope;
   final String _speaker;
@@ -45,7 +45,7 @@ class Dialog {
 
   final _replies = new StreamController<Reply>.broadcast(sync: true);
 
-  Dialog(this._markup, this._scope, this._speaker, this._target);
+  Speech(this._markup, this._scope, this._speaker, this._target);
 
   Reply addReply(String markup, {Scope scope: const Always()}) {
     var reply = new Reply(this, markup, scope);
@@ -53,12 +53,12 @@ class Dialog {
     return reply;
   }
 
-  Stream<Dialog> get _onRemove => _scope.onExit.map((_) => this);
+  Stream<Speech> get _onRemove => _scope.onExit.map((_) => this);
   Stream<Reply> get _onReplyAvailable => _replies.stream;
 }
 
 class Reply {
-  final Dialog dialog;
+  final Speech dialog;
   final String _markup;
   final _uses = new StreamController.broadcast(sync: true);
 
@@ -94,22 +94,22 @@ class Reply {
 }
 
 class DialogUi {
-  final Dialogs _dialogs;
+  final Dialog _dialogs;
   final Sink<Interaction> _interactions;
 
   DialogUi(this._dialogs, this._interactions);
 
-  Stream<UiDialog> get onAdd =>
-      _dialogs._onAddDialog.map((d) => new UiDialog(d, _interactions));
+  Stream<UiSpeech> get onAdd =>
+      _dialogs._onAddDialog.map((d) => new UiSpeech(d, _interactions));
 }
 
-class UiDialog {
-  final Dialog _dialog;
+class UiSpeech {
+  final Speech _dialog;
   final Sink<Interaction> _interactions;
 
-  UiDialog(this._dialog, this._interactions);
+  UiSpeech(this._dialog, this._interactions);
 
-  Stream<UiDialog> get onRemove => _dialog._onRemove.map((_) => this);
+  Stream<UiSpeech> get onRemove => _dialog._onRemove.map((_) => this);
   Stream<UiReply> get onReplyAvailable =>
       _dialog._onReplyAvailable.map((r) => new UiReply(r, _interactions));
 }
