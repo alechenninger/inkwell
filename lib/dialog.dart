@@ -18,6 +18,9 @@ class Dialog {
       {String speaker: '', String target: '', Scope scope}) {
     var speech = new Speech(markup, scope, speaker, target);
     speech._scope.onEnter.listen((_) => _dialog.add(speech));
+    if (scope.isEntered) {
+      _dialog.add(speech);
+    }
     return speech;
   }
 

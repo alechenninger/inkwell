@@ -12,7 +12,7 @@ import 'dart:html';
 // Instantiate modules top level for easy accessibility from script methods
 final options = new Options();
 final scenes = new Scenes();
-final dialogs = new Dialogs();
+final dialog = new Dialog();
 
 main() {
   // TODO: How will users know how to do this setup for all modules they want
@@ -32,9 +32,10 @@ main() {
 
   // Create user interface objects using interactions manager.
   var optionsUi = new OptionsUi(options, interactionsMngr);
+  var dialogUi = new DialogUi(dialog, interactionsMngr);
 
   // Present the user interface(s) with HTML
-  new SimpleHtmlUi(querySelector("#example"), optionsUi);
+  new SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
 
   // Finally, start the story using the interaction manager so saved
   // interactions are replayed.
@@ -48,7 +49,7 @@ example() async {
   // Another strategy for "first" entrance of this scene would be a custom
   // scope that we manage via scope.exit()
   // This would be equivalent to the old dialog.clear()
-  dialogs.narrate("A dragon stands before you!", scope: dragonStandoff.first);
+  dialog.narrate("A dragon stands before you!", scope: dragonStandoff/*.first*/);
 
   // Availability limited to current scene may make sense as default
   var attack = options.newOption("Attack it!", available: dragonStandoff);
@@ -94,14 +95,14 @@ example() async {
       print("Your hot sword melts through its holster and tumbles behind you.");
     }
 
-    var thisWay = dialogs.add("This way!", scope: runningAway);
+    var thisWay = dialog.add("This way!", scope: runningAway);
     var follow = thisWay.addReply("Follow the mysterious voice");
     var hide = thisWay.addReply("Hide");
 
     follow.onUse.listen((_) async {
       var following = await scenes.oneTime().enter();
-      var player = dialogs.voice(name: "Bob");
-      var mysteriousVoice = dialogs.voice();
+      var player = dialog.voice(name: "Bob");
+      var mysteriousVoice = dialog.voice();
 
       // Default scope of current scene may be nice
       player.say("What are you doing here?", scope: following);
@@ -116,9 +117,7 @@ example() async {
         mysteriousVoice.say("Good luck with that.", scope: following);
       });
 
-      sayNothing.onUse.listen((_) {
-
-      });
+      sayNothing.onUse.listen((_) {});
     });
   });
 }
