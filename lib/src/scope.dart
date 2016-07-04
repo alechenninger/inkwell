@@ -140,7 +140,6 @@ class SettableScope<T> extends Scope<T> {
   }
 
   SettableScope.entered() : this._(true);
-
   SettableScope.notEntered() : this._(false);
 
   /// Immediately changes scope state and calls onEnter listeners.
@@ -189,10 +188,25 @@ class SettableScope<T> extends Scope<T> {
   Stream<T> get onExit => _onExit;
 
   // TODO onClose ?
+
+  Scope<T> transform(
+      {void onEnter(T value, SettableScope<T> scope),
+      void onExit(T value, SettableScope<T> scope)}) {
+    return isEntered
+        ? new TransformScope.entered(this, onEnter: onEnter, onExit: onExit)
+        : new TransformScope.notEntered(this, onEnter: onEnter, onExit: onExit);
+  }
 }
 
+// TODO type parameters
 class ForwardingScope extends Scope {
   // TODO: API for closing scope
+  // Closing scope cant come from delegate because we can change the delegate
+  // Would have to be API on forwarding scope itself to close this scope
+  // "I'm done and won't delegate anything else with this scope"
+  // Alternatively we could flag delegate with whether to use the delegate's
+  // close or not... in either case delegating again after close must be an
+  // error.
   final StreamController _enters = new StreamController.broadcast(sync: true);
   final StreamController _exits = new StreamController.broadcast(sync: true);
 
@@ -276,6 +290,34 @@ class ListeningScope<T> extends Scope<T> {
   Stream<T> get onEnter => _settable.onEnter;
 
   Stream<T> get onExit => _settable.onExit;
+}
+
+/// A scope that is a function of another scope.
+class TransformScope<T> extends Scope<T> {
+  final SettableScope<T> _backing;
+
+  TransformScope._(
+      this._backing,
+      Scope<T> original,
+      void onEnter(T value, SettableScope<T> scope),
+      void onExit(T value, SettableScope<T> scope)) {
+    if (onEnter != null) original.onEnter.listen((t) => onEnter(t, _backing));
+    if (onExit != null) original.onExit.listen((t) => onExit(t, _backing));
+  }
+
+  TransformScope.entered(Scope<T> original,
+      {void onEnter(T value, SettableScope<T> scope),
+      void onExit(T value, SettableScope<T> scope)})
+      : this._(new SettableScope.entered(), original, onEnter, onExit);
+
+  TransformScope.notEntered(Scope<T> original,
+      {void onEnter(T value, SettableScope<T> scope),
+      void onExit(T value, SettableScope<T> scope)})
+      : this._(new SettableScope.notEntered(), original, onEnter, onExit);
+
+  bool get isEntered => _backing.isEntered;
+  Stream<T> get onEnter => _backing.onEnter;
+  Stream<T> get onExit => _backing.onExit;
 }
 
 typedef T GetNewValue<T>(T currentValue);
