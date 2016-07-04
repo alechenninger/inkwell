@@ -14,8 +14,7 @@ class Dialog {
   }
 
   // TODO: figure out default
-  Speech add(String markup,
-      {String speaker: '', String target: '', Scope scope}) {
+  Speech add(String markup, {String speaker, String target, Scope scope}) {
     var speech = new Speech(markup, scope, speaker, target);
     speech._scope.onEnter.listen((_) => _dialog.add(speech));
     if (scope.isEntered) {
@@ -24,7 +23,7 @@ class Dialog {
     return speech;
   }
 
-  Voice voice({String name: ''}) => new Voice(name, this);
+  Voice voice({String name}) => new Voice(name, this);
 
   Stream<Speech> get _onAddSpeech => _dialog.stream;
 }
@@ -48,10 +47,19 @@ class Speech {
 
   final _replies = new StreamController<Reply>.broadcast(sync: true);
 
+  /// Lazily initialized scope which all replies share, making them mutually
+  /// exclusive by default.
+  // TODO: Support non mutually exclusive replies?
+  _CountScope _replyUses;
+
   Speech(this._markup, this._scope, this._speaker, this._target);
 
   Reply addReply(String markup, {Scope scope: const Always()}) {
-    var reply = new Reply(this, markup, scope);
+    if (_replyUses == null) {
+      // TODO parameterize max?
+      _replyUses = new _CountScope(1);
+    }
+    var reply = new Reply(this, markup, _replyUses, scope);
     reply.availability.onEnter.listen((_) => _replies.add(reply));
     return reply;
   }
@@ -65,7 +73,7 @@ class Reply {
   final String _markup;
   final _uses = new StreamController.broadcast(sync: true);
 
-  final _hasUses = new SettableScope.entered();
+  final _CountScope _hasUses;
   ScopeAsValue _available;
 
   Scope<StateChangeEvent<bool>> get availability => _available.asScope;
@@ -76,7 +84,7 @@ class Reply {
 
   Stream get onUse => _uses.stream;
 
-  Reply(this.speech, this._markup, Scope scope) {
+  Reply(this.speech, this._markup, this._hasUses, Scope scope) {
     _available = new ScopeAsValue(owner: this)
       ..within(new AndScope(_hasUses, scope));
   }
@@ -86,7 +94,7 @@ class Reply {
       return new Future.error(new ReplyNotAvailableException(this));
     }
 
-    _hasUses.exit(null);
+    _hasUses.increment();
 
     return new Future(() {
       var event = new UseReplyEvent(this);
@@ -104,6 +112,17 @@ class DialogUi {
 
   Stream<UiSpeech> get onAdd =>
       _dialog._onAddSpeech.map((d) => new UiSpeech(d, _interactions));
+}
+
+class DialogInteractor extends Interactor {
+  static const _moduleName = "Dialog";
+
+  final moduleName = _moduleName;
+
+  @override
+  void run(String action, Map<String, dynamic> parameters) {
+    // TODO: implement run
+  }
 }
 
 class UiSpeech {
@@ -129,7 +148,7 @@ class UiReply {
 
   String get markup => _reply._markup;
 
-  Stream<UiReply> get onRemove => throw "not implemented";
+  Stream<UiReply> get onRemove => _reply.availability.onExit.map((_) => this);
 
   void use() {
     _interactions.add(new UseReplyAction(_reply));
@@ -137,20 +156,15 @@ class UiReply {
 }
 
 class UseReplyAction implements Interaction {
+  static const _name = 'UseReply';
+
   final Reply _reply;
 
   UseReplyAction(this._reply);
 
-  // TODO: implement moduleName
-  @override
-  String get moduleName => null;
+  final moduleName = DialogInteractor._moduleName;
+  final name = _name;
 
-  // TODO: implement name
-  @override
-  String get name => null;
-
-  // TODO: implement parameters
-  @override
   Map<String, dynamic> get parameters => {
         'speech': {'markup': _reply.speech._markup},
         'markup': _reply._markup
@@ -167,4 +181,37 @@ class UseReplyEvent {
   final Reply reply;
 
   UseReplyEvent(this.reply);
+}
+
+// A simple scope that is entered until incremented a maximum number of times.
+class _CountScope extends Scope<int> {
+  final int max;
+
+  var _current = 0;
+  int get current => _current;
+
+  final SettableScope<int> _scope;
+
+  bool get isEntered => _scope.isEntered;
+  Stream<int> get onEnter => _scope.onEnter;
+  Stream<int> get onExit => _scope.onExit;
+
+  _CountScope(int max)
+      : this.max = max,
+        _scope = max > 0
+            ? new SettableScope<int>.entered()
+            : new SettableScope<int>.notEntered();
+
+  void increment() {
+    if (_current == max) {
+      throw new StateError("Max of $max already met, cannot increment.");
+    }
+
+    _current++;
+
+    if (_current == max) {
+      _scope.exit(_current);
+      _scope.close();
+    }
+  }
 }
