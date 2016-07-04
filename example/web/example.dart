@@ -27,8 +27,8 @@ main() {
   var persistence = new NoPersistence();
 
   // Create interactions manager using modules, persistence, and time tracking.
-  var interactionsMngr = new InteractionManager(
-      clock, persistence, [new OptionsInteractor(options)]);
+  var interactionsMngr = new InteractionManager(clock, persistence,
+      [new OptionsInteractor(options), new DialogInteractor(dialog)]);
 
   // Create user interface objects using interactions manager.
   var optionsUi = new OptionsUi(options, interactionsMngr);
@@ -49,7 +49,8 @@ example() async {
   // Another strategy for "first" entrance of this scene would be a custom
   // scope that we manage via scope.exit()
   // This would be equivalent to the old dialog.clear()
-  dialog.narrate("A dragon stands before you!", scope: dragonStandoff/*.first*/);
+  dialog.narrate("A dragon stands before you!",
+      scope: dragonStandoff /*.first*/);
 
   // Availability limited to current scene may make sense as default
   var attack = options.newOption("Attack it!", available: dragonStandoff);

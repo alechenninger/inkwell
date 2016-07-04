@@ -84,7 +84,8 @@ class InteractionManager implements Sink<Interaction> {
 
     if (interactor == null) {
       throw new StateError("No interactor configured for module: "
-          "${interaction.moduleName}");
+          "${interaction.moduleName}. Include one when constructing an"
+          "InteractionManager for this module.");
     }
 
     interactor.run(interaction.name, interaction.parameters);

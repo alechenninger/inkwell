@@ -4,28 +4,36 @@
 import 'package:august/august.dart';
 
 class Dialog {
-  final _dialog = new StreamController<Speech>.broadcast(sync: true);
+  final _addSpeechCtrl = new StreamController<Speech>.broadcast(sync: true);
+  final _speech = <Speech>[];
 
   // TODO: figure out defaults
   Speech narrate(String markup, {Scope scope}) {
     var narration = new Speech(markup, scope, '', '');
-    narration._scope.onEnter.listen((_) => _dialog.add(narration));
+    narration._scope.onEnter.listen((_) => _addSpeechCtrl.add(narration));
     return narration;
   }
 
   // TODO: figure out default
   Speech add(String markup, {String speaker, String target, Scope scope}) {
     var speech = new Speech(markup, scope, speaker, target);
-    speech._scope.onEnter.listen((_) => _dialog.add(speech));
+    speech._scope.onEnter.listen((_) {
+      _speech.add(speech);
+      _addSpeechCtrl.add(speech);
+    });
+    speech._scope.onExit.listen((_) {
+      _speech.remove(speech);
+    });
     if (scope.isEntered) {
-      _dialog.add(speech);
+      _speech.add(speech);
+      _addSpeechCtrl.add(speech);
     }
     return speech;
   }
 
   Voice voice({String name}) => new Voice(name, this);
 
-  Stream<Speech> get _onAddSpeech => _dialog.stream;
+  Stream<Speech> get _onAddSpeech => _addSpeechCtrl.stream;
 }
 
 class Voice {
@@ -45,7 +53,8 @@ class Speech {
   final String _speaker;
   final String _target;
 
-  final _replies = new StreamController<Reply>.broadcast(sync: true);
+  final _replies = <Reply>[];
+  final _addReplyCtrl = new StreamController<Reply>.broadcast(sync: true);
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -60,29 +69,37 @@ class Speech {
       _replyUses = new _CountScope(1);
     }
     var reply = new Reply(this, markup, _replyUses, scope);
-    reply.availability.onEnter.listen((_) => _replies.add(reply));
+    reply.availability.onEnter.listen((_) {
+      _replies.add(reply);
+      _addReplyCtrl.add(reply);
+    });
+    reply.availability.onExit.listen((_) {
+      _replies.remove(reply);
+    });
+    if (reply.isAvailable) {
+      _replies.add(reply);
+      _addReplyCtrl.add(reply);
+    }
     return reply;
   }
 
   Stream<Speech> get _onRemove => _scope.onExit.map((_) => this);
-  Stream<Reply> get _onReplyAvailable => _replies.stream;
+  Stream<Reply> get _onReplyAvailable => _addReplyCtrl.stream;
 }
 
 class Reply {
   final Speech speech;
+
   final String _markup;
-  final _uses = new StreamController.broadcast(sync: true);
-
   final _CountScope _hasUses;
-  ScopeAsValue _available;
 
-  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
-
-  bool get isAvailable => _available.observed.value;
-
-  bool get willBeAvailable => _available.observed.nextValue;
-
+  final _uses = new StreamController.broadcast(sync: true);
   Stream get onUse => _uses.stream;
+
+  ScopeAsValue _available;
+  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+  bool get isAvailable => _available.observed.value;
+  bool get willBeAvailable => _available.observed.nextValue;
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope) {
     _available = new ScopeAsValue(owner: this)
@@ -118,10 +135,18 @@ class DialogInteractor extends Interactor {
   static const _moduleName = "Dialog";
 
   final moduleName = _moduleName;
+  final Dialog _dialog;
 
-  @override
+  DialogInteractor(this._dialog);
+
   void run(String action, Map<String, dynamic> parameters) {
-    // TODO: implement run
+    switch (action) {
+      case UseReplyAction._name:
+        UseReplyAction.run(parameters, _dialog);
+        break;
+      default:
+        throw new UnsupportedError("Unsupported action $action");
+    }
   }
 }
 
@@ -162,10 +187,41 @@ class UseReplyAction implements Interaction {
 
   UseReplyAction(this._reply);
 
+  static void run(Map<String, dynamic> parameters, Dialog dialog) {
+    var matchingSpeech = dialog._speech
+        .where((s) => s._markup == parameters['speech']['markup']);
+
+    if (matchingSpeech.length == 0) {
+      throw new StateError("No matching available speech found for reply: "
+          "$parameters");
+    }
+
+    if (matchingSpeech.length > 1) {
+      throw new StateError("Multiple matching available speech found for "
+          "reply: $parameters");
+    }
+
+    var matchingReplies = matchingSpeech.first._replies
+        .where((r) => r._markup == parameters['markup']);
+
+    if (matchingReplies.length == 0) {
+      throw new StateError("No matching available replies found for reply: "
+          "$parameters");
+    }
+
+    if (matchingReplies.length > 1) {
+      throw new StateError("Multiple matching available replies found for "
+          "reply: $parameters");
+    }
+
+    matchingReplies.first.use();
+  }
+
   final moduleName = DialogInteractor._moduleName;
   final name = _name;
 
   Map<String, dynamic> get parameters => {
+        // TODO maybe represent objects by hash instead
         'speech': {'markup': _reply.speech._markup},
         'markup': _reply._markup
       };

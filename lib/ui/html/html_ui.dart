@@ -70,7 +70,7 @@ class SimpleHtmlUi {
 
         // TODO consider alternate behavior vs used and removed vs just removed
         // vs unavailable due to exclusive reply use
-        // TODO NYI reply.onRemove.listen((_) => replyElement.remove());
+        reply.onRemove.listen((_) => replyElement.remove());
       });
     });
 
