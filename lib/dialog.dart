@@ -8,14 +8,13 @@ class Dialog {
   final _speech = <Speech>[];
 
   // TODO: figure out defaults
-  Speech narrate(String markup, {Scope scope}) {
-    var narration = new Speech(markup, scope, '', '');
-    narration._scope.onEnter.listen((_) => _addSpeechCtrl.add(narration));
-    return narration;
+  Speech narrate(String markup, {Scope scope: always}) {
+    return add(markup, scope: scope);
   }
 
   // TODO: figure out default
-  Speech add(String markup, {String speaker, String target, Scope scope}) {
+  Speech add(String markup,
+      {String speaker, String target, Scope scope: always}) {
     var speech = new Speech(markup, scope, speaker, target);
     speech._scope.onEnter.listen((_) {
       _speech.add(speech);
@@ -61,6 +60,8 @@ class Speech {
   // TODO: Support non mutually exclusive replies?
   _CountScope _replyUses;
 
+  // TODO: Support target / speaker of types other than String
+  // Imagine thumbnails, for example
   Speech(this._markup, this._scope, this._speaker, this._target);
 
   Reply addReply(String markup, {Scope scope: const Always()}) {

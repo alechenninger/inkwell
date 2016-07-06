@@ -59,7 +59,7 @@ example() async {
   attack.onUse.listen((o) async {
     var attacking = await scenes.oneTime().enter();
 
-    print("The dragon readies its flame...");
+    dialog.narrate("The dragon readies its flame...", scope: attacking);
 
     var deflectWithSword = options
         .newOption("Deflect the fire with your sword.", available: attacking);
@@ -69,19 +69,22 @@ example() async {
         options.newOption("Dash toward the dragon.", available: attacking);
 
     deflectWithSword.onUse.listen((_) {
-      print("You survive, but your sword is burnt.");
+      dialog.narrate("You survive, but your sword is burnt.",
+          scope: attacking);
       sword.isBurnt.set((_) => true);
       dragonStandoff.enter();
     });
 
-    deflectWithShield.onUse.listen((_) {
-      print("Your shield sets aflame and you suffer terrible burns.");
-      scenes.oneTime().enter();
+    deflectWithShield.onUse.listen((_) async {
+      var deflected = await scenes.oneTime().enter();
+      dialog.narrate("Your shield sets aflame and you suffer terrible burns.",
+          scope: deflected);
     });
 
-    dash.onUse.listen((_) {
-      print("You make it underneath the dragon, unharmed.");
-      scenes.oneTime().enter();
+    dash.onUse.listen((_) async {
+      var dashed = await scenes.oneTime().enter();
+      dialog.narrate("You make it underneath the dragon, unharmed.",
+          scope: dashed);
     });
   });
 
@@ -90,10 +93,11 @@ example() async {
 
     var runningAway = await scenes.oneTime().enter();
 
-    print("Running away.");
+    dialog.narrate("Running away.", scope: runningAway);
 
     if (sword.isBurnt.value) {
-      print("Your hot sword melts through its holster and tumbles behind you.");
+      dialog.narrate("Your hot sword melts through its holster and tumbles "
+          "behind you.", scope: runningAway);
     }
 
     var thisWay = dialog.add("This way!", scope: runningAway);
