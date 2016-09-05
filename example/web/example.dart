@@ -34,6 +34,7 @@ main() {
   var optionsUi = new OptionsUi(options, interactionsMngr);
   var dialogUi = new DialogUi(dialog, interactionsMngr);
 
+
   // Present the user interface(s) with HTML
   new SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
 
@@ -69,8 +70,7 @@ example() async {
         options.newOption("Dash toward the dragon.", available: attacking);
 
     deflectWithSword.onUse.listen((_) {
-      dialog.narrate("You survive, but your sword is burnt.",
-          scope: attacking);
+      dialog.narrate("You survive, but your sword is burnt.", scope: attacking);
       sword.isBurnt.set((_) => true);
       dragonStandoff.enter();
     });
@@ -96,8 +96,10 @@ example() async {
     dialog.narrate("Running away.", scope: runningAway);
 
     if (sword.isBurnt.value) {
-      dialog.narrate("Your hot sword melts through its holster and tumbles "
-          "behind you.", scope: runningAway);
+      dialog.narrate(
+          "Your hot sword melts through its holster and tumbles "
+          "behind you.",
+          scope: runningAway);
     }
 
     var thisWay = dialog.add("This way!", scope: runningAway);
@@ -106,6 +108,17 @@ example() async {
 
     follow.onUse.listen((_) async {
       var following = await scenes.oneTime().enter();
+      /*
+      one scheme:
+      have a default scope for all dialog as current scene.
+      means there is a scope, CurrentScene.
+
+      are we happy with how scenes work? they are essentially just settable
+      scopes. so, CurrentScope?
+
+      scenes are just arbitrary boundaries. dialog has scope, we can use a
+      common scene to control these in unison.
+       */
       var player = dialog.voice(name: "Bob");
       var mysteriousVoice = dialog.voice();
 

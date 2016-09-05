@@ -46,6 +46,13 @@ abstract class Scope<T> {
   /// Streams should emit a done event when a scope is no longer able to be
   /// exited.
   Stream<T> get onExit;
+
+  // TODO: Maybe add a convenience API for listen to onEnter + check isEntered
+//  void around({onEnter(Scope<T> scope), onExit(Scope<T> scope)}) {
+//    if (isEntered) onEnter(this);
+//    this.onEnter.listen((_) { onEnter(this); });
+//    this.onExit.listen((_) { onExit(this); });
+//  }
 }
 
 const Scope always = const Always();

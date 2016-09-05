@@ -8,7 +8,7 @@ import 'package:august/august.dart';
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;
-  final List<SavedInteraction> _savedInteractions = [];
+  final _savedInteractions = <SavedInteraction>[];
 
   HtmlPersistence(this._scriptHandle, [Storage _storage]) {
     var storage = _storage == null ? window.localStorage : _storage;
@@ -32,5 +32,5 @@ class HtmlPersistence implements Persistence {
   }
 
   List<SavedInteraction> get savedInteractions =>
-      new List.from(_savedInteractions);
+      new List<SavedInteraction>.from(_savedInteractions);
 }

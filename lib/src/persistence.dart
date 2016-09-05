@@ -1,6 +1,9 @@
 part of august;
 
 abstract class Persistence {
+  // TODO maybe should be getSavedInteractions(String scriptName, int version)
+  // Today persistence must be instantiated to know how to read persisted events
+  // for a particular script
   List<SavedInteraction> get savedInteractions;
   void saveInteraction(Duration offset, String moduleName,
       String interactionName, Map<String, dynamic> parameters);

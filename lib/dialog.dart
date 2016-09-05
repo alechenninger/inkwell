@@ -1,4 +1,5 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
+
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'package:august/august.dart';
@@ -6,27 +7,35 @@ import 'package:august/august.dart';
 class Dialog {
   final _addSpeechCtrl = new StreamController<Speech>.broadcast(sync: true);
   final _speech = <Speech>[];
+  final Scope _default;
+
+  Dialog({Scope defaultScope: always}) : this._default = defaultScope;
 
   // TODO: figure out defaults
-  Speech narrate(String markup, {Scope scope: always}) {
-    return add(markup, scope: scope);
+  Speech narrate(String markup, {Scope scope}) {
+    return add(markup, scope: scope ?? _default);
   }
 
   // TODO: figure out default
-  Speech add(String markup,
-      {String speaker, String target, Scope scope: always}) {
+  Speech add(String markup, {String speaker, String target, Scope scope}) {
+    scope = scope ?? _default;
+
     var speech = new Speech(markup, scope, speaker, target);
-    speech._scope.onEnter.listen((_) {
+
+    scope.onEnter.listen((_) {
       _speech.add(speech);
       _addSpeechCtrl.add(speech);
     });
-    speech._scope.onExit.listen((_) {
+
+    scope.onExit.listen((_) {
       _speech.remove(speech);
     });
+
     if (scope.isEntered) {
       _speech.add(speech);
       _addSpeechCtrl.add(speech);
     }
+
     return speech;
   }
 
@@ -69,22 +78,28 @@ class Speech {
       // TODO parameterize max?
       _replyUses = new _CountScope(1);
     }
+
     var reply = new Reply(this, markup, _replyUses, scope);
-    reply.availability.onEnter.listen((_) {
-      _replies.add(reply);
-      _addReplyCtrl.add(reply);
-    });
-    reply.availability.onExit.listen((_) {
-      _replies.remove(reply);
-    });
+
+    reply.availability
+      ..onEnter.listen((_) {
+        _replies.add(reply);
+        _addReplyCtrl.add(reply);
+      })
+      ..onExit.listen((_) {
+        _replies.remove(reply);
+      });
+
     if (reply.isAvailable) {
       _replies.add(reply);
       _addReplyCtrl.add(reply);
     }
+
     return reply;
   }
 
   Stream<Speech> get _onRemove => _scope.onExit.map((_) => this);
+
   Stream<Reply> get _onReplyAvailable => _addReplyCtrl.stream;
 }
 
@@ -95,11 +110,15 @@ class Reply {
   final _CountScope _hasUses;
 
   final _uses = new StreamController.broadcast(sync: true);
+
   Stream get onUse => _uses.stream;
 
   ScopeAsValue _available;
+
   Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+
   bool get isAvailable => _available.observed.value;
+
   bool get willBeAvailable => _available.observed.nextValue;
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope) {
@@ -158,10 +177,13 @@ class UiSpeech {
   UiSpeech(this._speech, this._interactions);
 
   String get markup => _speech._markup;
+
   String get speaker => _speech._speaker;
+
   String get target => _speech._target;
 
   Stream<UiSpeech> get onRemove => _speech._onRemove.map((_) => this);
+
   Stream<UiReply> get onReplyAvailable =>
       _speech._onReplyAvailable.map((r) => new UiReply(r, _interactions));
 }
@@ -241,16 +263,21 @@ class UseReplyEvent {
 }
 
 // A simple scope that is entered until incremented a maximum number of times.
+// TODO: consider generalizing this a bit to be able to produce scopes off of
+// various counts which all share the same counter
 class _CountScope extends Scope<int> {
   final int max;
 
   var _current = 0;
+
   int get current => _current;
 
   final SettableScope<int> _scope;
 
   bool get isEntered => _scope.isEntered;
+
   Stream<int> get onEnter => _scope.onEnter;
+
   Stream<int> get onExit => _scope.onExit;
 
   _CountScope(int max)
