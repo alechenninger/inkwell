@@ -5,3 +5,8 @@
 .pub/
 build/
 packages
+pubspec.lock
+notes.md
+mockup.md
+.atom/
+*.swp

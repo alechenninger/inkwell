@@ -1,56 +1,71 @@
-part of august.core;
+part of august;
 
 abstract class Persistence {
-  List<InterfaceEvent> get savedEvents;
-  void saveEvent(InterfaceEvent event);
+  // TODO maybe should be getSavedInteractions(String scriptName, int version)
+  // Today persistence must be instantiated to know how to read persisted events
+  // for a particular script
+  List<SavedInteraction> get savedInteractions;
+  void saveInteraction(Duration offset, String moduleName,
+      String interactionName, Map<String, dynamic> parameters);
 }
 
-class NoopPersistance implements Persistence {
-  final List savedEvents = const [];
-  void saveEvent(_) {}
+class NoPersistence implements Persistence {
+  final savedInteractions = const [];
+  void saveInteraction(Duration offset, String moduleName, String name,
+      Map<String, dynamic> parameters) {}
 
-  const NoopPersistance();
+  const NoPersistence();
 }
 
-class InterfaceEvent {
+class SavedInteraction implements Interaction {
   final Duration offset;
   final String moduleName;
-  final String action;
-  final Map<String, dynamic> args;
+  final String name;
+  final Map<String, dynamic> parameters;
 
-  InterfaceEvent(Type moduleType, this.action, this.args, this.offset)
-      : this.moduleName = '$moduleType';
+  SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
 
-  InterfaceEvent.fromJson(Map json)
+  SavedInteraction.fromJson(Map json)
       : moduleName = json['moduleName'],
-        action = json['action'],
-        args = json['args'],
+        name = json['name'],
+        parameters = json['parameters'] as Map<String, dynamic>,
         offset = new Duration(milliseconds: json['offsetMillis']);
 
   Map toJson() => {
         'moduleName': moduleName,
-        'action': action,
-        'args': args,
+        'name': name,
+        'parameters': parameters,
         'offsetMillis': offset.inMilliseconds
       };
 }
 
 // Adapted from quiver's FakeAsync
-class _FastForwarder {
+class FastForwarder {
   Zone _zone;
   Duration _elapsed = Duration.ZERO;
   Duration _elapsingTo;
   Queue<Function> _microtasks = new Queue();
   Set<_FastForwarderTimer> _timers = new Set<_FastForwarderTimer>();
-  bool _useParentZone = false;
+  bool _useParentZone = true;
   DateTime _switchedToParent;
   final Clock _realClock;
 
-  _FastForwarder(this._realClock);
+  FastForwarder(this._realClock) {
+    _switchedToParent = _realClock.now();
+  }
 
-  Duration getCurrentPlayTime() => _useParentZone
+  Duration get currentOffset => _useParentZone
       ? _elapsed + _realClock.now().difference(_switchedToParent)
       : _elapsed;
+
+  void runFastForwardable(callback(FastForwarder self)) {
+    _useParentZone = false;
+    if (_zone == null) {
+      _zone = Zone.current.fork(specification: _zoneSpec);
+    }
+    _zone.run(() => callback(this));
+    switchToParentZone();
+  }
 
   void fastForward(Duration offset) {
     if (_useParentZone) {
@@ -69,11 +84,30 @@ class _FastForwarder {
     _elapsingTo = null;
   }
 
-  run(callback(_FastForwarder self)) {
-    if (_zone == null) {
-      _zone = Zone.current.fork(specification: _zoneSpec);
+  void switchToParentZone() {
+    _useParentZone = true;
+    _switchedToParent = _realClock.now();
+
+    while (_microtasks.isNotEmpty) {
+      _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
     }
-    return _zone.run(() => callback(this));
+
+    while (_timers.isNotEmpty) {
+      var t = _timers.first;
+      if (t.isPeriodic) {
+        _zone.parent.createTimer(t.nextCall - _elapsed, () {
+          var trackingTimer = new _TrackingTimer();
+          t.callback(trackingTimer);
+          if (trackingTimer.isActive) {
+            _zone.parent
+                .createPeriodicTimer(t.duration, t.callback as TimerCallback);
+          }
+        });
+      } else {
+        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback as Callback);
+      }
+      _timers.remove(t);
+    }
   }
 
   ZoneSpecification get _zoneSpec => new ZoneSpecification(
@@ -82,7 +116,8 @@ class _FastForwarder {
       createPeriodicTimer: (_, parent, zone, duration, callback) =>
           _createTimer(parent, zone, duration, callback, true),
       scheduleMicrotask: (_, parent, zone, microtask) => _useParentZone
-          ? parent.scheduleMicrotask(microtask)
+          // TODO: not sure if passing right zone to scheduleMicrotask here
+          ? parent.scheduleMicrotask(zone, microtask)
           : _microtasks.add(microtask));
 
   _runTimersUntil(Duration elapsingTo) {
@@ -104,8 +139,9 @@ class _FastForwarder {
       Function callback, bool isPeriodic) {
     if (_useParentZone) {
       return isPeriodic
-          ? parent.createPeriodicTimer(zone, duration, callback)
-          : parent.createTimer(zone, duration, callback);
+          ? parent.createPeriodicTimer(
+              zone, duration, callback as TimerCallback)
+          : parent.createTimer(zone, duration, callback as Callback);
     }
     var timer = new _FastForwarderTimer(duration, callback, isPeriodic, this);
     _timers.add(timer);
@@ -133,31 +169,6 @@ class _FastForwarder {
     }
   }
 
-  void switchToParentZone() {
-    _useParentZone = true;
-    _switchedToParent = _realClock.now();
-
-    while (_microtasks.isNotEmpty) {
-      _zone.parent.scheduleMicrotask(_microtasks.removeFirst());
-    }
-
-    while (_timers.isNotEmpty) {
-      var t = _timers.first;
-      if (t.isPeriodic) {
-        _zone.parent.createTimer(t.nextCall - _elapsed, () {
-          var trackingTimer = new _TrackingTimer();
-          t.callback(trackingTimer);
-          if (trackingTimer.isActive) {
-            _zone.parent.createPeriodicTimer(t.duration, t.callback);
-          }
-        });
-      } else {
-        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback);
-      }
-      _timers.remove(t);
-    }
-  }
-
   _hasTimer(timer) => _timers.contains(timer);
 
   _cancelTimer(timer) => _timers.remove(timer);
@@ -167,28 +178,28 @@ class _FastForwarderTimer implements Timer {
   final Duration duration;
   final Function callback;
   final bool isPeriodic;
-  final _FastForwarder time;
+  final FastForwarder ff;
   Duration nextCall;
 
-  // TODO: In browser JavaScript, timers can only run every 4 milliseconds once
-  // sufficiently nested:
-  //     http://www.w3.org/TR/html5/webappapis.html#timer-nesting-level
-  // Without some sort of delay this can lead to infinitely looping timers.
-  // What do the dart VM and dart2js timers do here?
   static const _minDuration = Duration.ZERO;
 
   _FastForwarderTimer(
-      Duration duration, this.callback, this.isPeriodic, this.time)
+      Duration duration, this.callback, this.isPeriodic, this.ff)
       : duration = duration < _minDuration ? _minDuration : duration {
-    nextCall = time._elapsed + duration;
+    nextCall = ff._elapsed + duration;
   }
 
-  bool get isActive => time._hasTimer(this);
+  bool get isActive => ff._hasTimer(this);
 
-  cancel() => time._cancelTimer(this);
+  cancel() => ff._cancelTimer(this);
 }
 
 class _TrackingTimer implements Timer {
   bool isActive = true;
-  cancel() => isActive = false;
+  cancel() {
+    isActive = false;
+  }
 }
+
+typedef void Callback();
+typedef void TimerCallback(Timer timer);

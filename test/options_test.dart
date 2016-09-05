@@ -1,156 +1,127 @@
+import 'package:august/august.dart';
+import 'package:august/options.dart';
 import 'package:test/test.dart';
-import 'package:august/core.dart';
-import 'package:august/modules.dart';
-import 'package:quiver/time.dart';
 
 main() {
-  Run run;
-  Options options;
+  group("An Option", () {
+    Option opt;
 
-  setUp(() {
-    var clock = new Clock();
-    var startTime = clock.now();
-
-    run = new Run(() => clock.now().difference(startTime));
-    options = new Options(run);
-  });
-
-  group("Added options", () {
-    test("are available.", () {
-      options.add("option 1");
-      options.add("option 2");
-      expect(options.available, equals(["option 1", "option 2"]));
+    setUp(() {
+      opt = new Option("");
     });
 
-    test("emit AddOptionEvents.", () async {
-      run.once((e) => e is AddOptionEvent).then((AddOptionEvent e) {
-        expect(e.option.text, equals("option 1"));
+    test("is eventually available", () {
+      expect(opt.availability.onEnter.first, completes);
+    });
+
+    group("when made available", () {
+      test("enters availability scope", () {
+        opt.available(const Always());
+        expect(opt.availability.onEnter.first, completes);
       });
 
-      options.add("option 1");
-    }, timeout: const Timeout(const Duration(seconds: 1)));
-  });
-
-  group("Adding same option", () {
-    test("does not make multiple available.", () {
-      options.add("option 1");
-      options.add("option 1");
-      expect(options.available, equals(["option 1"]));
-    });
-
-    test("does not emit multiple AddOptionEvents.", () async {
-      options.add("option 1");
-
-      await run.once((e) => e is AddOptionEvent);
-
-      options.add("option 1");
-
-      return run.once((e) => e is AddOptionEvent).then((e) {
-        fail("Got second AddOptionEvent: $e");
-      }).timeout(const Duration(milliseconds: 100), onTimeout: () {});
-    });
-
-    test("is determined by name (which defaults to text).", () async {
-      options.add("option 1");
-
-      await run.once((e) => e is AddOptionEvent);
-
-      options.add("alternate option 1", named: "option 1");
-
-      await run.once((e) => e is AddOptionEvent).then((e) {
-        fail("Got second AddOptionEvent: $e");
-      }).timeout(const Duration(milliseconds: 100), onTimeout: () {});
-
-      expect(options.available, equals(["option 1"]));
-    });
-  });
-
-  group("Exclusive options", () {
-    test("are no longer available when one in set is used.", () {
-      options.addExclusive(["one", "two", "three"]);
-      options.use("one");
-      expect(options.available, isEmpty);
-    });
-
-    test("do not linger after an exclusive option is used.", () {
-      options.addExclusive(["one", "two", "three"]);
-      options.use("one");
-
-      options.add("one");
-      options.add("two");
-
-      options.use("one");
-
-      expect(options.available, equals(["two"]));
-    });
-
-    test("are no longer available when one in multiple sets is used.", () {
-      options.addExclusive(["one", "two", "three"]);
-      options.addExclusive(["three", "four", "five"]);
-
-      options.use("three");
-
-      expect(options.available, isEmpty);
-    });
-
-    test("are still available if a used option is not in set.", () {
-      options.addExclusive(["1", "2", "3"]);
-      options.addExclusive(["4", "5"]);
-
-      options.use("1");
-
-      expect(options.available, equals(["4", "5"]));
-    });
-
-    test(
-        "emit RemoveOptionEvent when removed due to exclusive option in same "
-        "set being used.", () async {
-      options.addExclusive(["1", "2", "3"]);
-
-      options.use("1");
-
-      await run.once((e) => e is RemoveOptionEvent).then((e) {
-        expect(e.name, equals("2"));
+      test("is not immediately available", () {
+        opt.available(const Always());
+        expect(opt.isAvailable, isFalse);
       });
 
-      await run.once((e) => e is RemoveOptionEvent).then((e) {
-        expect(e.name, equals("3"));
+      test("is visibly available to availability listeners", () async {
+        opt.available(const Always());
+        await opt.availability.onEnter.first;
+        expect(opt.isAvailable, isTrue);
       });
 
-      return run
-          .once((e) => e is RemoveOptionEvent)
-          .timeout(const Duration(milliseconds: 500), onTimeout: () {});
-    });
+      test("emits availability same future as updating isAvailable", () async {
+        opt.available(const Always());
+        var order = [];
+        var future = new Future(
+            () => order.add("future isAvailable: ${opt.isAvailable}"));
+        opt.availability.onEnter.first.then(
+            (e) => order.add("availability isAvailable: ${opt.isAvailable}"));
 
-    test("emit UseOptionEvent when used.", () async {
-      options.addExclusive(["1", "2", "3"]);
+        await future;
 
-      options.use("1");
-
-      await run.once((e) => e is UseOptionEvent).then((e) {
-        expect(e.name, equals("1"));
+        expect(
+            order,
+            equals([
+              "availability isAvailable: true",
+              "future isAvailable: true"
+            ]));
       });
 
-      return run
-          .once((e) => e is UseOptionEvent)
-          .timeout(const Duration(milliseconds: 500), onTimeout: () {});
-    });
-  });
+      group("via scope onEnter listener", () {
+        SettableScope customScope;
 
-  group("Used options", () {
-    test("are no longer available.", () {
-      options.add("option 1");
-      options.use("option 1");
-      expect(options.available, isEmpty);
-    });
+        setUp(() {
+          customScope = new SettableScope.notEntered();
+          opt.available(customScope);
+        });
 
-    test("emit UseOptionEvent.", () async {
-      options.add("option 1");
-      options.use("option 1");
+        test("is not immediately available", () {
+          customScope.enter(null);
+          expect(opt.isAvailable, isFalse);
+        });
 
-      await run.once((e) => e is UseOptionEvent).then((e) {
-        expect(e.name, equals("option 1"));
+        test("emits availability in same future as updating isAvailable",
+            () async {
+          customScope.enter(null);
+          var order = [];
+          var future = new Future(
+              () => order.add("future isAvailable: ${opt.isAvailable}"));
+          opt.availability.onEnter.first.then(
+              (e) => order.add("availability isAvailable: ${opt.isAvailable}"));
+          await future;
+
+          expect(
+              order,
+              equals([
+                "availability isAvailable: true",
+                "future isAvailable: true"
+              ]));
+        });
       });
     });
-  });
+
+    group("when used", () {
+      setUp(() {
+        opt.available(const Always());
+        return opt.availability.onEnter.first;
+      });
+
+      test("is not immediately made unavailable", () {
+        opt.use().catchError((_) {});
+        expect(opt.isAvailable, isTrue);
+      });
+
+      test("cannot be used again", () async {
+        opt.use().catchError((_) {});
+        expect(opt.use(), throws);
+      });
+
+      test("completes with error if option is scheduled to be unavailable", () {
+        opt.available(const Never());
+        expect(opt.use(), throws);
+      });
+
+      test("completes with error if option is already unavailable", () async {
+        opt.available(const Never());
+        await opt.availability.onExit.first;
+        expect(opt.use(), throws);
+      });
+
+      test("fires use listeners", () {
+        var listener = opt.onUse.first;
+        opt.use();
+        expect(listener, completes);
+      });
+
+      test("does not fire use listeners if not available to be used", () async {
+        opt.available(const Never());
+        await opt.availability.onExit.first;
+        var listener = opt.onUse.first;
+        opt.use().catchError((e) {});
+        expect(listener.timeout(const Duration(milliseconds: 250)), throws);
+      });
+    });
+  }, timeout: const Timeout(const Duration(milliseconds: 500)));
 }

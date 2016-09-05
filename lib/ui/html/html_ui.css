@@ -1,3 +1,6 @@
+/* Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source */
+/* is governed by a BSD-style license that can be found in the LICENSE file. */
+
 @import url(https://fonts.googleapis.com/css?family=EB+Garamond);
 
 @media (min-width: 980px) {
@@ -12,14 +15,14 @@
     font-family: 'EB Garamond', serif;
 }
 
-.dialogs {
+.dialog {
     width: 26.5em;
     margin-left: auto;
     margin-right: auto;
     float: left;
 }
 
-.dialog {
+.speech {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
@@ -38,21 +41,21 @@
     text-align: center;
 }
 
-.dialog .speaker {
+.speech .speaker {
     float: left;
     margin-bottom: .5em;
 }
 
-.dialog .target {
+.speech .target {
     margin-bottom: .5em;
     float: right;
 }
 
-.dialog .what {
+.speech .what {
     clear: both;
 }
 
-.dialog .reply-available {
+.speech .reply-available {
     cursor: pointer;
     border-bottom: 1px solid lightgray;
 }
