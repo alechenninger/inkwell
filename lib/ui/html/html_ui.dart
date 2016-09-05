@@ -10,8 +10,8 @@ import 'package:august/dialog.dart';
 /// Quick hacked together UI
 class SimpleHtmlUi {
   final HtmlElement _container;
-  final HtmlElement _dialogContainer = new DivElement()..classes.add('dialog');
-  final HtmlElement _optionsContainer = new UListElement()
+  final _dialogContainer = new DivElement()..classes.add('dialog');
+  final _optionsContainer = new UListElement()
     ..classes.add('options');
 
   var _domQueue = new Queue<Function>();
@@ -50,27 +50,28 @@ class SimpleHtmlUi {
                   : "${speech.speaker} to...");
       }
 
-      speech.onRemove.listen((_) => speechElement.remove());
+      speech.onRemove.listen((_) => _beforeNextPaint(speechElement.remove));
 
       UListElement repliesElement = null;
 
       speech.onReplyAvailable.listen((reply) {
-        if (repliesElement == null) {
-          repliesElement = new UListElement()..classes.add('replies');
-          speechElement.children.add(repliesElement);
-        }
-
         var replyElement = new LIElement()
           ..children.add(new SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
             ..onClick.listen((_) => reply.use()));
 
-        repliesElement.children.add(replyElement);
+        if (repliesElement == null) {
+          repliesElement = new UListElement()..classes.add('replies');
+          repliesElement.children.add(replyElement);
+          _beforeNextPaint(() => speechElement.children.add(repliesElement));
+        } else {
+          _beforeNextPaint(() => repliesElement.children.add(replyElement));
+        }
 
         // TODO consider alternate behavior vs used and removed vs just removed
         // vs unavailable due to exclusive reply use
-        reply.onRemove.listen((_) => replyElement.remove());
+        reply.onRemove.listen((_) => _beforeNextPaint(replyElement.remove));
       });
     });
 
@@ -85,21 +86,19 @@ class SimpleHtmlUi {
         _optionsContainer.children.add(optionElement);
       });
 
-      o.onUnavailable.first.then((_) {
-        _beforeNextPaint(() {
-          optionElement.remove();
-        });
-      });
+      o.onUnavailable.first.then((_) => _beforeNextPaint(optionElement.remove));
     });
   }
 
   // TODO: not sure if this is really helping anything
   _beforeNextPaint(void domUpdate()) {
+    if (_domQueue.isEmpty) {
+      window.animationFrame.then((_) {
+        while (_domQueue.isNotEmpty) {
+          _domQueue.removeFirst()();
+        }
+      });
+    }
     _domQueue.add(domUpdate);
-    window.animationFrame.then((_) {
-      while (_domQueue.isNotEmpty) {
-        _domQueue.removeFirst()();
-      }
-    });
   }
 }
