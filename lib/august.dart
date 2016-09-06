@@ -16,7 +16,6 @@ part 'src/scope.dart';
 part 'src/observable.dart';
 
 class InteractionManager implements Sink<Interaction> {
-  final _ctrl = new StreamController<Interaction>(sync: true);
   final _interactorsByModule = <String, Interactor>{};
   final Persistence _persistence;
   final Clock _clock;
@@ -27,7 +26,7 @@ class InteractionManager implements Sink<Interaction> {
       this._clock, this._persistence, Iterable<Interactor> interactors) {
     _ff = new FastForwarder(_clock);
 
-    interactors.forEach((interactor) {
+    for (var interactor in interactors) {
       if (_interactorsByModule.containsKey(interactor.moduleName)) {
         throw new ArgumentError.value(
             interactors,
@@ -37,26 +36,21 @@ class InteractionManager implements Sink<Interaction> {
       }
 
       _interactorsByModule[interactor.moduleName] = interactor;
-    });
-
-    _ctrl.stream.listen((interaction) {
-      _persistInteraction(interaction);
-      _runInteraction(interaction);
-    });
+    };
   }
 
   Duration get currentOffset => _ff.currentOffset;
 
   @override
   void add(Interaction interaction) {
-    _ctrl.add(interaction);
+    _persistInteraction(interaction);
+    _runInteraction(interaction);
   }
 
   @override
-  void close() {
-    _ctrl.close();
-  }
+  void close() {}
 
+  // TODO: We need a way to pause running timers, allow UI to pause
   void run(Function script) {
     if (_persistence.savedInteractions.isNotEmpty) {
       _ff.runFastForwardable((ff) {
