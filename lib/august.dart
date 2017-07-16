@@ -36,7 +36,8 @@ class InteractionManager implements Sink<Interaction> {
       }
 
       _interactorsByModule[interactor.moduleName] = interactor;
-    };
+    }
+    ;
   }
 
   Duration get currentOffset => _ff.currentOffset;
@@ -96,4 +97,9 @@ abstract class Interactor {
   /// The name of the module this interactor supports.
   String get moduleName;
   void run(String action, Map<String, dynamic> parameters);
+}
+
+Future<Null> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
+  return new Future.delayed(new Duration(
+      minutes: minutes, seconds: seconds, milliseconds: milliseconds));
 }

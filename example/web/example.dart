@@ -104,8 +104,8 @@ example() async {
 
   dialog.owns(thing) => replies.contains(thing);
   */
-  var attack = options.newOption("Attack it!", available: dragonStandoff);
-  var runAway = options.newOption("Run away!", available: dragonStandoff);
+  var attack = options.limitedUse("Attack it!", available: dragonStandoff);
+  var runAway = options.limitedUse("Run away!", available: dragonStandoff);
 
   attack.onUse.listen((o) async {
     var attacking = await scenes.oneTime().enter();
@@ -113,15 +113,16 @@ example() async {
     dialog.narrate("The dragon readies its flame...", scope: attacking);
 
     var deflectWithSword = options
-        .newOption("Deflect the fire with your sword.", available: attacking);
+        .limitedUse("Deflect the fire with your sword.", available: attacking);
     var deflectWithShield = options
-        .newOption("Deflect the fire with your shield.", available: attacking);
+        .limitedUse("Deflect the fire with your shield.", available: attacking);
     var dash =
-        options.newOption("Dash toward the dragon.", available: attacking);
+        options.limitedUse("Dash toward the dragon.", available: attacking);
 
-    deflectWithSword.onUse.listen((_) {
+    deflectWithSword.onUse.listen((_) async {
       dialog.narrate("You survive, but your sword is burnt.", scope: attacking);
       sword.isBurnt.set((_) => true);
+      await delay(seconds: 2);
       dragonStandoff.enter();
     });
 

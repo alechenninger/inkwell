@@ -9,8 +9,8 @@ class Options {
 
   Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
 
-  Option newOption(String text, {Scope available}) {
-    var option = new Option(text)
+  Option limitedUse(String text, {Scope available, int uses = 1}) {
+    var option = new Option(text, uses: uses)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;
         _options.add(option);
@@ -37,7 +37,7 @@ class Options {
 class Option {
   final String text;
 
-  final int allowedUseCount;
+  final int uses;
 
   /// Ticks as soon as [use] is called should the use be permitted.
   // TODO: Should be observed as immediate state changes are unreliable (lossy).
@@ -63,22 +63,22 @@ class Option {
   final _hasUses = new SettableScope.notEntered();
   final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
 
-  Option(this.text, {this.allowedUseCount: 1}) {
-    if (allowedUseCount < 0) {
-      throw new ArgumentError.value(allowedUseCount, "allowedUseCount",
+  Option(this.text, {this.uses: 1}) {
+    if (uses < 0) {
+      throw new ArgumentError.value(uses, "allowedUseCount",
           "Allowed use count must be non-negative.");
     }
 
     _available = new ScopeAsValue(owner: this)..within(_hasUses);
 
-    if (allowedUseCount > 0) {
+    if (uses > 0) {
       _hasUses.enter(null);
     }
   }
 
   /// Set a scope which contributes to determining this options availability.
   /// An option's availability is always governed by its [useCount] and
-  /// [allowedUseCount] in addition to the provided scope.
+  /// [uses] in addition to the provided scope.
   ///
   /// See [isAvailable] and [availability].
   void available(Scope scope) {
@@ -97,7 +97,7 @@ class Option {
 
     _useCount += 1;
 
-    if (_useCount == allowedUseCount) {
+    if (_useCount == uses) {
       _hasUses.exit(null);
     }
 
@@ -110,7 +110,7 @@ class Option {
 
   String toString() => "Option{"
       "text='$text',"
-      "allowedUseCount=$allowedUseCount,"
+      "allowedUseCount=$uses,"
       "useCount=$_useCount"
       "}";
 }
