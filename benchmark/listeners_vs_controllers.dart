@@ -15,9 +15,9 @@ const int filterIncrement = 50;
 class ListenerBenchmark extends BenchmarkBase {
   ListenerBenchmark() : super("listener benchmark");
 
-  StreamController _ctrl = new StreamController.broadcast(sync: true);
-  List eventNumbers =
-      new List.generate(eventsPerRun, (i) => random.nextInt(maxInt));
+  var _ctrl = new StreamController<Event>.broadcast(sync: true);
+  var eventNumbers =
+      new List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
   int matches = 0;
 
   void run() {
@@ -50,9 +50,9 @@ class ListenerBenchmark extends BenchmarkBase {
 class ControllerBenchmark extends BenchmarkBase {
   ControllerBenchmark() : super("controller benchmark");
 
-  StreamController _ctrl = new StreamController.broadcast(sync: true);
-  List eventNumbers =
-      new List.generate(eventsPerRun, (i) => random.nextInt(maxInt));
+  var _ctrl = new StreamController<Event>.broadcast(sync: true);
+  var eventNumbers =
+      new List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
   int matches = 0;
 
   void run() {

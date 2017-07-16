@@ -12,8 +12,19 @@ class Dialog {
   Dialog({Scope defaultScope: always}) : this._default = defaultScope;
 
   // TODO: figure out defaults
+  // TODO: markup should probably be a first class thing?
+  //       as in: ui.text("...")
+  //       - This allows markup to be up to UI implementation
+  //       - UI can also then handle localization
+  //       - UI can handle complex elements (say if we want a portrait, or
+  //         presentation control like alignment, style, or effects, etc.)
+  //       - We'd like scripts to be decoupled from UI implementation, but
+  //         interfaces can satisfy this concern.
+  //       - On the other hand, we could consider markup to be Dialog specific
+  //         here, not UI specific. Then UI decides what to do with the module.
+  //         I guess this is what the current architecture is.
   Speech narrate(String markup, {Scope scope}) {
-    return add(markup, scope: scope ?? _default);
+    return add(markup, scope: scope);
   }
 
   // TODO: figure out default
@@ -71,6 +82,7 @@ class Speech {
 
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
+  // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target);
 
   Reply addReply(String markup, {Scope scope: const Always()}) {
@@ -161,8 +173,8 @@ class DialogInteractor extends Interactor {
 
   void run(String action, Map<String, dynamic> parameters) {
     switch (action) {
-      case UseReplyAction._name:
-        UseReplyAction.run(parameters, _dialog);
+      case _UseReplyAction._name:
+        _UseReplyAction.run(parameters, _dialog);
         break;
       default:
         throw new UnsupportedError("Unsupported action $action");
@@ -199,16 +211,16 @@ class UiReply {
   Stream<UiReply> get onRemove => _reply.availability.onExit.map((_) => this);
 
   void use() {
-    _interactions.add(new UseReplyAction(_reply));
+    _interactions.add(new _UseReplyAction(_reply));
   }
 }
 
-class UseReplyAction implements Interaction {
+class _UseReplyAction implements Interaction {
   static const _name = 'UseReply';
 
   final Reply _reply;
 
-  UseReplyAction(this._reply);
+  _UseReplyAction(this._reply);
 
   static void run(Map<String, dynamic> parameters, Dialog dialog) {
     var matchingSpeech = dialog._speech

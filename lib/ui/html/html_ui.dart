@@ -9,7 +9,7 @@ import 'package:august/dialog.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
-  final HtmlElement _container;
+  final Element _container;
   final _dialogContainer = new DivElement()..classes.add('dialog');
   final _optionsContainer = new UListElement()
     ..classes.add('options');

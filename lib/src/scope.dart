@@ -235,7 +235,7 @@ class ForwardingScope extends Scope {
     _delegateExitSubscription = _delegate.onExit.listen(_exits.add);
   }
 
-  ForwardingScope([delegate = const Never()]) {
+  ForwardingScope([Scope delegate = const Never()]) {
     this.delegate = delegate;
     _onEnter = _enters.stream;
     _onExit = _exits.stream;
@@ -413,6 +413,6 @@ class ScopeAsValue {
   }
 }
 
-dynamic/*=T*/ _identity/*<T>*/(dynamic/*=T*/ value) => value;
+T _identity<T>(T value) => value;
 
 bool _never(e) => false;

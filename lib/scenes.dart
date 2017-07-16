@@ -22,7 +22,7 @@ class Scenes {
   Stream<Scene> get onBegin => _newScenes.stream;
 }
 
-abstract class Scene<T extends Scene> extends Scope {
+abstract class Scene<T extends Scene<T>> extends Scope {
   Future<Scene> enter();
 }
 

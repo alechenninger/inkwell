@@ -34,7 +34,6 @@ main() {
   var optionsUi = new OptionsUi(options, interactionsMngr);
   var dialogUi = new DialogUi(dialog, interactionsMngr);
 
-
   // Present the user interface(s) with HTML
   new SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
 
@@ -54,6 +53,57 @@ example() async {
       scope: dragonStandoff /*.first*/);
 
   // Availability limited to current scene may make sense as default
+  /*
+  one scheme:
+  have a default scope for all dialog/options/whatever as current scene.
+  means there is a scope, CurrentScene.
+
+  dialog.defaultScope(following, while: following);
+  following.scope(dialog);
+
+  what about if you need to step out of this default?
+  newOption("...", available: overrideScopeHere);
+
+  another use for default is around modality. for example, you want a reply
+  which excludes options. and then you may want options which are immune to
+  this. but here you probably don't want to override too easily.
+
+  newOption("..", overrideAvailable:
+                  available: default.and(dragonStandoff))
+                  available: dragonStandoff, scopeOverride: true)
+
+  also if you set default scope, is it an and with current?
+
+  dialog.setDefaultScope((current) => current.and(following), while: following);
+  dialog.setDefaultScope(dialog.defaultScope.and(following), while: following);
+  dialog.setDefaultScope(following, while: following, combine: (s1,s2) => s1.and(s2));
+
+  dialog.setDefaultScope(following, while: following);
+  dialog.setDefaultScope((_) => following, while: following);
+
+  var following = await scenes.oneTime().enter();
+  var currentDefault = dialog.defaultScope;
+  following.onExit.listen((_) => dialog.defaultScope = currentDefault);
+  dialog.defaultScope = dialog.defaultScope.and(following);
+
+  // or should modal stuff be it's own thing?
+  mode.enter(dialog)
+  if (mode.!isEntered)
+  new Options(mode)
+  options.newOption("...", ignoreMode: true)
+
+  options.newOption("...", available: mode)
+
+  // What would default scope normally be?
+  within current scene and allowed by current mode?
+
+  gets into how do you define allowed by current mode?
+  mode.allowed(option) -> scope
+
+  mode.acquire(dialog) then mode.isAllowed is true for all dialog.replies
+
+  dialog.owns(thing) => replies.contains(thing);
+  */
   var attack = options.newOption("Attack it!", available: dragonStandoff);
   var runAway = options.newOption("Run away!", available: dragonStandoff);
 
@@ -97,8 +147,7 @@ example() async {
 
     if (sword.isBurnt.value) {
       dialog.narrate(
-          "Your hot sword melts through its holster and tumbles "
-          "behind you.",
+          "Your hot sword melts through its holster and tumbles behind you.",
           scope: runningAway);
     }
 
@@ -108,21 +157,9 @@ example() async {
 
     follow.onUse.listen((_) async {
       var following = await scenes.oneTime().enter();
-      /*
-      one scheme:
-      have a default scope for all dialog as current scene.
-      means there is a scope, CurrentScene.
-
-      are we happy with how scenes work? they are essentially just settable
-      scopes. so, CurrentScope?
-
-      scenes are just arbitrary boundaries. dialog has scope, we can use a
-      common scene to control these in unison.
-       */
       var player = dialog.voice(name: "Bob");
       var mysteriousVoice = dialog.voice();
 
-      // Default scope of current scene may be nice
       player.say("What are you doing here?", scope: following);
 
       var toMysteryVoice = mysteriousVoice
