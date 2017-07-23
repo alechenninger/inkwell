@@ -9,7 +9,13 @@ class Options {
 
   Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
 
+  // TODO: OptionGroup exclusive()
+  // var a = exclusive.
+
+  /// Creates a new limited use option that can be used while [available] and
+  /// has remaining [uses].
   Option limitedUse(String text, {Scope available, int uses = 1}) {
+    // TODO: Could just pass scope here and keep track of use state in closure
     var option = new Option(text, uses: uses)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;

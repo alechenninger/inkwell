@@ -37,7 +37,6 @@ class InteractionManager implements Sink<Interaction> {
 
       _interactorsByModule[interactor.moduleName] = interactor;
     }
-    ;
   }
 
   Duration get currentOffset => _ff.currentOffset;

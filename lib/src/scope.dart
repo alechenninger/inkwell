@@ -47,6 +47,10 @@ abstract class Scope<T> {
   /// exited.
   Stream<T> get onExit;
 
+  Scope<T> where(bool isTrue()) {
+    return new PredicatedScope(isTrue, this);
+  }
+
   // TODO: Maybe add a convenience API for listen to onEnter + check isEntered
 //  void around({onEnter(Scope<T> scope), onExit(Scope<T> scope)}) {
 //    if (isEntered) onEnter(this);
@@ -134,6 +138,24 @@ class AndScope extends Scope<dynamic> {
 
   Stream _onExit;
   Stream get onExit => _onExit;
+}
+
+class PredicatedScope<T> extends Scope<T> {
+  Predicate _predicate;
+  Scope<T> _delegate;
+  bool _satisfiedPredicate;
+
+  PredicatedScope(this._predicate, this._delegate) {
+    _satisfiedPredicate = _delegate.isEntered && _predicate();
+  }
+
+  bool get isEntered => _satisfiedPredicate && _delegate.isEntered;
+
+  Stream<T> get onEnter => _delegate.onEnter.where((e) {
+    return _satisfiedPredicate = _predicate();
+  });
+
+  Stream<T> get onExit => _delegate.onExit;
 }
 
 class SettableScope<T> extends Scope<T> {
@@ -328,6 +350,7 @@ class TransformScope<T> extends Scope<T> {
 }
 
 typedef T GetNewValue<T>(T currentValue);
+typedef bool Predicate();
 
 /// Encapsulates a value which changes based on a scope.
 class Scoped<T> {

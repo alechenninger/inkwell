@@ -119,10 +119,9 @@ example() async {
     var dash =
         options.limitedUse("Dash toward the dragon.", available: attacking);
 
-    deflectWithSword.onUse.listen((_) async {
-      dialog.narrate("You survive, but your sword is burnt.", scope: attacking);
-      sword.isBurnt.set((_) => true);
-      await delay(seconds: 2);
+    deflectWithSword.onUse.listen((_) {
+      dialog.narrate("You survive, but your sword has melted!", scope: dragonStandoff);
+      sword.isMelted.set((_) => true);
       dragonStandoff.enter();
     });
 
@@ -146,9 +145,9 @@ example() async {
 
     dialog.narrate("Running away.", scope: runningAway);
 
-    if (sword.isBurnt.value) {
+    if (sword.isMelted.value) {
       dialog.narrate(
-          "Your hot sword melts through its holster and tumbles behind you.",
+          "Your hot sword burns through its holster and tumbles behind you.",
           scope: runningAway);
     }
 
@@ -178,6 +177,8 @@ example() async {
   });
 }
 
+// Consider something fancy for state tracking / modeling transactions more
+// explicitly.
 class Sword {
-  final isBurnt = new Observable<bool>.ofImmutable(false);
+  final isMelted = new Observable<bool>.ofImmutable(false);
 }
