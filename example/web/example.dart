@@ -103,6 +103,24 @@ example() async {
   mode.acquire(dialog) then mode.isAllowed is true for all dialog.replies
 
   dialog.owns(thing) => replies.contains(thing);
+
+  // Consider modelling all user-available actions in a shared way
+  // Then we have a shared place to manage when actions are available
+  var action = interactions.get();
+  action.onUse -> stream
+  action.use -> future ?
+  action.availability -> scope
+
+  var mode = interactions.newMode();
+  mode.allow(action);
+  mode.enabledWhile(scope);
+
+  var what = player.say("what's up?");
+
+  var notMuch = what.addReply("Not much", modal: true);
+  var lookOut = what.addReply("Look out!", modal: true);
+  var walkAway = options.limitedUse("Walk away", mode: notMuch.mode);
+
   */
   var attack = options.limitedUse("Attack it!", available: dragonStandoff);
   var runAway = options.limitedUse("Run away!", available: dragonStandoff);
@@ -145,7 +163,7 @@ example() async {
 
     dialog.narrate("Running away.", scope: runningAway);
 
-    if (sword.isMelted.value) {
+    if (sword.isMelted()) {
       dialog.narrate(
           "Your hot sword burns through its holster and tumbles behind you.",
           scope: runningAway);

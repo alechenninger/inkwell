@@ -5,6 +5,8 @@ part of august;
 
 // TODO: Interface will change if type is mutable
 abstract class Observable<T> extends Observed<T> {
+  Observable() {}
+
   /// Create an `Observable` of an immutable _value_, like a primitive type. The
   /// reference is mutable, so the value of this `Observable` may still change,
   /// but each assigned value should be immutable.
@@ -32,6 +34,8 @@ abstract class Observable<T> extends Observed<T> {
 }
 
 abstract class Observed<T> {
+  T call() => value;
+
   /// The current value being observed. Will not change in the current event
   /// loop.
   T get value;
@@ -45,7 +49,7 @@ abstract class Observed<T> {
   Stream<StateChangeEvent<T>> get onChange;
 }
 
-class _ObservableOfImmutable<T> implements Observable<T> {
+class _ObservableOfImmutable<T> extends Observable<T> {
   T _currentValue;
   T get value => _currentValue;
   T _nextValue;

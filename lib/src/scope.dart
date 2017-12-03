@@ -14,6 +14,8 @@ part of august;
 /// intended as a core building block for arbitrarily complicated state rules.
 // TODO: Rethink parameterized type usage here
 abstract class Scope<T> {
+  const Scope();
+
   /// Immediately available in the current event loop, just before onEnter and
   /// onExit events are fired.
   bool get isEntered;
@@ -62,22 +64,26 @@ abstract class Scope<T> {
 const Scope always = const Always();
 const Scope never = const Never();
 
-class Always implements Scope<Null> {
+class Always extends Scope<Null> {
   final isEntered = true;
   final isNotEntered = false;
-  final onEnter = const Stream.empty();
-  final onExit = const Stream.empty();
+  final onEnter = const Stream<Null>.empty();
+  final onExit = const Stream<Null>.empty();
 
   const Always();
+
+  Scope<Null> where(bool isTrue()) => isTrue() ? this : const Never();
 }
 
-class Never implements Scope<Null> {
+class Never extends Scope<Null> {
   final isEntered = false;
   final isNotEntered = true;
-  final onEnter = const Stream.empty();
-  final onExit = const Stream.empty();
+  final onEnter = const Stream<Null>.empty();
+  final onExit = const Stream<Null>.empty();
 
   const Never();
+
+  Scope<Null> where(bool isTrue()) => this;
 }
 
 class AndScope extends Scope<dynamic> {
@@ -146,7 +152,7 @@ class PredicatedScope<T> extends Scope<T> {
   bool _satisfiedPredicate;
 
   PredicatedScope(this._predicate, this._delegate) {
-    _satisfiedPredicate = _delegate.isEntered && _predicate();
+    _satisfiedPredicate = _predicate();
   }
 
   bool get isEntered => _satisfiedPredicate && _delegate.isEntered;
@@ -159,9 +165,8 @@ class PredicatedScope<T> extends Scope<T> {
 }
 
 class SettableScope<T> extends Scope<T> {
-  final StreamController<T> _enters =
-      new StreamController.broadcast(sync: true);
-  final StreamController<T> _exits = new StreamController.broadcast(sync: true);
+  final _enters = new StreamController<T>.broadcast(sync: true);
+  final _exits = new StreamController<T>.broadcast(sync: true);
 
   SettableScope._(this._isEntered) {
     _onEnter = _enters.stream;

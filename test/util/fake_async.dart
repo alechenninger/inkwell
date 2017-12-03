@@ -267,7 +267,7 @@ class _FakeAsync extends FakeAsync {
     }
   }
 
-  _hasTimer(_FakeTimer timer) => _timers.contains(timer);
+  bool _hasTimer(_FakeTimer timer) => _timers.contains(timer);
 
   _cancelTimer(_FakeTimer timer) => _timers.remove(timer);
 }

@@ -66,7 +66,7 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final _hasUses = new SettableScope.notEntered();
+  final _hasUses = new SettableScope<Null>.notEntered();
   final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
 
   Option(this.text, {this.uses: 1}) {

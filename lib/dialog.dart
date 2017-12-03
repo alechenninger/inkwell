@@ -121,7 +121,7 @@ class Reply {
   final String _markup;
   final _CountScope _hasUses;
 
-  final _uses = new StreamController.broadcast(sync: true);
+  final _uses = new StreamController<dynamic>.broadcast(sync: true);
 
   Stream get onUse => _uses.stream;
 
@@ -162,6 +162,13 @@ class DialogUi {
   Stream<UiSpeech> get onAdd =>
       _dialog._onAddSpeech.map((d) => new UiSpeech(d, _interactions));
 }
+
+/*
+need a stream of json -> persist
+need to read json -> pick a specific action and use it
+
+ui.action("
+ */
 
 class DialogInteractor extends Interactor {
   static const _moduleName = "Dialog";

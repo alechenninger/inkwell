@@ -25,13 +25,13 @@ class SavedInteraction implements Interaction {
 
   SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
 
-  SavedInteraction.fromJson(Map json)
-      : moduleName = json['moduleName'],
-        name = json['name'],
+  SavedInteraction.fromJson(Map<String, Object> json)
+      : moduleName = json['moduleName'] as String,
+        name = json['name'] as String,
         parameters = json['parameters'] as Map<String, dynamic>,
-        offset = new Duration(milliseconds: json['offsetMillis']);
+        offset = new Duration(milliseconds: json['offsetMillis'] as int);
 
-  Map toJson() => {
+  Map<String, Object> toJson() => {
         'moduleName': moduleName,
         'name': name,
         'parameters': parameters,
@@ -121,7 +121,7 @@ class FastForwarder {
           : _microtasks.add(microtask));
 
   _runTimersUntil(Duration elapsingTo) {
-    var next;
+    _FastForwarderTimer next;
     while ((next = _getNextTimer()) != null && next.nextCall <= elapsingTo) {
       _elapseTo(next.nextCall);
       _runTimer(next);
@@ -169,9 +169,9 @@ class FastForwarder {
     }
   }
 
-  _hasTimer(timer) => _timers.contains(timer);
+  bool _hasTimer(timer) => _timers.contains(timer);
 
-  _cancelTimer(timer) => _timers.remove(timer);
+  bool _cancelTimer(timer) => _timers.remove(timer);
 }
 
 class _FastForwarderTimer implements Timer {
