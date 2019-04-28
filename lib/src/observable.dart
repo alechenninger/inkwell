@@ -5,7 +5,7 @@ part of august;
 
 // TODO: Interface will change if type is mutable
 abstract class Observable<T> extends Observed<T> {
-  Observable() {}
+  Observable();
 
   /// Create an `Observable` of an immutable _value_, like a primitive type. The
   /// reference is mutable, so the value of this `Observable` may still change,

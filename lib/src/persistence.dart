@@ -42,7 +42,7 @@ class SavedInteraction implements Interaction {
 // Adapted from quiver's FakeAsync
 class FastForwarder {
   Zone _zone;
-  Duration _elapsed = Duration.ZERO;
+  Duration _elapsed = Duration.zero;
   Duration _elapsingTo;
   Queue<Function> _microtasks = new Queue();
   Set<_FastForwarderTimer> _timers = new Set<_FastForwarderTimer>();
@@ -181,7 +181,7 @@ class _FastForwarderTimer implements Timer {
   final FastForwarder ff;
   Duration nextCall;
 
-  static const _minDuration = Duration.ZERO;
+  static const _minDuration = Duration.zero;
 
   _FastForwarderTimer(
       Duration duration, this.callback, this.isPeriodic, this.ff)
@@ -192,6 +192,10 @@ class _FastForwarderTimer implements Timer {
   bool get isActive => ff._hasTimer(this);
 
   cancel() => ff._cancelTimer(this);
+
+  @override
+  // TODO: implement tick
+  int get tick => null;
 }
 
 class _TrackingTimer implements Timer {
@@ -199,6 +203,9 @@ class _TrackingTimer implements Timer {
   cancel() {
     isActive = false;
   }
+
+  @override
+  int get tick => throw UnimplementedError("tick");
 }
 
 typedef void Callback();

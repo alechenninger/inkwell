@@ -9,19 +9,20 @@ import 'package:august/august.dart';
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;
   final _savedInteractions = <SavedInteraction>[];
+  static const _json = JsonCodec();
 
   HtmlPersistence(this._scriptHandle, [Storage _storage]) {
     var storage = _storage == null ? window.localStorage : _storage;
 
     if (storage.containsKey(_scriptHandle)) {
       var saved =
-          JSON.decode(storage[_scriptHandle]) as List<Map<String, Object>>;
+          _json.decode(storage[_scriptHandle]) as List<Map<String, Object>>;
       _savedInteractions
           .addAll(saved.map((o) => new SavedInteraction.fromJson(o)));
     }
 
     window.onBeforeUnload.listen((e) {
-      storage[_scriptHandle] = JSON.encode(_savedInteractions);
+      storage[_scriptHandle] = _json.encode(_savedInteractions);
     });
   }
 

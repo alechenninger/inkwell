@@ -63,7 +63,7 @@ void main() {
       expect(
           times,
           equals({
-            0: Duration.ZERO,
+            0: Duration.zero,
             1: const Duration(seconds: 1),
             2: const Duration(seconds: 5)
           }));
@@ -113,7 +113,7 @@ class TestModule {
   Future<String> once(String event) =>
       _ctrl.stream.where((e) => e == event).first;
 
-  Future<String> emit(String event, {Duration delay: Duration.ZERO}) {
+  Future<String> emit(String event, {Duration delay: Duration.zero}) {
     return new Future.delayed(delay, () {
       _ctrl.add(event);
       return event;

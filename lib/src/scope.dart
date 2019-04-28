@@ -53,7 +53,7 @@ abstract class Scope<T> {
     return new PredicatedScope(isTrue, this);
   }
 
-  // TODO: Maybe add a convenience API for listen to onEnter + check isEntered
+// TODO: Maybe add a convenience API for listen to onEnter + check isEntered
 //  void around({onEnter(Scope<T> scope), onExit(Scope<T> scope)}) {
 //    if (isEntered) onEnter(this);
 //    this.onEnter.listen((_) { onEnter(this); });
@@ -140,9 +140,11 @@ class AndScope extends Scope<dynamic> {
   bool get isEntered => _first.isEntered && _second.isEntered;
 
   Stream _onEnter;
+
   Stream get onEnter => _onEnter;
 
   Stream _onExit;
+
   Stream get onExit => _onExit;
 }
 
@@ -158,8 +160,8 @@ class PredicatedScope<T> extends Scope<T> {
   bool get isEntered => _satisfiedPredicate && _delegate.isEntered;
 
   Stream<T> get onEnter => _delegate.onEnter.where((e) {
-    return _satisfiedPredicate = _predicate();
-  });
+        return _satisfiedPredicate = _predicate();
+      });
 
   Stream<T> get onExit => _delegate.onExit;
 }
@@ -174,6 +176,7 @@ class SettableScope<T> extends Scope<T> {
   }
 
   SettableScope.entered() : this._(true);
+
   SettableScope.notEntered() : this._(false);
 
   /// Immediately changes scope state and calls onEnter listeners.
@@ -210,15 +213,19 @@ class SettableScope<T> extends Scope<T> {
   }
 
   bool _isEntered;
+
   bool get isEntered => _isEntered;
 
   bool get isClosed => _enters.isClosed;
+
   bool get isNotClosed => !isClosed;
 
   Stream<T> _onEnter;
+
   Stream<T> get onEnter => _onEnter;
 
   Stream<T> _onExit;
+
   Stream<T> get onExit => _onExit;
 
   // TODO onClose ?
@@ -248,7 +255,7 @@ class ForwardingScope extends Scope {
   StreamSubscription _delegateEnterSubscription;
   StreamSubscription _delegateExitSubscription;
 
-  void set delegate(Scope delegate) {
+  set delegate(Scope delegate) {
     if (_delegate != null) {
       _delegateEnterSubscription.cancel();
       _delegateExitSubscription.cancel();
@@ -271,9 +278,11 @@ class ForwardingScope extends Scope {
   bool get isEntered => _delegate.isEntered;
 
   Stream _onEnter;
+
   Stream get onEnter => _onEnter;
 
   Stream _onExit;
+
   Stream get onExit => _onExit;
 }
 
@@ -283,17 +292,17 @@ class ListeningScope<T> extends Scope<T> {
   final SettableScope<T> _settable;
 
   ListeningScope.entered(Stream<T> eventStream,
-      {bool enterWhen(T event): _never,
-      bool exitWhen(T event): _never,
-      bool closeWhen(T event): _never})
+      {bool enterWhen(T event) = _never,
+      bool exitWhen(T event) = _never,
+      bool closeWhen(T event) = _never})
       : _settable = new SettableScope.entered() {
     _init(eventStream, enterWhen, exitWhen, closeWhen);
   }
 
   ListeningScope.notEntered(Stream<T> eventStream,
-      {bool enterWhen(T event): _never,
-      bool exitWhen(T event): _never,
-      bool closeWhen(T event): _never})
+      {bool enterWhen(T event) = _never,
+      bool exitWhen(T event) = _never,
+      bool closeWhen(T event) = _never})
       : _settable = new SettableScope.notEntered() {
     _init(eventStream, enterWhen, exitWhen, closeWhen);
   }
@@ -350,7 +359,9 @@ class TransformScope<T> extends Scope<T> {
       : this._(new SettableScope.notEntered(), original, onEnter, onExit);
 
   bool get isEntered => _backing.isEntered;
+
   Stream<T> get onEnter => _backing.onEnter;
+
   Stream<T> get onExit => _backing.onExit;
 }
 
@@ -363,6 +374,7 @@ class Scoped<T> {
   Scope _backingScope = const Never();
 
   final Observable<T> _observable;
+
   Observed<T> get observed => _observable;
 
   GetNewValue<T> _enterValue;
@@ -374,6 +386,7 @@ class Scoped<T> {
   /// An immutable scope instance which always matches the current
   /// [_backingScope] exactly, even if it is reassigned.
   final ForwardingScope _mirrorScope = new ForwardingScope();
+
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,

@@ -9,7 +9,7 @@ class Dialog {
   final _speech = <Speech>[];
   final Scope _default;
 
-  Dialog({Scope defaultScope: always}) : this._default = defaultScope;
+  Dialog({Scope defaultScope = always}) : this._default = defaultScope;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -28,7 +28,7 @@ class Dialog {
   }
 
   // TODO: figure out default
-  Speech add(String markup, {String speaker, String target, Scope scope}) {
+  Speech add(String markup, {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default;
 
     var speech = new Speech(markup, scope, speaker, target);
@@ -85,7 +85,7 @@ class Speech {
   // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target);
 
-  Reply addReply(String markup, {Scope scope: const Always()}) {
+  Reply addReply(String markup, {Scope scope = const Always()}) {
     if (_replyUses == null) {
       // TODO parameterize max?
       _replyUses = new _CountScope(1);
@@ -233,7 +233,7 @@ class _UseReplyAction implements Interaction {
     var matchingSpeech = dialog._speech
         .where((s) => s._markup == parameters['speech']['markup']);
 
-    if (matchingSpeech.length == 0) {
+    if (matchingSpeech.isEmpty) {
       throw new StateError("No matching available speech found for reply: "
           "$parameters");
     }
@@ -246,7 +246,7 @@ class _UseReplyAction implements Interaction {
     var matchingReplies = matchingSpeech.first._replies
         .where((r) => r._markup == parameters['markup']);
 
-    if (matchingReplies.length == 0) {
+    if (matchingReplies.isEmpty) {
       throw new StateError("No matching available replies found for reply: "
           "$parameters");
     }

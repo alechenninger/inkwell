@@ -10,3 +10,4 @@ notes.md
 mockup.md
 .atom/
 *.swp
+.dart_tool

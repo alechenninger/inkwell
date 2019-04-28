@@ -127,7 +127,7 @@ abstract class FakeAsync {
 }
 
 class _FakeAsync extends FakeAsync {
-  Duration _elapsed = Duration.ZERO;
+  Duration _elapsed = Duration.zero;
   Duration _elapsingTo;
   Queue<Function> _microtasks = new Queue();
   Set<_FakeTimer> _timers = new Set<_FakeTimer>();
@@ -149,7 +149,7 @@ class _FakeAsync extends FakeAsync {
       throw new StateError('Cannot elapse until previous elapse is complete.');
     }
     _elapsingTo = _elapsed + duration;
-    _drainTimersWhile((_FakeTimer next) => next._nextCall <= _elapsingTo);
+    _drainTimersWhile((next) => next._nextCall <= _elapsingTo);
     _elapseTo(_elapsingTo);
     _elapsingTo = null;
   }
@@ -175,7 +175,7 @@ class _FakeAsync extends FakeAsync {
       {Duration timeout: const Duration(hours: 1),
       bool flushPeriodicTimers: true}) {
     final absoluteTimeout = _elapsed + timeout;
-    _drainTimersWhile((_FakeTimer timer) {
+    _drainTimersWhile((timer) {
       if (timer._nextCall > absoluteTimeout) {
         throw new StateError(
             'Exceeded timeout ${timeout} while flushing timers');
@@ -284,7 +284,7 @@ class _FakeTimer implements Timer {
   //     http://www.w3.org/TR/html5/webappapis.html#timer-nesting-level
   // Without some sort of delay this can lead to infinitely looping timers.
   // What do the dart VM and dart2js timers do here?
-  static const _minDuration = Duration.ZERO;
+  static const _minDuration = Duration.zero;
 
   _FakeTimer._(Duration duration, this._callback, this._isPeriodic, this._time)
       : _duration = duration < _minDuration ? _minDuration : duration {
@@ -294,4 +294,7 @@ class _FakeTimer implements Timer {
   bool get isActive => _time._hasTimer(this);
 
   cancel() => _time._cancelTimer(this);
+
+  @override
+  int get tick => throw new UnimplementedError("tick");
 }

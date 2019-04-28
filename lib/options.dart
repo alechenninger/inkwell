@@ -69,10 +69,10 @@ class Option {
   final _hasUses = new SettableScope<Null>.notEntered();
   final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
 
-  Option(this.text, {this.uses: 1}) {
+  Option(this.text, {this.uses= 1}) {
     if (uses < 0) {
-      throw new ArgumentError.value(uses, "allowedUseCount",
-          "Allowed use count must be non-negative.");
+      throw new ArgumentError.value(
+          uses, "allowedUseCount", "Allowed use count must be non-negative.");
     }
 
     _available = new ScopeAsValue(owner: this)..within(_hasUses);

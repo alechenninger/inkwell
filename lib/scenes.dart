@@ -22,12 +22,12 @@ class Scenes {
   Stream<Scene> get onBegin => _newScenes.stream;
 }
 
-abstract class Scene<T extends Scene<T>> extends Scope {
+abstract class Scene<T extends Scene<T>> extends Scope<T> {
   Future<Scene> enter();
 }
 
-class _OneTimeScene extends Scene {
-  final _scope = new SettableScope<Scene>.notEntered();
+class _OneTimeScene extends Scene<_OneTimeScene> {
+  final _scope = new SettableScope<_OneTimeScene>.notEntered();
   final Scenes _scenes;
 
   _OneTimeScene(this._scenes);
@@ -46,10 +46,10 @@ class _OneTimeScene extends Scene {
   bool get isEntered => _scope.isEntered;
 
   @override
-  Stream get onEnter => _scope.onEnter;
+  Stream<_OneTimeScene> get onEnter => _scope.onEnter;
 
   @override
-  Stream get onExit => _scope.onExit;
+  Stream<_OneTimeScene> get onExit => _scope.onExit;
 }
 
 class ReenterableScene extends Scene<ReenterableScene> {
