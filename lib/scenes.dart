@@ -3,11 +3,19 @@
 
 import 'package:august/august.dart';
 
+import 'package:optional/optional.dart';
+import 'package:pedantic/pedantic.dart';
+
 // TODO: Probably rethink this later
 class Scenes {
-  final _newScenes = new StreamController<Scene>.broadcast(sync: true);
+  final _newScenes = StreamController<Scene>.broadcast(sync: true);
+  Scene _current;
 
-  /// Creates a new scene which will enter at most once, and exits as soon as
+  Scenes() {
+    onNewScene.listen((scene) => _current = scene);
+  }
+
+  /// Creates a scene which will enter at most once, and exits as soon as
   /// another scene begins.
   ///
   /// To enter the created scene, call [Scene.enter].
@@ -15,11 +23,14 @@ class Scenes {
   /// Accepts an optional [title] which is purely for annotation and not exposed
   /// from the scene API intentionally to discourage non-type-safe scene
   /// matching.
-  Scene oneTime({String title}) => new _OneTimeScene(this);
+  Scene oneTime({String title}) => _OneTimeScene(this);
 
-  ReenterableScene reenterable({String title}) => new ReenterableScene._(this);
+  ReentrantScene reentrant({String title}) => ReentrantScene._(this);
 
-  Stream<Scene> get onBegin => _newScenes.stream;
+  Stream<Scene> get onNewScene => _newScenes.stream;
+
+  // TODO: If there is a "root" scene, this is not optional
+  Optional<Scene> get currentScene => Optional.ofNullable(_current);
 }
 
 abstract class Scene<T extends Scene<T>> extends Scope<T> {
@@ -27,7 +38,7 @@ abstract class Scene<T extends Scene<T>> extends Scope<T> {
 }
 
 class _OneTimeScene extends Scene<_OneTimeScene> {
-  final _scope = new SettableScope<_OneTimeScene>.notEntered();
+  final _scope = SettableScope<_OneTimeScene>.notEntered();
   final Scenes _scenes;
 
   _OneTimeScene(this._scenes);
@@ -35,10 +46,10 @@ class _OneTimeScene extends Scene<_OneTimeScene> {
   Future<Scene> enter() async {
     _scope.enter(this);
     _scenes._newScenes.add(this);
-    _scenes.onBegin.first.then((_) {
+    unawaited(_scenes.onNewScene.first.then((_) {
       _scope.exit(this);
       _scope.close();
-    });
+    }));
     return this;
   }
 
@@ -52,13 +63,13 @@ class _OneTimeScene extends Scene<_OneTimeScene> {
   Stream<_OneTimeScene> get onExit => _scope.onExit;
 }
 
-class ReenterableScene extends Scene<ReenterableScene> {
+class ReentrantScene extends Scene<ReentrantScene> {
   final Scenes _scenes;
-  final _scope = new SettableScope<ReenterableScene>.entered();
+  final _scope = SettableScope<ReentrantScene>.entered();
   var _isDone = false;
 
-  ReenterableScene._(this._scenes) {
-    _scenes.onBegin.listen((scene) {
+  ReentrantScene._(this._scenes) {
+    _scenes.onNewScene.listen((scene) {
       if (scene == this) {
         return;
       }
@@ -99,9 +110,9 @@ class ReenterableScene extends Scene<ReenterableScene> {
 
   /// Fails if the scene is already [done].
   @override
-  Future<ReenterableScene> enter() async {
+  Future<ReentrantScene> enter() async {
     if (_isDone) {
-      throw new StateError("Reenterable scene is done; cannot reenter.");
+      throw StateError("Reenterable scene is done; cannot reenter.");
     }
 
     _scope.enter(this);
@@ -114,8 +125,8 @@ class ReenterableScene extends Scene<ReenterableScene> {
   bool get isEntered => _scope.isEntered;
 
   @override
-  Stream<ReenterableScene> get onEnter => _scope.onEnter;
+  Stream<ReentrantScene> get onEnter => _scope.onEnter;
 
   @override
-  Stream<ReenterableScene> get onExit => _scope.onExit;
+  Stream<ReentrantScene> get onExit => _scope.onExit;
 }

@@ -10,9 +10,10 @@ import 'package:august/ui/html/html_ui.dart';
 import 'dart:html';
 
 // Instantiate modules top level for easy accessibility from script methods
-final options = new Options();
-final scenes = new Scenes();
-final dialog = new Dialog();
+final options = Options();
+final scenes = Scenes();
+final dialog = Dialog(
+    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
 
 main() {
   // TODO: How will users know how to do this setup for all modules they want
@@ -21,21 +22,21 @@ main() {
   // invalid setup fails at compile time.
 
   // Boilerplate time tracking
-  var clock = new Clock();
+  var clock = Clock();
 
   // Need a persistence strategy
-  var persistence = new NoPersistence();
+  var persistence = NoPersistence();
 
   // Create interactions manager using modules, persistence, and time tracking.
-  var interactionsMngr = new InteractionManager(clock, persistence,
-      [new OptionsInteractor(options), new DialogInteractor(dialog)]);
+  var interactionsMngr = InteractionManager(clock, persistence,
+      [OptionsInteractor(options), DialogInteractor(dialog)]);
 
   // Create user interface objects using interactions manager.
-  var optionsUi = new OptionsUi(options, interactionsMngr);
-  var dialogUi = new DialogUi(dialog, interactionsMngr);
+  var optionsUi = OptionsUi(options, interactionsMngr);
+  var dialogUi = DialogUi(dialog, interactionsMngr);
 
   // Present the user interface(s) with HTML
-  new SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
+  SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
 
   // Finally, start the story using the interaction manager so saved
   // interactions are replayed.
@@ -43,8 +44,8 @@ main() {
 }
 
 example() async {
-  var dragonStandoff = await scenes.reenterable().enter();
-  var sword = new Sword();
+  var dragonStandoff = await scenes.reentrant().enter();
+  var sword = Sword();
 
   // Another strategy for "first" entrance of this scene would be a custom
   // scope that we manage via scope.exit()
@@ -89,7 +90,7 @@ example() async {
   // or should modal stuff be it's own thing?
   mode.enter(dialog)
   if (mode.!isEntered)
-  new Options(mode)
+  Options(mode)
   options.newOption("...", ignoreMode: true)
 
   options.newOption("...", available: mode)
@@ -128,7 +129,7 @@ example() async {
   attack.onUse.listen((o) async {
     var attacking = await scenes.oneTime().enter();
 
-    dialog.narrate("The dragon readies its flame...", scope: attacking);
+    dialog.narrate("The dragon readies its flame...");
 
     var deflectWithSword = options
         .limitedUse("Deflect the fire with your sword.", available: attacking);
@@ -138,21 +139,20 @@ example() async {
         options.limitedUse("Dash toward the dragon.", available: attacking);
 
     deflectWithSword.onUse.listen((_) {
-      dialog.narrate("You survive, but your sword has melted!", scope: dragonStandoff);
+      dialog.narrate("You survive, but your sword has melted!",
+          scope: dragonStandoff);
       sword.isMelted.set((_) => true);
       dragonStandoff.enter();
     });
 
     deflectWithShield.onUse.listen((_) async {
-      var deflected = await scenes.oneTime().enter();
-      dialog.narrate("Your shield sets aflame and you suffer terrible burns.",
-          scope: deflected);
+      await scenes.oneTime().enter();
+      dialog.narrate("Your shield sets aflame and you suffer terrible burns.");
     });
 
     dash.onUse.listen((_) async {
-      var dashed = await scenes.oneTime().enter();
-      dialog.narrate("You make it underneath the dragon, unharmed.",
-          scope: dashed);
+      await scenes.oneTime().enter();
+      dialog.narrate("You make it underneath the dragon, unharmed.");
     });
   });
 
@@ -198,5 +198,5 @@ example() async {
 // Consider something fancy for state tracking / modeling transactions more
 // explicitly.
 class Sword {
-  final isMelted = new Observable<bool>.ofImmutable(false);
+  final isMelted = Observable<bool>.ofImmutable(false);
 }

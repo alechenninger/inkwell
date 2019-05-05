@@ -97,8 +97,8 @@ class AndScope extends Scope<dynamic> {
     // TODO: Properly clean up once _enters and _exits have no listeners
     _currentlyEntered = isEntered;
 
-    int enterDoneCount = 0;
-    int exitDoneCount = 0;
+    var enterDoneCount = 0;
+    var exitDoneCount = 0;
 
     enterDone() {
       if (++enterDoneCount == 2) {
@@ -149,8 +149,8 @@ class AndScope extends Scope<dynamic> {
 }
 
 class PredicatedScope<T> extends Scope<T> {
-  Predicate _predicate;
-  Scope<T> _delegate;
+  final Predicate _predicate;
+  final Scope<T> _delegate;
   bool _satisfiedPredicate;
 
   PredicatedScope(this._predicate, this._delegate) {
@@ -390,15 +390,15 @@ class Scoped<T> {
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,
-      {T enterValue(T value): _identity,
-      T exitValue(T value): _identity,
+      {T enterValue(T value) = _identity,
+      T exitValue(T value) = _identity,
       dynamic owner})
       : _observable = new Observable<T>.ofImmutable(initialValue, owner: owner),
         _enterValue = enterValue,
         _exitValue = exitValue;
 
   void within(Scope scope,
-      {T enterValue(T value): null, T exitValue(T value): null}) {
+      {T enterValue(T value), T exitValue(T value)}) {
     _enterSubscription?.cancel();
     _exitSubscription?.cancel();
 

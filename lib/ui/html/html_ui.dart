@@ -10,11 +10,11 @@ import 'package:august/dialog.dart';
 /// Quick hacked together UI
 class SimpleHtmlUi {
   final Element _container;
-  final _dialogContainer = new DivElement()..classes.add('dialog');
-  final _optionsContainer = new UListElement()
+  final _dialogContainer = DivElement()..classes.add('dialog');
+  final _optionsContainer = UListElement()
     ..classes.add('options');
 
-  var _domQueue = new Queue<Function>();
+  var _domQueue = Queue<Function>();
 
   SimpleHtmlUi(this._container, OptionsUi options, DialogUi dialog) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
@@ -22,20 +22,20 @@ class SimpleHtmlUi {
     // TODO: Add options and dialog already present
 
     dialog.onAdd.listen((speech) {
-      var speechElement = new DivElement()..classes.add('speech');
+      var speechElement = DivElement()..classes.add('speech');
 
       _beforeNextPaint(() {
         _dialogContainer.children.add(speechElement);
       });
 
-      speechElement.children.add(new DivElement()
+      speechElement.children.add(DivElement()
         ..classes.add('what')
         ..innerHtml = '${speech.markup}');
 
       if (speech.target != null) {
         speechElement.children.insert(
             0,
-            new DivElement()
+            DivElement()
               ..classes.add('target')
               ..innerHtml = "${speech.target}");
       }
@@ -43,7 +43,7 @@ class SimpleHtmlUi {
       if (speech.speaker != null) {
         speechElement.children.insert(
             0,
-            new DivElement()
+            DivElement()
               ..classes.add('speaker')
               ..innerHtml = speech.target == null
                   ? speech.speaker
@@ -52,17 +52,17 @@ class SimpleHtmlUi {
 
       speech.onRemove.listen((_) => _beforeNextPaint(speechElement.remove));
 
-      UListElement repliesElement = null;
+      UListElement repliesElement;
 
       speech.onReplyAvailable.listen((reply) {
-        var replyElement = new LIElement()
-          ..children.add(new SpanElement()
+        var replyElement = LIElement()
+          ..children.add(SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
             ..onClick.listen((_) => reply.use()));
 
         if (repliesElement == null) {
-          repliesElement = new UListElement()..classes.add('replies');
+          repliesElement = UListElement()..classes.add('replies');
           repliesElement.children.add(replyElement);
           _beforeNextPaint(() => speechElement.children.add(repliesElement));
         } else {
@@ -76,8 +76,8 @@ class SimpleHtmlUi {
     });
 
     options.onOptionAvailable.listen((o) {
-      var optionElement = new LIElement()
-        ..children.add(new SpanElement()
+      var optionElement = LIElement()
+        ..children.add(SpanElement()
           ..classes.add('option')
           ..innerHtml = o.text
           ..onClick.listen((_) => o.use()));

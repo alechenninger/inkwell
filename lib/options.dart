@@ -11,6 +11,9 @@ class Options {
 
   // TODO: OptionGroup exclusive()
   // var a = exclusive.
+  Option oneTime(String text, {Scope available}) {
+    return limitedUse(text, available: available, uses: 1);
+  }
 
   /// Creates a new limited use option that can be used while [available] and
   /// has remaining [uses].
@@ -87,6 +90,7 @@ class Option {
   /// [uses] in addition to the provided scope.
   ///
   /// See [isAvailable] and [availability].
+  // TODO: move this to constructor
   void available(Scope scope) {
     _available.within(new AndScope(scope, _hasUses));
   }
@@ -171,7 +175,7 @@ class _UseOption implements Interaction {
 
     var text = parameters['text'];
     var found =
-        options._options.firstWhere((o) => o.text == text, orElse: null);
+        options._options.firstWhere((o) => o.text == text, orElse: () => null);
 
     if (found == null) {
       throw new StateError('No option found from text "$text".');

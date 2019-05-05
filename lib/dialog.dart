@@ -4,12 +4,18 @@
 
 import 'package:august/august.dart';
 
+typedef GetScope = Scope Function();
+
+Scope _getAlways() {
+  return always;
+}
+
 class Dialog {
   final _addSpeechCtrl = new StreamController<Speech>.broadcast(sync: true);
   final _speech = <Speech>[];
-  final Scope _default;
+  final GetScope _default;
 
-  Dialog({Scope defaultScope = always}) : this._default = defaultScope;
+  Dialog({GetScope defaultScope = _getAlways}) : this._default = defaultScope;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -28,8 +34,9 @@ class Dialog {
   }
 
   // TODO: figure out default
+  //  This might be figured out now...
   Speech add(String markup, {String speaker, String target, Scope<dynamic> scope}) {
-    scope = scope ?? _default;
+    scope = scope ?? _default();
 
     var speech = new Speech(markup, scope, speaker, target);
 
