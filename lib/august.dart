@@ -24,11 +24,11 @@ class InteractionManager implements Sink<Interaction> {
 
   InteractionManager(
       this._clock, this._persistence, Iterable<Interactor> interactors) {
-    _ff = new FastForwarder(_clock);
+    _ff = FastForwarder(_clock);
 
     for (var interactor in interactors) {
       if (_interactorsByModule.containsKey(interactor.moduleName)) {
-        throw new ArgumentError.value(
+        throw ArgumentError.value(
             interactors,
             "interactors",
             "List of interactors contained multiple interactors for the same "
@@ -57,7 +57,7 @@ class InteractionManager implements Sink<Interaction> {
         script();
         var saved = _persistence.savedInteractions;
         saved.forEach((interaction) {
-          new Future.delayed(interaction.offset, () {
+          Future.delayed(interaction.offset, () {
             _runInteraction(interaction);
           });
         });
@@ -77,7 +77,7 @@ class InteractionManager implements Sink<Interaction> {
     var interactor = _interactorsByModule[interaction.moduleName];
 
     if (interactor == null) {
-      throw new StateError("No interactor configured for module: "
+      throw StateError("No interactor configured for module: "
           "${interaction.moduleName}. Include one when constructing an"
           "InteractionManager for this module.");
     }
@@ -99,6 +99,6 @@ abstract class Interactor {
 }
 
 Future<Null> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
-  return new Future.delayed(new Duration(
+  return Future.delayed(Duration(
       minutes: minutes, seconds: seconds, milliseconds: milliseconds));
 }

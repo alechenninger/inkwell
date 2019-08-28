@@ -29,7 +29,7 @@ class SavedInteraction implements Interaction {
       : moduleName = json['moduleName'] as String,
         name = json['name'] as String,
         parameters = json['parameters'] as Map<String, dynamic>,
-        offset = new Duration(milliseconds: json['offsetMillis'] as int);
+        offset = Duration(milliseconds: json['offsetMillis'] as int);
 
   Map<String, Object> toJson() => {
         'moduleName': moduleName,
@@ -44,8 +44,8 @@ class FastForwarder {
   Zone _zone;
   Duration _elapsed = Duration.zero;
   Duration _elapsingTo;
-  Queue<Function> _microtasks = new Queue();
-  Set<_FastForwarderTimer> _timers = new Set<_FastForwarderTimer>();
+  Queue<Function> _microtasks = Queue();
+  Set<_FastForwarderTimer> _timers = Set<_FastForwarderTimer>();
   bool _useParentZone = true;
   DateTime _switchedToParent;
   final Clock _realClock;
@@ -69,13 +69,13 @@ class FastForwarder {
 
   void fastForward(Duration offset) {
     if (_useParentZone) {
-      throw new StateError("Cannot fast forward if switched to parent zone.");
+      throw StateError("Cannot fast forward if switched to parent zone.");
     }
     if (offset.inMicroseconds < 0) {
-      throw new ArgumentError('Cannot fast forward with negative duration');
+      throw ArgumentError('Cannot fast forward with negative duration');
     }
     if (_elapsingTo != null) {
-      throw new StateError(
+      throw StateError(
           'Cannot fast forward until previous fast forward is complete.');
     }
     _elapsingTo = _elapsed + offset;
@@ -96,7 +96,7 @@ class FastForwarder {
       var t = _timers.first;
       if (t.isPeriodic) {
         _zone.parent.createTimer(t.nextCall - _elapsed, () {
-          var trackingTimer = new _TrackingTimer();
+          var trackingTimer = _TrackingTimer();
           t.callback(trackingTimer);
           if (trackingTimer.isActive) {
             _zone.parent
@@ -110,7 +110,7 @@ class FastForwarder {
     }
   }
 
-  ZoneSpecification get _zoneSpec => new ZoneSpecification(
+  ZoneSpecification get _zoneSpec => ZoneSpecification(
       createTimer: (_, parent, zone, duration, callback) =>
           _createTimer(parent, zone, duration, callback, false),
       createPeriodicTimer: (_, parent, zone, duration, callback) =>
@@ -143,7 +143,7 @@ class FastForwarder {
               zone, duration, callback as TimerCallback)
           : parent.createTimer(zone, duration, callback as Callback);
     }
-    var timer = new _FastForwarderTimer(duration, callback, isPeriodic, this);
+    var timer = _FastForwarderTimer(duration, callback, isPeriodic, this);
     _timers.add(timer);
     return timer;
   }

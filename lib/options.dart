@@ -4,7 +4,7 @@
 import 'package:august/august.dart';
 
 class Options {
-  final _availableOptCtrl = new StreamController<Option>.broadcast(sync: true);
+  final _availableOptCtrl = StreamController<Option>.broadcast(sync: true);
   final _options = <Option>[];
 
   Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
@@ -19,7 +19,7 @@ class Options {
   /// has remaining [uses].
   Option limitedUse(String text, {Scope available, int uses = 1}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option = new Option(text, uses: uses)
+    var option = Option(text, uses: uses)
       ..availability.onEnter.listen((e) {
         var option = e.owner as Option;
         _options.add(option);
@@ -69,16 +69,16 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final _hasUses = new SettableScope<Null>.notEntered();
-  final _uses = new StreamController<UseOptionEvent>.broadcast(sync: true);
+  final _hasUses = SettableScope<Null>.notEntered();
+  final _uses = StreamController<UseOptionEvent>.broadcast(sync: true);
 
   Option(this.text, {this.uses= 1}) {
     if (uses < 0) {
-      throw new ArgumentError.value(
+      throw ArgumentError.value(
           uses, "allowedUseCount", "Allowed use count must be non-negative.");
     }
 
-    _available = new ScopeAsValue(owner: this)..within(_hasUses);
+    _available = ScopeAsValue(owner: this)..within(_hasUses);
 
     if (uses > 0) {
       _hasUses.enter(null);
@@ -102,7 +102,7 @@ class Option {
   /// available to be used.
   Future<UseOptionEvent> use() {
     if (_available.observed.nextValue == false) {
-      return new Future.error(new OptionNotAvailableException(this));
+      return Future.error(new OptionNotAvailableException(this));
     }
 
     _useCount += 1;
@@ -111,8 +111,8 @@ class Option {
       _hasUses.exit(null);
     }
 
-    return new Future(() {
-      var event = new UseOptionEvent(this);
+    return Future(() {
+      var event = UseOptionEvent(this);
       _uses.add(event);
       return event;
     });
@@ -132,7 +132,7 @@ class OptionsUi {
   OptionsUi(this._options, this._interactions);
 
   Stream<UiOption> get onOptionAvailable =>
-      _options.onOptionAvailable.map((o) => new UiOption(_interactions, o));
+      _options.onOptionAvailable.map((o) => UiOption(_interactions, o));
 }
 
 class UiOption {
@@ -166,7 +166,7 @@ class _UseOption implements Interaction {
 
   static void run(Map<String, dynamic> parameters, Options options) {
     if (!parameters.containsKey('text')) {
-      throw new ArgumentError.value(
+      throw ArgumentError.value(
           parameters,
           'parameters',
           'Expected json to contain '
@@ -178,7 +178,7 @@ class _UseOption implements Interaction {
         options._options.firstWhere((o) => o.text == text, orElse: () => null);
 
     if (found == null) {
-      throw new StateError('No option found from text "$text".');
+      throw StateError('No option found from text "$text".');
     }
 
     found.use();
@@ -194,7 +194,7 @@ class OptionsInteractor implements Interactor {
     if (interaction == "$_UseOption") {
       _UseOption.run(parameters, _options);
     } else {
-      throw new UnsupportedError("Unsupported interaction: $interaction");
+      throw UnsupportedError("Unsupported interaction: $interaction");
     }
   }
 

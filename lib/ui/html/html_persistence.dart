@@ -29,10 +29,10 @@ class HtmlPersistence implements Persistence {
   void saveInteraction(Duration offset, String moduleName,
       String interactionName, Map<String, dynamic> parameters) {
     var interaction =
-        new SavedInteraction(moduleName, interactionName, parameters, offset);
+        SavedInteraction(moduleName, interactionName, parameters, offset);
     _savedInteractions.add(interaction);
   }
 
   List<SavedInteraction> get savedInteractions =>
-      new List<SavedInteraction>.from(_savedInteractions);
+      List<SavedInteraction>.from(_savedInteractions);
 }

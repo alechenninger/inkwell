@@ -14,7 +14,7 @@ abstract class Observable<T> extends Observed<T> {
   /// For mutable values like [List]s, there is no guarantee that references to
   /// the value mutate it outside of the scope of the observable.
   factory Observable.ofImmutable(T initialValue, {owner}) {
-    return new _ObservableOfImmutable<T>(initialValue, owner);
+    return _ObservableOfImmutable<T>(initialValue, owner);
   }
 
   /// Schedules a change of the observed value to the result of the provided
@@ -57,7 +57,7 @@ class _ObservableOfImmutable<T> extends Observable<T> {
 
   final _owner;
   final _changes =
-      new StreamController<StateChangeEvent<T>>.broadcast(sync: true);
+      StreamController<StateChangeEvent<T>>.broadcast(sync: true);
   Stream<StateChangeEvent<T>> get onChange => _changes.stream;
 
   _ObservableOfImmutable(this._currentValue, this._owner) {
@@ -67,7 +67,7 @@ class _ObservableOfImmutable<T> extends Observable<T> {
   Future<StateChangeEvent<T>> set(T getNewValue(T currentValue)) {
     _nextValue = getNewValue(_nextValue);
 
-    return new Future(() {
+    return Future(() {
       var newValue = getNewValue(_currentValue);
 
       if (newValue == _currentValue) {
@@ -76,7 +76,7 @@ class _ObservableOfImmutable<T> extends Observable<T> {
 
       _currentValue = newValue;
 
-      var event = new StateChangeEvent<T>(_currentValue, _owner);
+      var event = StateChangeEvent<T>(_currentValue, _owner);
 
       _changes.add(event);
 

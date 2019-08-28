@@ -11,7 +11,7 @@ Scope _getAlways() {
 }
 
 class Dialog {
-  final _addSpeechCtrl = new StreamController<Speech>.broadcast(sync: true);
+  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
   final _speech = <Speech>[];
   final GetScope _default;
 
@@ -38,7 +38,7 @@ class Dialog {
   Speech add(String markup, {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    var speech = new Speech(markup, scope, speaker, target);
+    var speech = Speech(markup, scope, speaker, target);
 
     scope.onEnter.listen((_) {
       _speech.add(speech);
@@ -57,7 +57,7 @@ class Dialog {
     return speech;
   }
 
-  Voice voice({String name}) => new Voice(name, this);
+  Voice voice({String name}) => Voice(name, this);
 
   Stream<Speech> get _onAddSpeech => _addSpeechCtrl.stream;
 }
@@ -80,7 +80,7 @@ class Speech {
   final String _target;
 
   final _replies = <Reply>[];
-  final _addReplyCtrl = new StreamController<Reply>.broadcast(sync: true);
+  final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -95,10 +95,10 @@ class Speech {
   Reply addReply(String markup, {Scope scope = const Always()}) {
     if (_replyUses == null) {
       // TODO parameterize max?
-      _replyUses = new _CountScope(1);
+      _replyUses = _CountScope(1);
     }
 
-    var reply = new Reply(this, markup, _replyUses, scope);
+    var reply = Reply(this, markup, _replyUses, scope);
 
     reply.availability
       ..onEnter.listen((_) {
@@ -128,7 +128,7 @@ class Reply {
   final String _markup;
   final _CountScope _hasUses;
 
-  final _uses = new StreamController<dynamic>.broadcast(sync: true);
+  final _uses = StreamController<dynamic>.broadcast(sync: true);
 
   Stream get onUse => _uses.stream;
 
@@ -141,19 +141,19 @@ class Reply {
   bool get willBeAvailable => _available.observed.nextValue;
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope) {
-    _available = new ScopeAsValue(owner: this)
+    _available = ScopeAsValue(owner: this)
       ..within(new AndScope(_hasUses, scope));
   }
 
   Future use() {
     if (_available.observed.nextValue == false) {
-      return new Future.error(new ReplyNotAvailableException(this));
+      return Future.error(new ReplyNotAvailableException(this));
     }
 
     _hasUses.increment();
 
-    return new Future(() {
-      var event = new UseReplyEvent(this);
+    return Future(() {
+      var event = UseReplyEvent(this);
       _uses.add(event);
       return event;
     });
@@ -167,7 +167,7 @@ class DialogUi {
   DialogUi(this._dialog, this._interactions);
 
   Stream<UiSpeech> get onAdd =>
-      _dialog._onAddSpeech.map((d) => new UiSpeech(d, _interactions));
+      _dialog._onAddSpeech.map((d) => UiSpeech(d, _interactions));
 }
 
 /*
@@ -191,7 +191,7 @@ class DialogInteractor extends Interactor {
         _UseReplyAction.run(parameters, _dialog);
         break;
       default:
-        throw new UnsupportedError("Unsupported action $action");
+        throw UnsupportedError("Unsupported action $action");
     }
   }
 }
@@ -211,7 +211,7 @@ class UiSpeech {
   Stream<UiSpeech> get onRemove => _speech._onRemove.map((_) => this);
 
   Stream<UiReply> get onReplyAvailable =>
-      _speech._onReplyAvailable.map((r) => new UiReply(r, _interactions));
+      _speech._onReplyAvailable.map((r) => UiReply(r, _interactions));
 }
 
 class UiReply {
@@ -241,12 +241,12 @@ class _UseReplyAction implements Interaction {
         .where((s) => s._markup == parameters['speech']['markup']);
 
     if (matchingSpeech.isEmpty) {
-      throw new StateError("No matching available speech found for reply: "
+      throw StateError("No matching available speech found for reply: "
           "$parameters");
     }
 
     if (matchingSpeech.length > 1) {
-      throw new StateError("Multiple matching available speech found for "
+      throw StateError("Multiple matching available speech found for "
           "reply: $parameters");
     }
 
@@ -254,12 +254,12 @@ class _UseReplyAction implements Interaction {
         .where((r) => r._markup == parameters['markup']);
 
     if (matchingReplies.isEmpty) {
-      throw new StateError("No matching available replies found for reply: "
+      throw StateError("No matching available replies found for reply: "
           "$parameters");
     }
 
     if (matchingReplies.length > 1) {
-      throw new StateError("Multiple matching available replies found for "
+      throw StateError("Multiple matching available replies found for "
           "reply: $parameters");
     }
 
@@ -309,12 +309,12 @@ class _CountScope extends Scope<int> {
   _CountScope(int max)
       : this.max = max,
         _scope = max > 0
-            ? new SettableScope<int>.entered()
-            : new SettableScope<int>.notEntered();
+            ? SettableScope<int>.entered()
+            : SettableScope<int>.notEntered();
 
   void increment() {
     if (_current == max) {
-      throw new StateError("Max of $max already met, cannot increment.");
+      throw StateError("Max of $max already met, cannot increment.");
     }
 
     _current++;
