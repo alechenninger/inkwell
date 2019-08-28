@@ -61,8 +61,8 @@ abstract class Scope<T> {
 //  }
 }
 
-const Scope always = const Always();
-const Scope never = const Never();
+const Scope always = Always();
+const Scope never = Never();
 
 class Always extends Scope<Null> {
   final isEntered = true;
