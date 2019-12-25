@@ -92,7 +92,7 @@ class Option {
   /// See [isAvailable] and [availability].
   // TODO: move this to constructor
   void available(Scope scope) {
-    _available.within(new AndScope(scope, _hasUses));
+    _available.within(AndScope(scope, _hasUses));
   }
 
   /// Schedules option to be used at the end of the current event queue.
@@ -102,7 +102,7 @@ class Option {
   /// available to be used.
   Future<UseOptionEvent> use() {
     if (_available.observed.nextValue == false) {
-      return Future.error(new OptionNotAvailableException(this));
+      return Future.error(OptionNotAvailableException(this));
     }
 
     _useCount += 1;
@@ -144,7 +144,7 @@ class UiOption {
   UiOption(this._interactions, this._option);
 
   void use() {
-    _interactions.add(new _UseOption(_option));
+    _interactions.add(_UseOption(_option));
   }
 
   Stream<UiOption> get onUse => _option.onUse.map((e) => this);

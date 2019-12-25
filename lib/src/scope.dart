@@ -200,7 +200,7 @@ class SettableScope<T> extends Scope<T> {
   void exit(T event) {
     if (!_isEntered) return;
     if (_exits.isClosed) {
-      throw StateError("Cannot enter a scope which has been closed.");
+      throw StateError("Cannot exit a scope which has been closed.");
     }
 
     _isEntered = false;

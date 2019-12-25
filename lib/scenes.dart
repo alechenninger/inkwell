@@ -108,7 +108,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
 
   Scope get first => subset((i) => i == 1, isDone: (i) => i > 1);
 
-  /// Fails if the scene is already [done].
+  /// Fails if the scene [_isDone].
   @override
   Future<ReentrantScene> enter() async {
     if (_isDone) {

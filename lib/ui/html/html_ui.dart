@@ -95,7 +95,7 @@ class SimpleHtmlUi {
     if (_domQueue.isEmpty) {
       window.animationFrame.then((_) {
         while (_domQueue.isNotEmpty) {
-          _domQueue.removeFirst()();
+          _domQueue.removeFirst().call();
         }
       });
     }

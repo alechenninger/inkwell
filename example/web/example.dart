@@ -120,23 +120,23 @@ example() async {
 
   var notMuch = what.addReply("Not much", modal: true);
   var lookOut = what.addReply("Look out!", modal: true);
-  var walkAway = options.limitedUse("Walk away", mode: notMuch.mode);
+  var walkAway = options.oneTime("Walk away", mode: notMuch.mode);
 
   */
-  var attack = options.limitedUse("Attack it!", available: dragonStandoff);
-  var runAway = options.limitedUse("Run away!", available: dragonStandoff);
+  var attack = options.oneTime("Attack it!", available: dragonStandoff);
+  var runAway = options.oneTime("Run away!", available: dragonStandoff);
 
-  attack.onUse.listen((o) async {
+  attack.onUse.listen((_) async {
     var attacking = await scenes.oneTime().enter();
 
     dialog.narrate("The dragon readies its flame...");
 
     var deflectWithSword = options
-        .limitedUse("Deflect the fire with your sword.", available: attacking);
+        .oneTime("Deflect the fire with your sword.", available: attacking);
     var deflectWithShield = options
-        .limitedUse("Deflect the fire with your shield.", available: attacking);
+        .oneTime("Deflect the fire with your shield.", available: attacking);
     var dash =
-        options.limitedUse("Dash toward the dragon.", available: attacking);
+        options.oneTime("Dash toward the dragon.", available: attacking);
 
     deflectWithSword.onUse.listen((_) {
       dialog.narrate("You survive, but your sword has melted!",
@@ -176,7 +176,7 @@ example() async {
     follow.onUse.listen((_) async {
       var following = await scenes.oneTime().enter();
       var player = dialog.voice(name: "Bob");
-      var mysteriousVoice = dialog.voice();
+      var mysteriousVoice = dialog.voice(name: "(mysterious voice)");
 
       player.say("What are you doing here?", scope: following);
 
