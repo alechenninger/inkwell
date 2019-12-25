@@ -49,7 +49,7 @@ abstract class Scope<T> {
   /// exited.
   Stream<T> get onExit;
 
-  Scope<T> where(bool isTrue()) {
+  Scope<T> where(bool Function() isTrue) {
     return PredicatedScope(isTrue, this);
   }
 
@@ -76,8 +76,11 @@ class Always extends Scope<Null> {
 }
 
 class Never extends Scope<Null> {
+  @override
   final isEntered = false;
+  @override
   final isNotEntered = true;
+  @override
   final onEnter = const Stream<Null>.empty();
   final onExit = const Stream<Null>.empty();
 
@@ -100,13 +103,13 @@ class AndScope extends Scope<dynamic> {
     var enterDoneCount = 0;
     var exitDoneCount = 0;
 
-    enterDone() {
+    void enterDone() {
       if (++enterDoneCount == 2) {
         _enters.close();
       }
     }
 
-    exitDone() {
+    void exitDone() {
       if (++exitDoneCount == 2) {
         _exits.close();
       }
@@ -390,15 +393,15 @@ class Scoped<T> {
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,
-      {T enterValue(T value) = _identity,
-      T exitValue(T value) = _identity,
+      {T Function(T) enterValue,
+      T Function(T) exitValue,
       dynamic owner})
       : _observable = Observable<T>.ofImmutable(initialValue, owner: owner),
-        _enterValue = enterValue,
-        _exitValue = exitValue;
+        _enterValue = enterValue ?? _identity,
+        _exitValue = exitValue ?? _identity;
 
   void within(Scope scope,
-      {T enterValue(T value), T exitValue(T value)}) {
+      {T Function(T) enterValue, T Function(T) exitValue}) {
     _enterSubscription?.cancel();
     _exitSubscription?.cancel();
 
