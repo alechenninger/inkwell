@@ -18,7 +18,7 @@ class HtmlPersistence implements Persistence {
       var saved =
           _json.decode(storage[_scriptHandle]) as List<Map<String, Object>>;
       _savedInteractions
-          .addAll(saved.map((o) => new SavedInteraction.fromJson(o)));
+          .addAll(saved.map((o) => SavedInteraction.fromJson(o)));
     }
 
     window.onBeforeUnload.listen((e) {

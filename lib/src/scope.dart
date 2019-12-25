@@ -354,12 +354,12 @@ class TransformScope<T> extends Scope<T> {
   TransformScope.entered(Scope<T> original,
       {void onEnter(T value, SettableScope<T> scope),
       void onExit(T value, SettableScope<T> scope)})
-      : this._(new SettableScope.entered(), original, onEnter, onExit);
+      : this._(SettableScope.entered(), original, onEnter, onExit);
 
   TransformScope.notEntered(Scope<T> original,
       {void onEnter(T value, SettableScope<T> scope),
       void onExit(T value, SettableScope<T> scope)})
-      : this._(new SettableScope.notEntered(), original, onEnter, onExit);
+      : this._(SettableScope.notEntered(), original, onEnter, onExit);
 
   bool get isEntered => _backing.isEntered;
 

@@ -38,7 +38,7 @@ import 'package:quiver/time.dart';
 /// Example:
 ///
 ///     test('testedFunc', () {
-///       new FakeAsync().run((async) {
+///       FakeAsync().run((async) {
 ///         testedFunc(clock: async.getClock(initialTime));
 ///         async.elapse(duration);
 ///         expect(...)
@@ -113,8 +113,8 @@ abstract class FakeAsync {
   /// Throws a [StateError] if the [timeout] is exceeded. The default timeout
   /// is 1 hour. [timeout] is relative to the elapsed time.
   void flushTimers(
-      {Duration timeout: const Duration(hours: 1),
-      bool flushPeriodicTimers: true});
+      {Duration timeout = const Duration(hours: 1),
+      bool flushPeriodicTimers = true});
 
   /// The number of created periodic timers that have not been canceled.
   int get periodicTimerCount;
@@ -129,8 +129,8 @@ abstract class FakeAsync {
 class _FakeAsync extends FakeAsync {
   Duration _elapsed = Duration.zero;
   Duration _elapsingTo;
-  Queue<Function> _microtasks = new Queue();
-  Set<_FakeTimer> _timers = new Set<_FakeTimer>();
+  Queue<Function> _microtasks = Queue();
+  Set<_FakeTimer> _timers = Set<_FakeTimer>();
 
   _FakeAsync() : super._() {
     _elapsed;
@@ -138,15 +138,15 @@ class _FakeAsync extends FakeAsync {
 
   @override
   Clock getClock(DateTime initialTime) =>
-      new Clock(() => initialTime.add(_elapsed));
+      Clock(() => initialTime.add(_elapsed));
 
   @override
   void elapse(Duration duration) {
     if (duration.inMicroseconds < 0) {
-      throw new ArgumentError('Cannot call elapse with negative duration');
+      throw ArgumentError('Cannot call elapse with negative duration');
     }
     if (_elapsingTo != null) {
-      throw new StateError('Cannot elapse until previous elapse is complete.');
+      throw StateError('Cannot elapse until previous elapse is complete.');
     }
     _elapsingTo = _elapsed + duration;
     _drainTimersWhile((next) => next._nextCall <= _elapsingTo);
@@ -157,7 +157,7 @@ class _FakeAsync extends FakeAsync {
   @override
   void elapseBlocking(Duration duration) {
     if (duration.inMicroseconds < 0) {
-      throw new ArgumentError('Cannot call elapse with negative duration');
+      throw ArgumentError('Cannot call elapse with negative duration');
     }
     _elapsed += duration;
     if (_elapsingTo != null && _elapsed > _elapsingTo) {
@@ -172,12 +172,12 @@ class _FakeAsync extends FakeAsync {
 
   @override
   void flushTimers(
-      {Duration timeout: const Duration(hours: 1),
-      bool flushPeriodicTimers: true}) {
+      {Duration timeout = const Duration(hours: 1),
+      bool flushPeriodicTimers = true}) {
     final absoluteTimeout = _elapsed + timeout;
     _drainTimersWhile((timer) {
       if (timer._nextCall > absoluteTimeout) {
-        throw new StateError(
+        throw StateError(
             'Exceeded timeout ${timeout} while flushing timers');
       }
       if (flushPeriodicTimers) {
@@ -212,7 +212,7 @@ class _FakeAsync extends FakeAsync {
   @override
   int get microtaskCount => _microtasks.length;
 
-  ZoneSpecification get _zoneSpec => new ZoneSpecification(
+  ZoneSpecification get _zoneSpec => ZoneSpecification(
           createTimer: (_, __, ___, Duration duration, Function callback) {
         return _createTimer(duration, callback, false);
       }, createPeriodicTimer:
@@ -296,5 +296,5 @@ class _FakeTimer implements Timer {
   cancel() => _time._cancelTimer(this);
 
   @override
-  int get tick => throw new UnimplementedError("tick");
+  int get tick => throw UnimplementedError("tick");
 }

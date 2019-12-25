@@ -9,10 +9,10 @@ void main() {
   TestModule testModule;
 
   setUp(() {
-    testModule = new TestModule();
-    persistence = new InMemoryPersistence();
-    interactionMngr = new InteractionManager(
-        new Clock(), persistence, [new TestInteractor(testModule)]);
+    testModule = TestModule();
+    persistence = InMemoryPersistence();
+    interactionMngr = InteractionManager(
+        Clock(), persistence, [TestInteractor(testModule)]);
   });
 
   run(Function script) {
@@ -70,7 +70,7 @@ void main() {
     });
 
     test("maintains remaining delays after last replayed interaction", () {
-      new FakeAsync().run((async) {
+      FakeAsync().run((async) {
         var occurred = [];
 
         persistence.saveInteraction(
@@ -99,22 +99,22 @@ void main() {
 
 class InMemoryPersistence implements Persistence {
   List _saved = [];
-  List<SavedInteraction> get savedInteractions => new List.from(_saved);
+  List<SavedInteraction> get savedInteractions => List.from(_saved);
 
   @override
   void saveInteraction(Duration offset, String moduleName, String name,
       Map<String, dynamic> parameters) {
-    _saved.add(new SavedInteraction(moduleName, name, parameters, offset));
+    _saved.add(SavedInteraction(moduleName, name, parameters, offset));
   }
 }
 
 class TestModule {
-  final _ctrl = new StreamController<String>.broadcast();
+  final _ctrl = StreamController<String>.broadcast();
   Future<String> once(String event) =>
       _ctrl.stream.where((e) => e == event).first;
 
-  Future<String> emit(String event, {Duration delay: Duration.zero}) {
-    return new Future.delayed(delay, () {
+  Future<String> emit(String event, {Duration delay = Duration.zero}) {
+    return Future.delayed(delay, () {
       _ctrl.add(event);
       return event;
     });

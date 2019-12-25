@@ -142,12 +142,12 @@ class Reply {
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope) {
     _available = ScopeAsValue(owner: this)
-      ..within(new AndScope(_hasUses, scope));
+      ..within(AndScope(_hasUses, scope));
   }
 
   Future use() {
     if (_available.observed.nextValue == false) {
-      return Future.error(new ReplyNotAvailableException(this));
+      return Future.error(ReplyNotAvailableException(this));
     }
 
     _hasUses.increment();

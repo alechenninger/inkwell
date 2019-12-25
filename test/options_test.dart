@@ -7,7 +7,7 @@ main() {
     Option opt;
 
     setUp(() {
-      opt = new Option("");
+      opt = Option("");
     });
 
     test("is eventually available", () {
@@ -34,7 +34,7 @@ main() {
       test("emits availability same future as updating isAvailable", () async {
         opt.available(const Always());
         var order = [];
-        var future = new Future(
+        var future = Future(
             () => order.add("future isAvailable: ${opt.isAvailable}"));
         opt.availability.onEnter.first.then(
             (e) => order.add("availability isAvailable: ${opt.isAvailable}"));
@@ -53,7 +53,7 @@ main() {
         SettableScope customScope;
 
         setUp(() {
-          customScope = new SettableScope.notEntered();
+          customScope = SettableScope.notEntered();
           opt.available(customScope);
         });
 
@@ -66,7 +66,7 @@ main() {
             () async {
           customScope.enter(null);
           var order = [];
-          var future = new Future(
+          var future = Future(
               () => order.add("future isAvailable: ${opt.isAvailable}"));
           opt.availability.onEnter.first.then(
               (e) => order.add("availability isAvailable: ${opt.isAvailable}"));

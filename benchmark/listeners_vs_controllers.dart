@@ -6,7 +6,7 @@ import 'dart:math';
 import 'dart:async';
 
 // fixed seed random for both runs
-final Random random = new Random(new Random().nextInt(1000));
+final Random random = Random(Random().nextInt(1000));
 const int maxInt = 100;
 const int eventsPerRun = 1000;
 const int listeners = 2000;
@@ -15,14 +15,14 @@ const int filterIncrement = 50;
 class ListenerBenchmark extends BenchmarkBase {
   ListenerBenchmark() : super("listener benchmark");
 
-  var _ctrl = new StreamController<Event>.broadcast(sync: true);
+  var _ctrl = StreamController<Event>.broadcast(sync: true);
   var eventNumbers =
-      new List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
+      List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
   int matches = 0;
 
   void run() {
     for (var i in eventNumbers) {
-      _ctrl.add(new Event(i));
+      _ctrl.add(Event(i));
     }
   }
 
@@ -50,20 +50,20 @@ class ListenerBenchmark extends BenchmarkBase {
 class ControllerBenchmark extends BenchmarkBase {
   ControllerBenchmark() : super("controller benchmark");
 
-  var _ctrl = new StreamController<Event>.broadcast(sync: true);
+  var _ctrl = StreamController<Event>.broadcast(sync: true);
   var eventNumbers =
-      new List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
+      List<int>.generate(eventsPerRun, (i) => random.nextInt(maxInt));
   int matches = 0;
 
   void run() {
     for (var i in eventNumbers) {
-      _ctrl.add(new Event(i));
+      _ctrl.add(Event(i));
     }
   }
 
   void setup() {
     for (var i = 0; i < maxInt; i += filterIncrement) {
-      var ctrl = new StreamController.broadcast(sync: true);
+      var ctrl = StreamController.broadcast(sync: true);
       _ctrl.stream
           .where((e) => e.number < i && e.number >= i - filterIncrement)
           .listen((e) {
@@ -95,7 +95,7 @@ class Event {
   Event(this.number);
 }
 
-main() {
-  new ControllerBenchmark().report();
-  new ListenerBenchmark().report();
+void main() {
+  ControllerBenchmark().report();
+  ListenerBenchmark().report();
 }

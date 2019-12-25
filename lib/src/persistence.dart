@@ -10,7 +10,10 @@ abstract class Persistence {
 }
 
 class NoPersistence implements Persistence {
+  @override
   final savedInteractions = const [];
+
+  @override
   void saveInteraction(Duration offset, String moduleName, String name,
       Map<String, dynamic> parameters) {}
 
@@ -19,8 +22,11 @@ class NoPersistence implements Persistence {
 
 class SavedInteraction implements Interaction {
   final Duration offset;
+  @override
   final String moduleName;
+  @override
   final String name;
+  @override
   final Map<String, dynamic> parameters;
 
   SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
@@ -60,16 +66,14 @@ class FastForwarder {
 
   void runFastForwardable(callback(FastForwarder self)) {
     _useParentZone = false;
-    if (_zone == null) {
-      _zone = Zone.current.fork(specification: _zoneSpec);
-    }
+    _zone ??= Zone.current.fork(specification: _zoneSpec);
     _zone.run(() => callback(this));
     switchToParentZone();
   }
 
   void fastForward(Duration offset) {
     if (_useParentZone) {
-      throw StateError("Cannot fast forward if switched to parent zone.");
+      throw StateError('Cannot fast forward if switched to parent zone.');
     }
     if (offset.inMicroseconds < 0) {
       throw ArgumentError('Cannot fast forward with negative duration');
