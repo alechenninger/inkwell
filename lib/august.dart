@@ -30,9 +30,9 @@ class InteractionManager implements Sink<Interaction> {
       if (_interactorsByModule.containsKey(interactor.moduleName)) {
         throw ArgumentError.value(
             interactors,
-            "interactors",
-            "List of interactors contained multiple interactors for the same "
-            "module name: ${interactor.moduleName}");
+            'interactors',
+            'List of interactors contained multiple interactors for the same '
+            'module name: ${interactor.moduleName}');
       }
 
       _interactorsByModule[interactor.moduleName] = interactor;
@@ -77,9 +77,9 @@ class InteractionManager implements Sink<Interaction> {
     var interactor = _interactorsByModule[interaction.moduleName];
 
     if (interactor == null) {
-      throw StateError("No interactor configured for module: "
-          "${interaction.moduleName}. Include one when constructing an"
-          "InteractionManager for this module.");
+      throw StateError('No interactor configured for module: '
+          '${interaction.moduleName}. Include one when constructing an'
+          'InteractionManager for this module.');
     }
 
     interactor.run(interaction.name, interaction.parameters);

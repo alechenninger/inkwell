@@ -19,7 +19,7 @@ class Dialog {
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
-  //       as in: ui.text("...")
+  //       as in: ui.text('...')
   //       - This allows markup to be up to UI implementation
   //       - UI can also then handle localization
   //       - UI can handle complex elements (say if we want a portrait, or
@@ -170,28 +170,23 @@ class DialogUi {
       _dialog._onAddSpeech.map((d) => UiSpeech(d, _interactions));
 }
 
-/*
-need a stream of json -> persist
-need to read json -> pick a specific action and use it
-
-ui.action("
- */
-
 class DialogInteractor extends Interactor {
-  static const _moduleName = "Dialog";
+  static const _moduleName = 'Dialog';
 
+  @override
   final moduleName = _moduleName;
   final Dialog _dialog;
 
   DialogInteractor(this._dialog);
 
+  @override
   void run(String action, Map<String, dynamic> parameters) {
     switch (action) {
       case _UseReplyAction._name:
         _UseReplyAction.run(parameters, _dialog);
         break;
       default:
-        throw UnsupportedError("Unsupported action $action");
+        throw UnsupportedError('Unsupported action $action');
     }
   }
 }
@@ -225,7 +220,7 @@ class UiReply {
   Stream<UiReply> get onRemove => _reply.availability.onExit.map((_) => this);
 
   void use() {
-    _interactions.add(new _UseReplyAction(_reply));
+    _interactions.add(_UseReplyAction(_reply));
   }
 }
 
@@ -241,26 +236,26 @@ class _UseReplyAction implements Interaction {
         .where((s) => s._markup == parameters['speech']['markup']);
 
     if (matchingSpeech.isEmpty) {
-      throw StateError("No matching available speech found for reply: "
-          "$parameters");
+      throw StateError('No matching available speech found for reply: '
+          '$parameters');
     }
 
     if (matchingSpeech.length > 1) {
-      throw StateError("Multiple matching available speech found for "
-          "reply: $parameters");
+      throw StateError('Multiple matching available speech found for '
+          'reply: $parameters');
     }
 
     var matchingReplies = matchingSpeech.first._replies
         .where((r) => r._markup == parameters['markup']);
 
     if (matchingReplies.isEmpty) {
-      throw StateError("No matching available replies found for reply: "
-          "$parameters");
+      throw StateError('No matching available replies found for reply: '
+          '$parameters');
     }
 
     if (matchingReplies.length > 1) {
-      throw StateError("Multiple matching available replies found for "
-          "reply: $parameters");
+      throw StateError('Multiple matching available replies found for '
+          'reply: $parameters');
     }
 
     matchingReplies.first.use();
@@ -307,14 +302,14 @@ class _CountScope extends Scope<int> {
   Stream<int> get onExit => _scope.onExit;
 
   _CountScope(int max)
-      : this.max = max,
+      : max = max,
         _scope = max > 0
             ? SettableScope<int>.entered()
             : SettableScope<int>.notEntered();
 
   void increment() {
     if (_current == max) {
-      throw StateError("Max of $max already met, cannot increment.");
+      throw StateError('Max of $max already met, cannot increment.');
     }
 
     _current++;

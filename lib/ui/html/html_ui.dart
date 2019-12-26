@@ -14,7 +14,7 @@ class SimpleHtmlUi {
   final _optionsContainer = UListElement()
     ..classes.add('options');
 
-  var _domQueue = Queue<Function>();
+  final _domQueue = Queue<Function>();
 
   SimpleHtmlUi(this._container, OptionsUi options, DialogUi dialog) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
@@ -91,7 +91,7 @@ class SimpleHtmlUi {
   }
 
   // TODO: not sure if this is really helping anything
-  _beforeNextPaint(void domUpdate()) {
+  void _beforeNextPaint(void Function() domUpdate) {
     if (_domQueue.isEmpty) {
       window.animationFrame.then((_) {
         while (_domQueue.isNotEmpty) {

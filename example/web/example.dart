@@ -15,7 +15,7 @@ final scenes = Scenes();
 final dialog = Dialog(
     defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
 
-main() {
+void main() {
   // TODO: How will users know how to do this setup for all modules they want
   // to use? How will we give feedback when not setup correctly?
   // Probably worth trimming and refactoring this so setup is very tiny, and
@@ -36,21 +36,21 @@ main() {
   var dialogUi = DialogUi(dialog, interactionsMngr);
 
   // Present the user interface(s) with HTML
-  SimpleHtmlUi(querySelector("#example"), optionsUi, dialogUi);
+  SimpleHtmlUi(querySelector('#example'), optionsUi, dialogUi);
 
   // Finally, start the story using the interaction manager so saved
   // interactions are replayed.
   interactionsMngr.run(example);
 }
 
-example() async {
+void example() async {
   var dragonStandoff = await scenes.reentrant().enter();
   var sword = Sword();
 
   // Another strategy for "first" entrance of this scene would be a custom
   // scope that we manage via scope.exit()
   // This would be equivalent to the old dialog.clear()
-  dialog.narrate("A dragon stands before you!",
+  dialog.narrate('A dragon stands before you!',
       scope: dragonStandoff /*.first*/);
 
   // Availability limited to current scene may make sense as default
@@ -63,13 +63,13 @@ example() async {
   following.scope(dialog);
 
   what about if you need to step out of this default?
-  newOption("...", available: overrideScopeHere);
+  newOption('...', available: overrideScopeHere);
 
   another use for default is around modality. for example, you want a reply
   which excludes options. and then you may want options which are immune to
   this. but here you probably don't want to override too easily.
 
-  newOption("..", overrideAvailable:
+  newOption('..', overrideAvailable:
                   available: default.and(dragonStandoff))
                   available: dragonStandoff, scopeOverride: true)
 
@@ -91,9 +91,9 @@ example() async {
   mode.enter(dialog)
   if (mode.!isEntered)
   Options(mode)
-  options.newOption("...", ignoreMode: true)
+  options.newOption('...', ignoreMode: true)
 
-  options.newOption("...", available: mode)
+  options.newOption('...', available: mode)
 
   // What would default scope normally be?
   within current scene and allowed by current mode?
@@ -123,23 +123,23 @@ example() async {
   var walkAway = options.oneTime("Walk away", mode: notMuch.mode);
 
   */
-  var attack = options.oneTime("Attack it!", available: dragonStandoff);
-  var runAway = options.oneTime("Run away!", available: dragonStandoff);
+  var attack = options.oneTime('Attack it!');
+  var runAway = options.oneTime('Run away!');
 
   attack.onUse.listen((_) async {
-    var attacking = await scenes.oneTime().enter();
+    await scenes.oneTime().enter();
 
-    dialog.narrate("The dragon readies its flame...");
+    dialog.narrate('The dragon readies its flame...');
 
     var deflectWithSword = options
-        .oneTime("Deflect the fire with your sword.", available: attacking);
+        .oneTime('Deflect the fire with your sword.');
     var deflectWithShield = options
-        .oneTime("Deflect the fire with your shield.", available: attacking);
+        .oneTime('Deflect the fire with your shield.');
     var dash =
-        options.oneTime("Dash toward the dragon.", available: attacking);
+        options.oneTime('Dash toward the dragon.');
 
     deflectWithSword.onUse.listen((_) {
-      dialog.narrate("You survive, but your sword has melted!",
+      dialog.narrate('You survive, but your sword has melted!',
           scope: dragonStandoff);
       sword.isMelted.set((_) => true);
       dragonStandoff.enter();
@@ -147,12 +147,12 @@ example() async {
 
     deflectWithShield.onUse.listen((_) async {
       await scenes.oneTime().enter();
-      dialog.narrate("Your shield sets aflame and you suffer terrible burns.");
+      dialog.narrate('Your shield sets aflame and you suffer terrible burns.');
     });
 
     dash.onUse.listen((_) async {
       await scenes.oneTime().enter();
-      dialog.narrate("You make it underneath the dragon, unharmed.");
+      dialog.narrate('You make it underneath the dragon, unharmed.');
     });
   });
 
@@ -161,33 +161,37 @@ example() async {
 
     var runningAway = await scenes.oneTime().enter();
 
-    dialog.narrate("Running away.", scope: runningAway);
+    dialog.narrate('Running away.');
 
     if (sword.isMelted()) {
       dialog.narrate(
-          "Your hot sword burns through its holster and tumbles behind you.",
-          scope: runningAway);
+          'Your hot sword burns through its holster and tumbles behind you.');
     }
 
-    var thisWay = dialog.add("This way!", scope: runningAway);
-    var follow = thisWay.addReply("Follow the mysterious voice");
-    var hide = thisWay.addReply("Hide");
+    var thisWay = dialog.add('This way!');
+
+//    var follow = options.exclusive('Follow the mysterious voice');
+//    var hide = follow.exclusiveWith('Hide');
+//    hide.exclusiveWith('')
+
+    var follow = thisWay.addReply('Follow the mysterious voice');
+    var hide = thisWay.addReply('Hide');
 
     follow.onUse.listen((_) async {
       var following = await scenes.oneTime().enter();
-      var player = dialog.voice(name: "Bob");
-      var mysteriousVoice = dialog.voice(name: "(mysterious voice)");
+      var player = dialog.voice(name: 'Bob');
+      var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
 
-      player.say("What are you doing here?", scope: following);
+      player.say('What are you doing here?', scope: following);
 
       var toMysteryVoice = mysteriousVoice
-          .say("I could ask you the same thing.", scope: following);
-      var needDragonScales = toMysteryVoice.addReply("I need dragon scales");
-      var sayNothing = toMysteryVoice.addReply("Say nothing.");
+          .say('I could ask you the same thing.', scope: following);
+      var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
+      var sayNothing = toMysteryVoice.addReply('Say nothing.');
 
       needDragonScales.onUse.listen((_) {
-        player.say("I need dragon scales.", scope: following);
-        mysteriousVoice.say("Good luck with that.", scope: following);
+        player.say('I need dragon scales.', scope: following);
+        mysteriousVoice.say('Good luck with that.', scope: following);
       });
 
       sayNothing.onUse.listen((_) {});
