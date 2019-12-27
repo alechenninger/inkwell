@@ -69,6 +69,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
   var _isDone = false;
 
   ReentrantScene._(this._scenes) {
+    _scenes._newScenes.add(this);
     _scenes.onNewScene.listen((scene) {
       if (scene == this) {
         return;
@@ -101,8 +102,8 @@ class ReentrantScene extends Scene<ReentrantScene> {
   /// scope. Once this returns true, the scope will never enter again.
   // TODO: Name this function better
   // TODO: Consider adding this to SettableScope
-  Scope subset(bool isEntered(int entranceNumber),
-      {bool isDone(int entranceNumber)}) {
+  Scope subset(bool Function(int entranceNumber) isEntered,
+      {bool Function(int entranceNumber) isDone}) {
     throw "Not implemented";
   }
 

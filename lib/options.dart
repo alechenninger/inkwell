@@ -4,8 +4,11 @@
 import 'package:august/august.dart';
 
 class Options {
-  final _availableOptCtrl = StreamController<Option>.broadcast(sync: true);
+  final _availableOptCtrl = StreamController<Option>();
   final _options = <Option>[];
+  final GetScope _default;
+
+  Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
   Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
 
@@ -30,9 +33,7 @@ class Options {
         _options.remove(option);
       });
 
-    if (available != null) {
-      option.available(available);
-    }
+    option.available(available ?? _default());
 
     if (option.isAvailable) {
       _options.add(option);
@@ -69,13 +70,13 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final _hasUses = SettableScope<Null>.notEntered();
+  final _hasUses = SettableScope<void>.notEntered();
   final _uses = StreamController<UseOptionEvent>.broadcast(sync: true);
 
   Option(this.text, {this.uses= 1}) {
     if (uses < 0) {
       throw ArgumentError.value(
-          uses, "allowedUseCount", "Allowed use count must be non-negative.");
+          uses, 'allowedUseCount', 'Allowed use count must be non-negative.');
     }
 
     _available = ScopeAsValue(owner: this)..within(_hasUses);
@@ -118,11 +119,11 @@ class Option {
     });
   }
 
-  String toString() => "Option{"
+  String toString() => 'Option{'
       "text='$text',"
-      "allowedUseCount=$uses,"
-      "useCount=$_useCount"
-      "}";
+      'allowedUseCount=$uses,'
+      'useCount=$_useCount'
+      '}';
 }
 
 class OptionsUi {
@@ -154,14 +155,14 @@ class UiOption {
 }
 
 class _UseOption implements Interaction {
-  final String moduleName = "$Options";
-  final String name = "$_UseOption";
+  final String moduleName = '$Options';
+  final String name = '$_UseOption';
 
   Map<String, dynamic> _params;
   Map<String, dynamic> get parameters => _params;
 
   _UseOption(Option option) {
-    _params = {"text": option.text};
+    _params = {'text': option.text};
   }
 
   static void run(Map<String, dynamic> parameters, Options options) {
@@ -191,15 +192,15 @@ class OptionsInteractor implements Interactor {
   OptionsInteractor(this._options);
 
   void run(String interaction, Map<String, dynamic> parameters) {
-    if (interaction == "$_UseOption") {
+    if (interaction == '$_UseOption') {
       _UseOption.run(parameters, _options);
     } else {
-      throw UnsupportedError("Unsupported interaction: $interaction");
+      throw UnsupportedError('Unsupported interaction: $interaction');
     }
   }
 
   @override
-  String get moduleName => "$Options";
+  String get moduleName => '$Options';
 }
 
 class UseOptionEvent {

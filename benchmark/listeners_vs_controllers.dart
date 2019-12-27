@@ -13,7 +13,7 @@ const int listeners = 2000;
 const int filterIncrement = 50;
 
 class ListenerBenchmark extends BenchmarkBase {
-  ListenerBenchmark() : super("listener benchmark");
+  ListenerBenchmark() : super('listener benchmark');
 
   var _ctrl = StreamController<Event>.broadcast(sync: true);
   var eventNumbers =
@@ -48,7 +48,7 @@ class ListenerBenchmark extends BenchmarkBase {
 }
 
 class ControllerBenchmark extends BenchmarkBase {
-  ControllerBenchmark() : super("controller benchmark");
+  ControllerBenchmark() : super('controller benchmark');
 
   var _ctrl = StreamController<Event>.broadcast(sync: true);
   var eventNumbers =

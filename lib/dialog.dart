@@ -4,18 +4,12 @@
 
 import 'package:august/august.dart';
 
-typedef GetScope = Scope Function();
-
-Scope _getAlways() {
-  return always;
-}
-
 class Dialog {
   final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
   final _speech = <Speech>[];
   final GetScope _default;
 
-  Dialog({GetScope defaultScope = _getAlways}) : this._default = defaultScope;
+  Dialog({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -35,7 +29,8 @@ class Dialog {
 
   // TODO: figure out default
   //  This might be figured out now...
-  Speech add(String markup, {String speaker, String target, Scope<dynamic> scope}) {
+  Speech add(String markup,
+      {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
     var speech = Speech(markup, scope, speaker, target);
@@ -62,7 +57,11 @@ class Dialog {
   Stream<Speech> get _onAddSpeech => _addSpeechCtrl.stream;
 }
 
-class Voice {
+abstract class Speaks {
+  Speech say(String markkup, {String target, Scope scope});
+}
+
+class Voice implements Speaks {
   String name;
 
   final Dialog _dialog;
@@ -85,7 +84,7 @@ class Speech {
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
   // TODO: Support non mutually exclusive replies?
-  _CountScope _replyUses;
+  CountScope _replyUses;
 
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
@@ -93,10 +92,7 @@ class Speech {
   Speech(this._markup, this._scope, this._speaker, this._target);
 
   Reply addReply(String markup, {Scope scope = const Always()}) {
-    if (_replyUses == null) {
-      // TODO parameterize max?
-      _replyUses = _CountScope(1);
-    }
+    _replyUses ??= CountScope(1);
 
     var reply = Reply(this, markup, _replyUses, scope);
 
@@ -126,11 +122,11 @@ class Reply {
   final Speech speech;
 
   final String _markup;
-  final _CountScope _hasUses;
+  final CountScope _hasUses;
 
-  final _uses = StreamController<dynamic>.broadcast(sync: true);
+  final _uses = StreamPublisher<dynamic>();
 
-  Stream get onUse => _uses.stream;
+  Stream get onUse => _uses.events;
 
   ScopeAsValue _available;
 
@@ -141,21 +137,16 @@ class Reply {
   bool get willBeAvailable => _available.observed.nextValue;
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope) {
-    _available = ScopeAsValue(owner: this)
-      ..within(AndScope(_hasUses, scope));
+    _available = ScopeAsValue(owner: this)..within(AndScope(_hasUses, scope));
   }
 
   Future use() {
-    if (_available.observed.nextValue == false) {
-      return Future.error(ReplyNotAvailableException(this));
-    }
-
-    _hasUses.increment();
-
-    return Future(() {
-      var event = UseReplyEvent(this);
-      _uses.add(event);
-      return event;
+    return _uses.publish(UseReplyEvent(this), check: () {
+      if (_available.observed.nextValue == false) {
+        throw ReplyNotAvailableException(this);
+      }
+    }, sideEffects: () {
+      _hasUses.increment();
     });
   }
 }
@@ -281,42 +272,4 @@ class UseReplyEvent {
   final Reply reply;
 
   UseReplyEvent(this.reply);
-}
-
-// A simple scope that is entered until incremented a maximum number of times.
-// TODO: consider generalizing this a bit to be able to produce scopes off of
-// various counts which all share the same counter
-class _CountScope extends Scope<int> {
-  final int max;
-
-  var _current = 0;
-
-  int get current => _current;
-
-  final SettableScope<int> _scope;
-
-  bool get isEntered => _scope.isEntered;
-
-  Stream<int> get onEnter => _scope.onEnter;
-
-  Stream<int> get onExit => _scope.onExit;
-
-  _CountScope(int max)
-      : max = max,
-        _scope = max > 0
-            ? SettableScope<int>.entered()
-            : SettableScope<int>.notEntered();
-
-  void increment() {
-    if (_current == max) {
-      throw StateError('Max of $max already met, cannot increment.');
-    }
-
-    _current++;
-
-    if (_current == max) {
-      _scope.exit(_current);
-      _scope.close();
-    }
-  }
 }

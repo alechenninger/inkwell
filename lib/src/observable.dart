@@ -1,7 +1,7 @@
 // Copyright (c) 2016, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of august;
+part of '../august.dart';
 
 // TODO: Interface will change if type is mutable
 abstract class Observable<T> extends Observed<T> {

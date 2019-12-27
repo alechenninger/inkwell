@@ -1,7 +1,13 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of august;
+part of '../august.dart';
+
+typedef GetScope = Scope Function();
+
+Always getAlways() {
+  return always;
+}
 
 /// Defines a period of time by enter and exit event streams.
 ///
@@ -53,6 +59,20 @@ abstract class Scope<T> {
     return PredicatedScope(isTrue, this);
   }
 
+  /// Shorthand to listening to [onEnter] and [onExit] streams of the scope
+  /// with the given [onEnter] and [onExit] callbacks.
+  ///
+  /// Calls [onEnter] with `null` if the scope is already entered and
+  /// [callIfAlreadyEntered] is `true`.
+  void listen({void Function(T) onEnter, void Function(T) onExit,
+      callIfAlreadyEntered = true}) {
+    this.onEnter.listen(onEnter);
+    this.onExit.listen(onExit);
+    if (isEntered && callIfAlreadyEntered) {
+      onEnter(null);
+    }
+  }
+
 // TODO: Maybe add a convenience API for listen to onEnter + check isEntered
 //  void around({onEnter(Scope<T> scope), onExit(Scope<T> scope)}) {
 //    if (isEntered) onEnter(this);
@@ -61,10 +81,10 @@ abstract class Scope<T> {
 //  }
 }
 
-const Scope always = Always();
-const Scope never = Never();
+const always = Always();
+const never = Never();
 
-class Always extends Scope<Null> {
+class Always extends Scope<void> {
   final isEntered = true;
   final isNotEntered = false;
   final onEnter = const Stream<Null>.empty();
@@ -72,21 +92,18 @@ class Always extends Scope<Null> {
 
   const Always();
 
-  Scope<Null> where(bool isTrue()) => isTrue() ? this : const Never();
+  Scope<void> where(bool Function() isTrue) => isTrue() ? this : const Never();
 }
 
-class Never extends Scope<Null> {
-  @override
+class Never extends Scope<void> {
   final isEntered = false;
-  @override
   final isNotEntered = true;
-  @override
   final onEnter = const Stream<Null>.empty();
   final onExit = const Stream<Null>.empty();
 
   const Never();
 
-  Scope<Null> where(bool isTrue()) => this;
+  Scope<void> where(bool Function() isTrue) => this;
 }
 
 class AndScope extends Scope<dynamic> {
@@ -189,7 +206,7 @@ class SettableScope<T> extends Scope<T> {
   void enter(T event) {
     if (_isEntered) return;
     if (_enters.isClosed) {
-      throw StateError("Cannot enter a scope which has been closed.");
+      throw StateError('Cannot enter a scope which has been closed.');
     }
 
     _isEntered = true;
@@ -203,7 +220,7 @@ class SettableScope<T> extends Scope<T> {
   void exit(T event) {
     if (!_isEntered) return;
     if (_exits.isClosed) {
-      throw StateError("Cannot exit a scope which has been closed.");
+      throw StateError('Cannot exit a scope which has been closed.');
     }
 
     _isEntered = false;
@@ -234,8 +251,8 @@ class SettableScope<T> extends Scope<T> {
   // TODO onClose ?
 
   Scope<T> transform(
-      {void onEnter(T value, SettableScope<T> scope),
-      void onExit(T value, SettableScope<T> scope)}) {
+      {void Function(T value, SettableScope<T> scope) onEnter,
+      void Function(T value, SettableScope<T> scope) onExit}) {
     return isEntered
         ? TransformScope.entered(this, onEnter: onEnter, onExit: onExit)
         : TransformScope.notEntered(this, onEnter: onEnter, onExit: onExit);
@@ -368,8 +385,46 @@ class TransformScope<T> extends Scope<T> {
   Stream<T> get onExit => _backing.onExit;
 }
 
-typedef T GetNewValue<T>(T currentValue);
-typedef bool Predicate();
+// A simple scope that is entered until incremented a maximum number of times.
+// TODO: consider generalizing this a bit to be able to produce scopes off of
+// various counts which all share the same counter
+class CountScope extends Scope<int> {
+  final int max;
+
+  var _current = 0;
+
+  int get current => _current;
+
+  final SettableScope<int> _scope;
+
+  bool get isEntered => _scope.isEntered;
+
+  Stream<int> get onEnter => _scope.onEnter;
+
+  Stream<int> get onExit => _scope.onExit;
+
+  CountScope(int max)
+      : max = max,
+        _scope = max > 0
+            ? SettableScope<int>.entered()
+            : SettableScope<int>.notEntered();
+
+  void increment() {
+    if (_current == max) {
+      throw StateError('Max of $max already met, cannot increment.');
+    }
+
+    _current++;
+
+    if (_current == max) {
+      _scope.exit(_current);
+      _scope.close();
+    }
+  }
+}
+
+typedef GetNewValue<T> = T Function(T currentValue);
+typedef Predicate = bool Function();
 
 /// Encapsulates a value which changes based on a scope.
 class Scoped<T> {

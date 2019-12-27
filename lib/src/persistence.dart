@@ -1,4 +1,4 @@
-part of august;
+part of '../august.dart';
 
 abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
@@ -50,8 +50,8 @@ class FastForwarder {
   Zone _zone;
   Duration _elapsed = Duration.zero;
   Duration _elapsingTo;
-  Queue<Function> _microtasks = Queue();
-  Set<_FastForwarderTimer> _timers = Set<_FastForwarderTimer>();
+  final Queue<Function> _microtasks = Queue();
+  final Set<_FastForwarderTimer> _timers = <_FastForwarderTimer>{};
   bool _useParentZone = true;
   DateTime _switchedToParent;
   final Clock _realClock;
@@ -64,7 +64,7 @@ class FastForwarder {
       ? _elapsed + _realClock.now().difference(_switchedToParent)
       : _elapsed;
 
-  void runFastForwardable(callback(FastForwarder self)) {
+  void runFastForwardable(Function(FastForwarder) callback) {
     _useParentZone = false;
     _zone ??= Zone.current.fork(specification: _zoneSpec);
     _zone.run(() => callback(this));

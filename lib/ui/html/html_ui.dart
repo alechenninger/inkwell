@@ -6,17 +6,18 @@ import 'dart:collection';
 
 import 'package:august/options.dart';
 import 'package:august/dialog.dart';
+import 'package:august/prompts.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
   final Element _container;
   final _dialogContainer = DivElement()..classes.add('dialog');
-  final _optionsContainer = UListElement()
-    ..classes.add('options');
+  final _optionsContainer = UListElement()..classes.add('options');
 
   final _domQueue = Queue<Function>();
 
-  SimpleHtmlUi(this._container, OptionsUi options, DialogUi dialog) {
+  SimpleHtmlUi(this._container, OptionsUi options, DialogUi dialog,
+      PromptsUi promptsUi) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
     // TODO: Add options and dialog already present
@@ -37,7 +38,7 @@ class SimpleHtmlUi {
             0,
             DivElement()
               ..classes.add('target')
-              ..innerHtml = "${speech.target}");
+              ..innerHtml = '${speech.target}');
       }
 
       if (speech.speaker != null) {
@@ -47,7 +48,7 @@ class SimpleHtmlUi {
               ..classes.add('speaker')
               ..innerHtml = speech.target == null
                   ? speech.speaker
-                  : "${speech.speaker} to...");
+                  : '${speech.speaker} to...');
       }
 
       speech.onRemove.listen((_) => _beforeNextPaint(speechElement.remove));

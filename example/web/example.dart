@@ -5,15 +5,19 @@ import 'package:august/august.dart';
 import 'package:august/options.dart';
 import 'package:august/scenes.dart';
 import 'package:august/dialog.dart';
+import 'package:august/prompts.dart';
+import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
 
 import 'dart:html';
 
 // Instantiate modules top level for easy accessibility from script methods
-final options = Options();
 final scenes = Scenes();
+final options = Options(
+  defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
 final dialog = Dialog(
     defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+final prompts = Prompts();
 
 void main() {
   // TODO: How will users know how to do this setup for all modules they want
@@ -34,9 +38,10 @@ void main() {
   // Create user interface objects using interactions manager.
   var optionsUi = OptionsUi(options, interactionsMngr);
   var dialogUi = DialogUi(dialog, interactionsMngr);
+  var promptsUi = PromptsUi(prompts, interactionsMngr);
 
   // Present the user interface(s) with HTML
-  SimpleHtmlUi(querySelector('#example'), optionsUi, dialogUi);
+  SimpleHtmlUi(querySelector('#example'), optionsUi, dialogUi, promptsUi);
 
   // Finally, start the story using the interaction manager so saved
   // interactions are replayed.
@@ -47,17 +52,9 @@ void example() async {
   var dragonStandoff = await scenes.reentrant().enter();
   var sword = Sword();
 
-  // Another strategy for "first" entrance of this scene would be a custom
-  // scope that we manage via scope.exit()
-  // This would be equivalent to the old dialog.clear()
-  dialog.narrate('A dragon stands before you!',
-      scope: dragonStandoff /*.first*/);
+  dialog.narrate('A dragon stands before you!');
 
-  // Availability limited to current scene may make sense as default
   /*
-  one scheme:
-  have a default scope for all dialog/options/whatever as current scene.
-  means there is a scope, CurrentScene.
 
   dialog.defaultScope(following, while: following);
   following.scope(dialog);
@@ -131,12 +128,10 @@ void example() async {
 
     dialog.narrate('The dragon readies its flame...');
 
-    var deflectWithSword = options
-        .oneTime('Deflect the fire with your sword.');
-    var deflectWithShield = options
-        .oneTime('Deflect the fire with your shield.');
-    var dash =
-        options.oneTime('Dash toward the dragon.');
+    var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
+    var deflectWithShield =
+        options.oneTime('Deflect the fire with your shield.');
+    var dash = options.oneTime('Dash toward the dragon.');
 
     deflectWithSword.onUse.listen((_) {
       dialog.narrate('You survive, but your sword has melted!',
@@ -182,21 +177,29 @@ void example() async {
       var player = dialog.voice(name: 'Bob');
       var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
 
-      player.say('What are you doing here?', scope: following);
+      player.say('What are you doing here?');
 
-      var toMysteryVoice = mysteriousVoice
-          .say('I could ask you the same thing.', scope: following);
+      var toMysteryVoice =
+          mysteriousVoice.say('I could ask you the same thing.');
       var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
       var sayNothing = toMysteryVoice.addReply('Say nothing.');
 
       needDragonScales.onUse.listen((_) {
-        player.say('I need dragon scales.', scope: following);
-        mysteriousVoice.say('Good luck with that.', scope: following);
+        player.say('I need dragon scales.');
+        mysteriousVoice.say('Good luck with that.');
       });
 
       sayNothing.onUse.listen((_) {});
     });
   });
+}
+
+class Player {
+  Voice _voice;
+
+  Player(Dialog dialog) {
+    _voice = dialog.voice(name: '(unknown hero)');
+  }
 }
 
 // Consider something fancy for state tracking / modeling transactions more
