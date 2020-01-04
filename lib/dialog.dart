@@ -141,6 +141,8 @@ class Reply {
   }
 
   Future use() {
+
+
     return _uses.publish(UseReplyEvent(this), check: () {
       if (_available.observed.nextValue == false) {
         throw ReplyNotAvailableException(this);

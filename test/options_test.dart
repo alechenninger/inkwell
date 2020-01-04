@@ -82,46 +82,46 @@ main() {
       });
     });
 
-    group("when used", () {
+    group('when used', () {
       setUp(() {
         opt.available(const Always());
         return opt.availability.onEnter.first;
       });
 
-      test("is not immediately made unavailable", () {
+      test('is not immediately made unavailable', () {
         opt.use().catchError((_) {});
         expect(opt.isAvailable, isTrue);
       });
 
-      test("cannot be used again", () async {
+      test('cannot be used again', () {
         opt.use().catchError((_) {});
         expect(opt.use(), throws);
       });
 
-      test("completes with error if option is scheduled to be unavailable", () {
+      test('completes with error if option is scheduled to be unavailable', () {
         opt.available(const Never());
         expect(opt.use(), throws);
       });
 
-      test("completes with error if option is already unavailable", () async {
+      test('completes with error if option is already unavailable', () async {
         opt.available(const Never());
         await opt.availability.onExit.first;
         expect(opt.use(), throws);
       });
 
-      test("fires use listeners", () {
+      test('fires use listeners', () {
         var listener = opt.onUse.first;
         opt.use();
         expect(listener, completes);
       });
 
-      test("does not fire use listeners if not available to be used", () async {
+      test('does not fire use listeners if not available to be used', () async {
         opt.available(const Never());
         await opt.availability.onExit.first;
         var listener = opt.onUse.first;
         opt.use().catchError((e) {});
-        expect(listener.timeout(const Duration(milliseconds: 250)), throws);
+        expect(listener.timeout(Duration(milliseconds: 250)), throws);
       });
     });
-  }, timeout: const Timeout(const Duration(milliseconds: 500)));
+  }, timeout: const Timeout(Duration(milliseconds: 500)));
 }

@@ -22,7 +22,7 @@ class Prompt {
   final Prompts _prompts;
   final _entries = Publisher<EnterPromptEvent>();
 
-  final _available = SettableScope<void>.entered();
+  var _entered = false;
 
   Future<EnterPromptEvent> get onEnter => _entries.event;
 
@@ -32,8 +32,10 @@ class Prompt {
 
   Future<EnterPromptEvent> enter(String input) {
     return _entries.publish(EnterPromptEvent(this, input), check: () {
-      (ScopeAsValue()..within(_available)).observed.nextValue;
-    }, sideEffects: () { _available.exit(null); });
+      if (_entered) {
+        throw PromptAlreadyEnteredException(this);
+      }
+    }, sideEffects: () => _entered = true);
   }
 }
 

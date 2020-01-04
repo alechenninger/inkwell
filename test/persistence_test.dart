@@ -15,7 +15,7 @@ void main() {
         Clock(), persistence, [TestInteractor(testModule)]);
   });
 
-  run(Function script) {
+  void run(Function script) {
     interactionMngr.run(script);
   }
 

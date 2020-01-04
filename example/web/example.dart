@@ -49,6 +49,10 @@ void main() {
 }
 
 void example() async {
+  dragonStandoff();
+}
+
+void dragonStandoff() async {
   var dragonStandoff = await scenes.reentrant().enter();
   var sword = Sword();
 
@@ -123,74 +127,81 @@ void example() async {
   var attack = options.oneTime('Attack it!');
   var runAway = options.oneTime('Run away!');
 
-  attack.onUse.listen((_) async {
-    await scenes.oneTime().enter();
-
-    dialog.narrate('The dragon readies its flame...');
-
-    var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
-    var deflectWithShield =
-        options.oneTime('Deflect the fire with your shield.');
-    var dash = options.oneTime('Dash toward the dragon.');
-
-    deflectWithSword.onUse.listen((_) {
-      dialog.narrate('You survive, but your sword has melted!',
-          scope: dragonStandoff);
-      sword.isMelted.set((_) => true);
-      dragonStandoff.enter();
-    });
-
-    deflectWithShield.onUse.listen((_) async {
-      await scenes.oneTime().enter();
-      dialog.narrate('Your shield sets aflame and you suffer terrible burns.');
-    });
-
-    dash.onUse.listen((_) async {
-      await scenes.oneTime().enter();
-      dialog.narrate('You make it underneath the dragon, unharmed.');
-    });
+  attack.onUse.listen((_) {
+    attackDragon(dragonStandoff, sword);
   });
 
   runAway.onUse.listen((o) async {
     dragonStandoff.done();
+    runAwayFromDragon(sword);
+  });
+}
 
-    var runningAway = await scenes.oneTime().enter();
+void attackDragon(Scene dragonStandoff, Sword sword) async {
+  await scenes.oneTime().enter();
 
-    dialog.narrate('Running away.');
+  dialog.narrate('The dragon readies its flame...');
 
-    if (sword.isMelted()) {
-      dialog.narrate(
-          'Your hot sword burns through its holster and tumbles behind you.');
-    }
+  var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
+  var deflectWithShield =
+  options.oneTime('Deflect the fire with your shield.');
+  var dash = options.oneTime('Dash toward the dragon.');
 
-    var thisWay = dialog.add('This way!');
+  deflectWithSword.onUse.listen((_) {
+    dialog.narrate('You survive, but your sword has melted!',
+        scope: dragonStandoff);
+    sword.isMelted.set((_) => true);
+    dragonStandoff.enter();
+  });
+
+  deflectWithShield.onUse.listen((_) async {
+    await scenes.oneTime().enter();
+    dialog.narrate('Your shield sets aflame and you suffer terrible burns.');
+  });
+
+  dash.onUse.listen((_) async {
+    await scenes.oneTime().enter();
+    dialog.narrate('You make it underneath the dragon, unharmed.');
+  });
+}
+
+void runAwayFromDragon(Sword sword) async {
+  var runningAway = await scenes.oneTime().enter();
+
+  dialog.narrate('Running away.');
+
+  if (sword.isMelted()) {
+    dialog.narrate(
+        'Your hot sword burns through its holster and tumbles behind you.');
+  }
+
+  var thisWay = dialog.add('This way!');
 
 //    var follow = options.exclusive('Follow the mysterious voice');
 //    var hide = follow.exclusiveWith('Hide');
 //    hide.exclusiveWith('')
 
-    var follow = thisWay.addReply('Follow the mysterious voice');
-    var hide = thisWay.addReply('Hide');
+  var follow = thisWay.addReply('Follow the mysterious voice');
+  var hide = thisWay.addReply('Hide');
 
-    follow.onUse.listen((_) async {
-      var following = await scenes.oneTime().enter();
-      var player = dialog.voice(name: 'Bob');
-      var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
+  follow.onUse.listen((_) async {
+    var following = await scenes.oneTime().enter();
+    var player = dialog.voice(name: 'Bob');
+    var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
 
-      player.say('What are you doing here?');
+    player.say('What are you doing here?');
 
-      var toMysteryVoice =
-          mysteriousVoice.say('I could ask you the same thing.');
-      var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
-      var sayNothing = toMysteryVoice.addReply('Say nothing.');
+    var toMysteryVoice =
+    mysteriousVoice.say('I could ask you the same thing.');
+    var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
+    var sayNothing = toMysteryVoice.addReply('Say nothing.');
 
-      needDragonScales.onUse.listen((_) {
-        player.say('I need dragon scales.');
-        mysteriousVoice.say('Good luck with that.');
-      });
-
-      sayNothing.onUse.listen((_) {});
+    needDragonScales.onUse.listen((_) {
+      player.say('I need dragon scales.');
+      mysteriousVoice.say('Good luck with that.');
     });
+
+    sayNothing.onUse.listen((_) {});
   });
 }
 
