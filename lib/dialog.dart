@@ -3,6 +3,7 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'package:august/august.dart';
+import 'package:august/src/game.dart';
 
 class Dialog {
   final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
@@ -124,9 +125,9 @@ class Reply {
   final String _markup;
   final CountScope _hasUses;
 
-  final _uses = StreamPublisher<dynamic>();
+  final Events<UseReplyEvent> _uses;
 
-  Stream get onUse => _uses.events;
+  Stream get onUse => _uses.stream;
 
   ScopeAsValue _available;
 
@@ -136,13 +137,22 @@ class Reply {
 
   bool get willBeAvailable => _available.observed.nextValue;
 
-  Reply(this.speech, this._markup, this._hasUses, Scope scope) {
+  Reply(this.speech, this._markup, this._hasUses, Scope scope, Game game)
+      : _uses = game.newEventStream() {
     _available = ScopeAsValue(owner: this)..within(AndScope(_hasUses, scope));
   }
 
   Future use() {
+    return _hasUses.increment(and: () {
+      if (!isAvailable) {
+        throw ReplyNotAvailableException(this);
+      }
 
-
+      _uses.publishNow(UseReplyEvent(this));
+    }, onError: (e) {
+      throw ReplyNotAvailableException(this);
+    });
+    /*
     return _uses.publish(UseReplyEvent(this), check: () {
       if (_available.observed.nextValue == false) {
         throw ReplyNotAvailableException(this);
@@ -150,6 +160,7 @@ class Reply {
     }, sideEffects: () {
       _hasUses.increment();
     });
+    */
   }
 }
 

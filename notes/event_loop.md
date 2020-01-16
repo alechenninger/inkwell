@@ -1,3 +1,5 @@
+# Event loop
+
 The current implementation of the event loop has been around for a while now but it's a bit
 confusing to understand the conventions, and it may benefit from codifying those conventions, or
 maybe event changing them. Let's reevaluate what's going on.
@@ -7,7 +9,7 @@ loop: Dart. And this matches another goal: to avoid creating a standalone langua
 game, and build abstractions within an existing, richly-tool-assisted language. I have so far chosen
 Dart for this purpose.
 
-What does it mean to reuse the Dart event loop?
+## What does it mean to reuse the Dart event loop?
 
 A very short review of how the Dart event loop works:
 
@@ -35,7 +37,7 @@ then first await statement inside the function (https://dart.dev/codelabs/async-
 the body of an async function was queued in a microtask. This makes switching from sync to async
 functions more intuitive as it keeps the synchronous behavior the same.
 
-What do we want from an event loop?
+## What do we want from an event loop?
 
 We want it to match a model that works well for scripting and executing stories. That is:
 
@@ -62,17 +64,66 @@ important.
   to avoid exposing mid-frame states to the UI. Additionally, ideally we ran the entire story event
   loop in its own isolate and in that case it wouldn't matter that callbacks ran as microtasks.
 
-```dart
-import 'dart:core';
+## New take:
 
-abstract class Events {
-  Future schedule(Event event);
-  Stream get events;
-}
-```
+- Use dart event loop
+- Create abstractions for scheduling events in a game-compatible way, potentially with other 
+features like logging all events in a consistent way
+- Fire listeners in independent microtasks like async controllers
+- Maintain order of listeners
+- State changes still need to be separate from listeners. How should listeners change state?
 
-Example trying to drive at what should be synchronous vs not:
+Visually:
 
-1. Option has multiple listeners
-2. Option used
-3. Listener 1 fires, consumes some limited resource
+| Event loop 1 | Event loop 2        | Event loop 3        | Event loop 4           | Event loop 5 |
+|--------------|---------------------|---------------------|------------------------|--------------|
+| Click reply  | Click reply         | Click reply         | Click reply            | Click reply  |
+|              | (mt) reply listener | (mt) reply listener | (mt) reply listener    | (mt) reply listener |
+|              |                     | state change x      | state change x         | state change x |
+|              |                     | state change y      | (mt) x change listener | (mt) x change listener |
+|              |                     | location change     | state change y         | state change y |
+|              |                     |                     | location change        | location change |
+|              |                     |                     |                        | location change from x change (row 5) |
+
+This is weird of course but technically possible: queued events may interact in odd ways. However, 
+if this is the intention, it can still make sense. For example the narrative could be you have a 
+spell that transports you somewhere if you are wounded a certain amount, and you get wounded after 
+jumping out a window, so you change location twice in quick succession. The presentation of it just 
+has to handle that. That is, the narrative explaining what happens to the player can account for 
+this if we provide the abstractions for the author to do so. So for example perhaps that is 
+text/visuals/audio associated with a scene or location transition.
+
+### State changes:
+
+These need to be done asynchronously so event listeners all have access to the same state of the 
+world when making decisions.
+
+There is nothing to stop a script from being coded such that the state change is immediate and 
+impacts other event listeners. I think the best we can do is make it easy to manage state that 
+changes in the event queue.
+
+#### Grouped state changes
+
+In [scope.md](scope.md), I'm considering changing scope to simply be an observable boolean flag.
+
+But sometimes state changes need to move together. For example, if we use a boolean flag, but are
+actually basing a scope on some other state, like a count. When increment the count to a certain 
+value, we do that asynchronously, and it should effectively change the scope value at that time, not
+in yet another future event.
+
+Some state changes are grouped together; they are atomic. How to concisely say when this is 
+appropriate?
+
+In this case, the boolean flag is implementation detail–it's another representation of the same 
+state. It's a function of some other state, maybe that's one reason to make a state change in the
+same event / synchronously. Is that the only reason?
+
+An elegant way to deal with that may be to use Observables and allow to listen to changes 
+synchronously?
+
+### What else should all event streams have in common?
+
+The fundamentals are above. But is there anything else that would be valueable?
+
+For example, should all event streams produce events of a common supertype? Should they be logged in
+a consistent way?

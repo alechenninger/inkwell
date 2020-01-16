@@ -20,22 +20,34 @@ class Prompt {
   final String text;
 
   final Prompts _prompts;
-  final _entries = Publisher<EnterPromptEvent>();
+  final _entries = Events<EnterPromptEvent>();
 
   var _entered = false;
 
-  Future<EnterPromptEvent> get onEnter => _entries.event;
+  Stream<EnterPromptEvent> get entries => _entries.stream;
 
   Prompt(this._prompts, this.text) {
     _prompts._promptsCtrl.add(this);
   }
 
   Future<EnterPromptEvent> enter(String input) {
-    return _entries.publish(EnterPromptEvent(this, input), check: () {
-      if (_entered) {
-        throw PromptAlreadyEnteredException(this);
-      }
-    }, sideEffects: () => _entered = true);
+    return count.increment(and: () {
+
+    });
+
+    /*
+    count.aroundIncrement((increment) {
+      // do stuff
+      increment();
+      // do stuff
+    });
+     */
+
+//    return _entries.publish(EnterPromptEvent(this, input), check: () {
+//      if (_entered) {
+//        throw PromptAlreadyEnteredException(this);
+//      }
+//    }, sideEffects: () => _entered = true);
   }
 }
 

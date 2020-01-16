@@ -73,7 +73,7 @@ class Option {
   final _hasUses = SettableScope<void>.notEntered();
   final _uses = StreamController<UseOptionEvent>.broadcast(sync: true);
 
-  Option(this.text, {this.uses= 1}) {
+  Option(this.text, {this.uses = 1}) {
     if (uses < 0) {
       throw ArgumentError.value(
           uses, 'allowedUseCount', 'Allowed use count must be non-negative.');

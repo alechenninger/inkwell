@@ -5,6 +5,7 @@ library august;
 
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math';
 
 import 'package:quiver/time.dart';
 

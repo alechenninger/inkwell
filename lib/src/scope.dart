@@ -249,14 +249,6 @@ class SettableScope<T> extends Scope<T> {
   Stream<T> get onExit => _onExit;
 
   // TODO onClose ?
-
-  Scope<T> transform(
-      {void Function(T value, SettableScope<T> scope) onEnter,
-      void Function(T value, SettableScope<T> scope) onExit}) {
-    return isEntered
-        ? TransformScope.entered(this, onEnter: onEnter, onExit: onExit)
-        : TransformScope.notEntered(this, onEnter: onEnter, onExit: onExit);
-  }
 }
 
 // TODO type parameters
@@ -353,36 +345,6 @@ class ListeningScope<T> extends Scope<T> {
   Stream<T> get onEnter => _settable.onEnter;
 
   Stream<T> get onExit => _settable.onExit;
-}
-
-/// A scope that is a function of another scope.
-class TransformScope<T> extends Scope<T> {
-  final SettableScope<T> _backing;
-
-  TransformScope._(
-      this._backing,
-      Scope<T> original,
-      void onEnter(T value, SettableScope<T> scope),
-      void onExit(T value, SettableScope<T> scope)) {
-    if (onEnter != null) original.onEnter.listen((t) => onEnter(t, _backing));
-    if (onExit != null) original.onExit.listen((t) => onExit(t, _backing));
-  }
-
-  TransformScope.entered(Scope<T> original,
-      {void onEnter(T value, SettableScope<T> scope),
-      void onExit(T value, SettableScope<T> scope)})
-      : this._(SettableScope.entered(), original, onEnter, onExit);
-
-  TransformScope.notEntered(Scope<T> original,
-      {void onEnter(T value, SettableScope<T> scope),
-      void onExit(T value, SettableScope<T> scope)})
-      : this._(SettableScope.notEntered(), original, onEnter, onExit);
-
-  bool get isEntered => _backing.isEntered;
-
-  Stream<T> get onEnter => _backing.onEnter;
-
-  Stream<T> get onExit => _backing.onExit;
 }
 
 // A simple scope that is entered until incremented a maximum number of times.

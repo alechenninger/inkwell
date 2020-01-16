@@ -46,6 +46,8 @@ abstract class Observed<T> {
 
   /// Fired synchronously in the same event loop as the observed value change,
   /// immediately after the value change.
+  ///
+  /// Use when
   Stream<StateChangeEvent<T>> get onChange;
 }
 
