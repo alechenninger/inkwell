@@ -20,6 +20,7 @@ class Prompt {
   final String text;
 
   final Prompts _prompts;
+  final CountScope _count;
   final _entries = Events<EnterPromptEvent>();
 
   var _entered = false;
@@ -31,7 +32,7 @@ class Prompt {
   }
 
   Future<EnterPromptEvent> enter(String input) {
-    return count.increment(and: () {
+    return _count.increment(and: () {
 
     });
 

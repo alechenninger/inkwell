@@ -102,6 +102,33 @@ class Option {
   /// listeners receive it. It completes with an error if the option is not
   /// available to be used.
   Future<UseOptionEvent> use() {
+    /*
+    Could this be simpler?
+
+    return Future(() {
+      // notAvailable checks current state
+      if (notAvailable) {
+        throw "bad";
+      }
+
+      // Changes state synchronously
+      _count.increment();
+
+      // Listeners fire in microtasks?
+      _uses.add(UseOptionEvent(this));
+    });
+
+    Difference with above is that, for one, when used up, availability does not
+    exit until the event actually happens later. Availability is currently just
+    to notify the UI. I believe this also lies as the scope can exit even though
+    isAvailable still returns true? So it leaks the future state AFAICT because
+    the scope change is synchronous, and availability as observable is only
+    changed in a future.
+
+    We're getting closer. This is a good find I think because it may prove the
+    complexity is too high (to have a subtle bug like this).
+     */
+
     if (_available.observed.nextValue == false) {
       return Future.error(OptionNotAvailableException(this));
     }

@@ -142,16 +142,14 @@ class Reply {
     _available = ScopeAsValue(owner: this)..within(AndScope(_hasUses, scope));
   }
 
-  Future use() {
-    return _hasUses.increment(and: () {
-      if (!isAvailable) {
-        throw ReplyNotAvailableException(this);
-      }
-
-      _uses.publishNow(UseReplyEvent(this));
-    }, onError: (e) {
+  Future use() async {
+    if (!willBeAvailable) {
       throw ReplyNotAvailableException(this);
-    });
+    }
+
+    _hasUses.increment();
+    _uses.publishValue(UseReplyEvent(this));
+
     /*
     return _uses.publish(UseReplyEvent(this), check: () {
       if (_available.observed.nextValue == false) {
