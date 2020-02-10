@@ -17,78 +17,96 @@ abstract class Observable<T> extends Observed<T> {
     return _ObservableOfImmutable<T>(initialValue, owner);
   }
 
-  /// Schedules a change of the observed value to the result of the provided
-  /// function in a future.
-  ///
-  /// [onChange] listeners will be fired synchronously in the same future,
-  /// immediately after the value is changed.
-  ///
-  /// Returned future completes once all listeners are fired.
-  ///
-  /// No listeners are fired if the new value is `==` to the old value.
-  ///
-  /// The [getNewValue] function is passed an instance of the current value. _It
-  /// should not mutate this value in the listener_ but return a new instance to
-  /// be used.
-  Future<StateChangeEvent<T>> set(T getNewValue(T currentValue));
+  /// Changes the current value and adds the new value as a [StateChangeEvent]
+  /// to the [onChange] stream.
+  set value(T value);
+
+  // TODO: do we need done(); ?
 }
 
 abstract class Observed<T> {
   T call() => value;
 
-  /// The current value being observed. Will not change in the current event
-  /// loop.
+  /// The current value.
   T get value;
 
-  /// The value that will be visible after all events are handled in the current
-  /// event queue.
-  T get nextValue;
-
-  /// Fired synchronously in the same event loop as the observed value change,
-  /// immediately after the value change.
+  /// Listen to changes of this value.
   ///
-  /// Use when
+  /// All values will be listened to and delivered to listeners in order they
+  /// subscribed, asynchronously in a microtask.
   Stream<StateChangeEvent<T>> get onChange;
+
+  /// Creates an [Observed] value as a function of this value.
+  ///
+  /// The computation is effective immediately when the value of this original
+  /// [Observed] changes, which could mean the [mapper] function is run
+  /// synchronously. As such, [mapper] should be a **pure** function; it should
+  /// not cause any other side effects. Similarly, it shouldn't be a function of
+  /// any other state than its input.
+  Observed<U> map<U>(U Function(T) mapper);
 }
 
 class _ObservableOfImmutable<T> extends Observable<T> {
   T _currentValue;
   T get value => _currentValue;
-  T _nextValue;
-  T get nextValue => _nextValue;
 
   final _owner;
-  final _changes =
-      StreamController<StateChangeEvent<T>>.broadcast(sync: true);
-  Stream<StateChangeEvent<T>> get onChange => _changes.stream;
+  final _changes = _EventStream<StateChangeEvent<T>>();
+  Stream<StateChangeEvent<T>> get onChange => _changes;
 
-  _ObservableOfImmutable(this._currentValue, this._owner) {
-    _nextValue = _currentValue;
+  final _mapped = <_MappedObservable<dynamic, T>>[];
+
+  _ObservableOfImmutable(this._currentValue, this._owner);
+
+  set value(T value) {
+    _currentValue = value;
+    // Schedule changes to this value first
+    _changes._add(StateChangeEvent(value, _owner));
+    // Then notify mapped values; this way microtasks are scheduled in an
+    // intuitive order (otherwise the mapped value listeners would fire first,
+    // even though their values are obviously changed after the origin value).
+    _mapped.forEach((m) => m._input(value));
   }
 
-  Future<StateChangeEvent<T>> set(T getNewValue(T currentValue)) {
-    _nextValue = getNewValue(_nextValue);
-
-    return Future(() {
-      var newValue = getNewValue(_currentValue);
-
-      if (newValue == _currentValue) {
-        return null; // TODO probably bad idea
-      }
-
-      _currentValue = newValue;
-
-      var event = StateChangeEvent<T>(_currentValue, _owner);
-
-      _changes.add(event);
-
-      return event;
-    });
+  Observed<U> map<U>(U Function(T) mapper) {
+    var answer = _MappedObservable(_currentValue, mapper);
+    _mapped.add(answer);
+    return answer;
   }
 }
 
-class StateChangeEvent<T> {
-  // TODO consider parameterizing type of owner
+class _MappedObservable<T, U> extends Observed<T> {
+  T _currentValue;
+  T get value => _currentValue;
+
+  final _changes = _EventStream<StateChangeEvent<T>>();
+  Stream<StateChangeEvent<T>> get onChange => _changes;
+
+  final T Function(U) _mapper;
+
+  final _mapped = <_MappedObservable<dynamic, T>>[];
+
+  _MappedObservable(U input, this._mapper) {
+    _input(input);
+  }
+
+  void _input(U input) {
+    _currentValue = _mapper(input);
+    // TODO: owner always null
+    _changes._add(StateChangeEvent(_currentValue, null));
+    _mapped.forEach((m) => m._input(value));
+
+  }
+
+  Observed<V> map<V>(V Function(T) mapper) {
+    var answer = _MappedObservable(_currentValue, mapper);
+    _mapped.add(answer);
+    return answer;
+  }
+}
+
+class StateChangeEvent<T> extends Event<T> {
+  // TODO consider parameterizing type of owner, or removing this
   final dynamic owner;
   final T newValue;
 

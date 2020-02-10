@@ -49,29 +49,21 @@ class Option {
 
   final int uses;
 
-  /// Ticks as soon as [use] is called should the use be permitted.
-  // TODO: Should be observed as immediate state changes are unreliable (lossy).
-  // A consumer may like to know what the use count was before other listeners
-  // fired in this event loop.
   int get useCount => _useCount;
   int _useCount = 0;
 
-  ScopeAsValue _available;
+  Scope _available;
 
-  /// As of the start of this event loop. If the option is used, this will be
-  /// reflected on the next event loop.
-  bool get isAvailable => _available.observed.value;
-
-  bool get willBeAvailable => _available.observed.nextValue;
+  bool get isAvailable => _available.isEntered;
 
   /// A scope that is entered whenever this option is available.
-  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+  Scope<StateChangeEvent<bool>> get availability => _available;
 
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final _hasUses = SettableScope<void>.notEntered();
-  final _uses = StreamController<UseOptionEvent>.broadcast(sync: true);
+  final _hasUses = SettableScope2.notEntered();
+  final _uses = Events<UseOptionEvent>();
 
   Option(this.text, {this.uses = 1}) {
     if (uses < 0) {
@@ -79,10 +71,10 @@ class Option {
           uses, 'allowedUseCount', 'Allowed use count must be non-negative.');
     }
 
-    _available = ScopeAsValue(owner: this)..within(_hasUses);
+    _available = _hasUses;
 
     if (uses > 0) {
-      _hasUses.enter(null);
+      _hasUses.enter();
     }
   }
 
@@ -93,7 +85,7 @@ class Option {
   /// See [isAvailable] and [availability].
   // TODO: move this to constructor
   void available(Scope scope) {
-    _available.within(AndScope(scope, _hasUses));
+    _available = AndScope(scope, _hasUses);
   }
 
   /// Schedules option to be used at the end of the current event queue.
@@ -102,6 +94,7 @@ class Option {
   /// listeners receive it. It completes with an error if the option is not
   /// available to be used.
   Future<UseOptionEvent> use() {
+
     /*
     Could this be simpler?
 
@@ -129,6 +122,44 @@ class Option {
     complexity is too high (to have a subtle bug like this).
      */
 
+    /*
+    _uses.publish(() {
+      if (!isAvailable) {
+        throw "bad";
+      }
+
+      // Changes state synchronously
+      _useCount++;
+
+      if (_useCount == uses) {
+        // Exits immediately, listeners in microtasks
+        _hasUses.exit();
+      }
+
+      var event = UseOptionEvent(this);
+
+      return event;
+      *//*
+      In this option, scope change is observed before use option event.
+       *//*
+    });
+    */
+
+    if (!isAvailable) {
+      throw 'bad';
+    }
+
+    // Listeners fired in microtasks
+    _uses.publishNow(UseOptionEvent(this));
+
+    if (_useCount++ == uses) {
+      // Listeners fired in microtasks
+      _hasUses.exit();
+    }
+
+    // Too synchronous?
+
+    /*
     if (_available.observed.nextValue == false) {
       return Future.error(OptionNotAvailableException(this));
     }
@@ -144,6 +175,7 @@ class Option {
       _uses.add(event);
       return event;
     });
+    */
   }
 
   String toString() => 'Option{'
@@ -230,7 +262,7 @@ class OptionsInteractor implements Interactor {
   String get moduleName => '$Options';
 }
 
-class UseOptionEvent {
+class UseOptionEvent extends Event {
   final Option option;
 
   UseOptionEvent(this.option);

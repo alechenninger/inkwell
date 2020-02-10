@@ -1,12 +1,14 @@
 part of '../august.dart';
 
 // TODO: should use common supertype of T like `Event` or something like that?
-class Events<T> {
-  var _stream = _EventStream<T>();
+class Events<T extends Event> {
+  final _stream = _EventStream<T>();
 
   Stream<T> get stream => _stream;
 
   /// Schedules the function to run as the next event in the event loop,
+  // TODO: should this return a future? It creates a way to listen to the event
+  //   that isn't like regular listening mechanism.
   Future<T> publish(T Function() event) {
     return Future(() {
       try {
@@ -24,34 +26,56 @@ class Events<T> {
     Future(() => _stream._add(event));
   }
 
+  void publishNow(T event) {
+    _stream._add(event);
+  }
+
   void done() {
-    _stream = null;
+    _stream._done();
   }
 }
 
+abstract class Event<T> {
+
+}
+
 class _EventStream<T> extends Stream<T> {
-  final _listeners = <_EventSubscription>[];
+  var _listeners = <_EventSubscription>[];
 
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
     var sub = _EventSubscription<T>()
-        ..onData(onData);
-    _listeners.add(sub);
+        ..onData(onData)
+        ..onDone(onDone);
+    if (_listeners != null) {
+      _listeners.add(sub);
+    }
     return sub;
   }
 
   void _add(T event) {
+    if (_listeners == null) {
+      throw StateError('Cannot add event to done stream');
+    }
     _listeners.forEach((sub) => sub._add(event));
+  }
+
+  void _done() {
+    // TODO: not sure if done logic around here is right
+    _listeners.forEach((sub) => sub._done());
+    _listeners = null;
   }
 
 }
 
 class _EventSubscription<T> extends StreamSubscription<T> {
   void Function(T) _onData;
+  void Function() _onDone;
   var _pauses = 0;
   var _buffer = Queue<T>();
-  var _canceled = false;
+  var _isCanceled = false;
+  var _isDone = false;
 
   @override
   Future<E> asFuture<E>([E futureValue]) {
@@ -64,7 +88,7 @@ class _EventSubscription<T> extends StreamSubscription<T> {
     _onData = null;
     _buffer = null;
     _pauses = 0;
-    _canceled = true;
+    _isCanceled = true;
     return Future.value();
   }
 
@@ -78,7 +102,7 @@ class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   void onDone(void Function() handleDone) {
-    throw UnimplementedError();
+    _onDone = handleDone;
   }
 
   @override
@@ -88,28 +112,41 @@ class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   void pause([Future resumeSignal]) {
-    if (_canceled) return;
+    if (_isCanceled) return;
     _pauses++;
   }
 
   @override
   void resume() {
-    if (!isPaused || _canceled) return;
+    if (!isPaused || _isCanceled) return;
     _pauses--;
     // TODO: reschedule events
     throw UnimplementedError();
   }
 
   void _add(T event) {
-    if (_canceled) return;
+    if (_isCanceled) return;
+    if (_onData == null) return;
     if (!isPaused) {
+      var cb = _onData;
       scheduleMicrotask(() {
-        if (!isPaused && !_canceled) {
-          _onData(event);
+        if (!isPaused && !_isCanceled) {
+          cb(event);
         }
       });
     } else {
       _buffer.add(event);
     }
+  }
+
+  void _done() {
+    // TODO: is this logic right?
+    if (_isDone) return;
+    _isDone = true;
+    if (_onDone == null) return;
+    var cb = _onDone;
+    scheduleMicrotask(() {
+      cb();
+    });
   }
 }

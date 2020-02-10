@@ -52,20 +52,25 @@ We want it to match a model that works well for scripting and executing stories.
 output.
   - Dart loop? Depends. I do not believe StreamControllers satisfy this requirement due to dart 
   doc's insistence that listeners are not all fired in order.
+- UI should be fast, smooth, and decoupled.
+  - Dart loop? Depends. I'm not sure StreamControllers satisfy this requirement, as callbacks are
+  all triggered in microtasks which block rendering. That said, maybe we want that behavior in order
+  to avoid exposing mid-frame states to the UI. Additionally, ideally we ran the entire story event
+  loop in its own isolate and in that case it wouldn't matter that callbacks ran as microtasks.
+  
+Was in the above list, but removed:
+
 - Listeners to the same event all have access to same, initial snapshot of the world. This has the
 effect of organizing listener callbacks into a single "frame" of execution.
   - Dart loop? No, we need to implement this state management ourselves or with a library.
+  - **Removed because unnecessarily complex. See below.**
 - Listeners also need access to the "next" state of the world, which necessarily may change from
 callback to callback within a frame. This is why a deterministic order of listener callbacks is
 important.
   - Dart loop? No, we need to implement this state management ourselves or with a library.
   - Is this really needed? An alternative would be to just wait to check the "next" state – schedule
   a callback, and in that callback check current state.
-- UI should be fast, smooth, and decoupled.
-  - Dart loop? Depends. I'm not sure StreamControllers satisfy this requirement, as callbacks are
-  all triggered in microtasks which block rendering. That said, maybe we want that behavior in order
-  to avoid exposing mid-frame states to the UI. Additionally, ideally we ran the entire story event
-  loop in its own isolate and in that case it wouldn't matter that callbacks ran as microtasks.
+  - **Removed because unnecessarily complex. See below.**
 
 ## New take
 
@@ -74,7 +79,7 @@ important.
 features like logging all events in a consistent way
 - Fire listeners in independent microtasks like async controllers
 - Maintain order of listeners
-- State changes still need to be separate from listeners. How should listeners change state?
+- State changes are synchronous, but can of course be scheduled as part of a future event.
 
 Visually:
 
@@ -82,9 +87,10 @@ Visually:
 |--------------|---------------------|---------------------|------------------------|--------------|
 | Click reply  | Click reply         | Click reply         | Click reply            | Click reply  |
 |              | (mt) reply listener | (mt) reply listener | (mt) reply listener    | (mt) reply listener |
-|              |                     | state change x      | state change x         | state change x |
-|              |                     | state change y      | (mt) x change listener | (mt) x change listener |
-|              |                     | location change     | state change y         | state change y |
+|              |                     | some event          | some event             | some event |
+|              |                     | (mt) state change x | (mt) state change x    | (mt) state change x |
+|              |                     | (mt) state change y | (mt) state change y    | (mt) state change y |
+|              |                     | location change     | (mt) x change listener | (mt) x change listener |
 |              |                     |                     | location change        | location change |
 |              |                     |                     |                        | location change from x change (row 5) |
 
@@ -157,7 +163,10 @@ How do we coincide the state change with the event?
 1. Listen to the event for the state change. Hide the event otherwise. If things want to listen to 
 state change, they can listen to that, not the triggering event.
 2. Allow events to have initial listeners or associated computation that fires before others. Maybe
-they would just by virtue of "the thing creating them" would have "first dibs" to assign a listener.
+they would just by virtue of "the thing creating them" would have "first dibs" to assign a listener
+(as in 1).
+
+Both are pretty trivial. Events already can be any function (2).
 
 Should state listeners all fire synchronously? Probably not, this has some bad effects like
 
@@ -168,7 +177,15 @@ foo();
 // if sync state change, bar comes before foo. not right.
 ```
 
+This wouldn't generally happen as written, but perhaps if it's buried in another function call it 
+might accidentally.
 
+Is there a downside to this?
+
+Not really. If you need to "see the future" – schedule an event in the future, or listen to a future
+or stream. Catching errors can help (e.g. in the option.use() case when it is already used. Instead
+of checking for it to be used first, just use it and catch the error. If you want to just know if 
+it was used, schedule an event or listen to onUse). 
 
 ### What else should all event streams have in common?
 
@@ -181,6 +198,24 @@ Another example of logging would be to keep track of and understand causality–
 listeners to their related events.
 
 "X action taken. This caused: 1 ... 2 ... 3 ..."
+
+Event
+  catalyst: Event? // Maybe not nullable
+  summary: String // Or just use toString?
+
+EventContext
+
+But how?
+
+Around calling listener functions, track what event is being listened to
+When events are published, use this as cause, if one is set
+It would catch if events published during event listeners
+When outside calling listener, set current event to null or some root event.
+
+Maybe simpler:
+
+Event listeners get called with event anyway. We could wrap them in something that tracks the 
+event(s) that were sent to it?
 
 ```
 var livingRoom = world.location();

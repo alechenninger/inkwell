@@ -186,6 +186,47 @@ class PredicatedScope<T> extends Scope<T> {
   Stream<T> get onExit => _delegate.onExit;
 }
 
+class ScopeOfObserved extends Scope<StateChangeEvent<bool>> {
+  final Observed<bool> _observed;
+
+  ScopeOfObserved(this._observed);
+
+  bool get isEntered => _observed.value;
+
+  Stream<StateChangeEvent<bool>> get onEnter =>
+      _observed.onChange.where((e) => e.newValue);
+
+  Stream<StateChangeEvent<bool>> get onExit =>
+      _observed.onChange.where((e) => !e.newValue);
+}
+
+class SettableScope2 extends Scope<StateChangeEvent<bool>> {
+  final Observable<bool> _scope;
+
+  SettableScope2._(bool isEntered): _scope = Observable.ofImmutable(isEntered);
+
+  SettableScope2.entered() : this._(true);
+
+  SettableScope2.notEntered() : this._(false);
+
+  void enter() {
+    _scope.value = true;
+  }
+
+  void exit() {
+    _scope.value = false;
+  }
+
+  bool get isEntered => _scope.value;
+
+  Stream<StateChangeEvent<bool>> get onEnter =>
+      _scope.onChange.where((e) => e.newValue);
+
+  Stream<StateChangeEvent<bool>> get onExit =>
+      _scope.onChange.where((e) => !e.newValue);
+
+}
+
 class SettableScope<T> extends Scope<T> {
   final _enters = StreamController<T>.broadcast(sync: true);
   final _exits = StreamController<T>.broadcast(sync: true);

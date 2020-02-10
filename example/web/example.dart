@@ -86,7 +86,7 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   deflectWithSword.onUse(() {
     dialog.narrate('You survive, but your sword has melted!',
         scope: dragonStandoff);
-    sword.isMelted.set((_) => true);
+    sword.isMelted.value = true;
     dragonStandoff.enter();
   });
 
