@@ -148,7 +148,7 @@ class Reply {
     }
 
     _hasUses.increment();
-    _uses.publishValue(UseReplyEvent(this));
+    _uses.eventValue(UseReplyEvent(this));
 
     /*
     return _uses.publish(UseReplyEvent(this), check: () {

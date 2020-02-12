@@ -93,89 +93,23 @@ class Option {
   /// The return future completes with success when the option is used and all
   /// listeners receive it. It completes with an error if the option is not
   /// available to be used.
-  Future<UseOptionEvent> use() {
-
-    /*
-    Could this be simpler?
-
-    return Future(() {
-      // notAvailable checks current state
-      if (notAvailable) {
-        throw "bad";
-      }
-
-      // Changes state synchronously
-      _count.increment();
-
-      // Listeners fire in microtasks?
-      _uses.add(UseOptionEvent(this));
-    });
-
-    Difference with above is that, for one, when used up, availability does not
-    exit until the event actually happens later. Availability is currently just
-    to notify the UI. I believe this also lies as the scope can exit even though
-    isAvailable still returns true? So it leaks the future state AFAICT because
-    the scope change is synchronous, and availability as observable is only
-    changed in a future.
-
-    We're getting closer. This is a good find I think because it may prove the
-    complexity is too high (to have a subtle bug like this).
-     */
-
-    /*
-    _uses.publish(() {
+  Future<UseOptionEvent> use() async {
+    // Wait to check isAvailable until option actually about to be used
+    var e = await _uses.event(() {
       if (!isAvailable) {
-        throw "bad";
+        throw OptionNotAvailableException(this);
       }
 
-      // Changes state synchronously
-      _useCount++;
-
-      if (_useCount == uses) {
-        // Exits immediately, listeners in microtasks
-        _hasUses.exit();
-      }
-
-      var event = UseOptionEvent(this);
-
-      return event;
-      *//*
-      In this option, scope change is observed before use option event.
-       *//*
+      return UseOptionEvent(this);
     });
-    */
 
-    if (!isAvailable) {
-      throw 'bad';
-    }
+    _useCount++;
 
-    // Listeners fired in microtasks
-    _uses.publishNow(UseOptionEvent(this));
-
-    if (_useCount++ == uses) {
-      // Listeners fired in microtasks
+    if (_useCount == uses) {
       _hasUses.exit();
     }
 
-    // Too synchronous?
-
-    /*
-    if (_available.observed.nextValue == false) {
-      return Future.error(OptionNotAvailableException(this));
-    }
-
-    _useCount += 1;
-
-    if (_useCount == uses) {
-      _hasUses.exit(null);
-    }
-
-    return Future(() {
-      var event = UseOptionEvent(this);
-      _uses.add(event);
-      return event;
-    });
-    */
+    return e;
   }
 
   String toString() => 'Option{'

@@ -6,29 +6,35 @@ class Events<T extends Event> {
 
   Stream<T> get stream => _stream;
 
-  /// Schedules the function to run as the next event in the event loop,
+  /// Schedules the function to run as the next event in the event loop.
   // TODO: should this return a future? It creates a way to listen to the event
   //   that isn't like regular listening mechanism.
-  Future<T> publish(T Function() event) {
+  //   however, adds a way to add logic that fires after the event is added to
+  //   the stream, without needing [post] parameter functionality.
+  Future<T> event(T Function() event) {
     return Future(() {
+      T theEvent;
       try {
-        var theEvent = event();
-        _stream._add(theEvent);
-        return theEvent;
+        theEvent = event();
       } catch (e) {
-        // TODO: add error to stream
+        _stream._addError(e);
         rethrow;
       }
+      _stream._add(theEvent);
+      return theEvent;
     });
   }
 
-  void publishValue(T event) {
-    Future(() => _stream._add(event));
+  Future<T> eventValue(T event) {
+    return Future(() {
+      _stream._add(event);
+      return event;
+    });
   }
 
-  void publishNow(T event) {
-    _stream._add(event);
-  }
+//  void publishNow(T event) {
+//    _stream._add(event);
+//  }
 
   void done() {
     _stream._done();
@@ -59,6 +65,13 @@ class _EventStream<T> extends Stream<T> {
       throw StateError('Cannot add event to done stream');
     }
     _listeners.forEach((sub) => sub._add(event));
+  }
+
+  void _addError(dynamic error) {
+    if (_listeners == null) {
+      throw StateError('Cannot add error to done stream');
+    }
+    _listeners.forEach((sub) => sub._addError(error));
   }
 
   void _done() {
@@ -122,6 +135,10 @@ class _EventSubscription<T> extends StreamSubscription<T> {
     _pauses--;
     // TODO: reschedule events
     throw UnimplementedError();
+  }
+
+  void _addError(dynamic error) {
+    // TODO
   }
 
   void _add(T event) {
