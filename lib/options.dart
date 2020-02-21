@@ -22,18 +22,17 @@ class Options {
   /// has remaining [uses].
   Option limitedUse(String text, {Scope available, int uses = 1}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option = Option(text, uses: uses)
+    var option = Option(text, uses: uses);
+
+    option
       ..availability.onEnter.listen((e) {
-        var option = e.owner as Option;
         _options.add(option);
         _availableOptCtrl.add(option);
       })
       ..availability.onExit.listen((e) {
-        var option = e.owner as Option;
         _options.remove(option);
-      });
-
-    option.available(available ?? _default());
+      })
+      ..available(available ?? _default());
 
     if (option.isAvailable) {
       _options.add(option);
@@ -57,7 +56,7 @@ class Option {
   bool get isAvailable => _available.isEntered;
 
   /// A scope that is entered whenever this option is available.
-  Scope<StateChangeEvent<bool>> get availability => _available;
+  Scope get availability => _available;
 
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
@@ -164,7 +163,7 @@ class _UseOption implements Interaction {
           parameters,
           'parameters',
           'Expected json to contain '
-          '"text" field.');
+              '"text" field.');
     }
 
     var text = parameters['text'];

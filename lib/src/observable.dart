@@ -13,15 +13,19 @@ abstract class Observable<T> extends Observed<T> {
   ///
   /// For mutable values like [List]s, there is no guarantee that references to
   /// the value mutate it outside of the scope of the observable.
-  factory Observable.ofImmutable(T initialValue, {owner}) {
-    return _ObservableOfImmutable<T>(initialValue, owner);
+  factory Observable.ofImmutable(T initialValue) {
+    return _ObservableOfImmutable<T>(initialValue);
   }
 
   /// Changes the current value and adds the new value as a [StateChangeEvent]
   /// to the [onChange] stream.
   set value(T value);
 
-  // TODO: do we need done(); ?
+  void close();
+
+  bool get isClosed;
+
+  bool get isNotClosed => !isClosed;
 }
 
 abstract class Observed<T> {
@@ -50,18 +54,17 @@ class _ObservableOfImmutable<T> extends Observable<T> {
   T _currentValue;
   T get value => _currentValue;
 
-  final _owner;
   final _changes = _EventStream<StateChangeEvent<T>>();
   Stream<StateChangeEvent<T>> get onChange => _changes;
 
   final _mapped = <_MappedObservable<dynamic, T>>[];
 
-  _ObservableOfImmutable(this._currentValue, this._owner);
+  _ObservableOfImmutable(this._currentValue);
 
   set value(T value) {
     _currentValue = value;
     // Schedule changes to this value first
-    _changes._add(StateChangeEvent(value, _owner));
+    _changes._add(StateChangeEvent(value));
     // Then notify mapped values; this way microtasks are scheduled in an
     // intuitive order (otherwise the mapped value listeners would fire first,
     // even though their values are obviously changed after the origin value).
@@ -73,6 +76,12 @@ class _ObservableOfImmutable<T> extends Observable<T> {
     _mapped.add(answer);
     return answer;
   }
+
+  void close() {
+    _changes._done();
+  }
+
+  bool get isClosed => _changes._isDone;
 }
 
 class _MappedObservable<T, U> extends Observed<T> {
@@ -92,8 +101,7 @@ class _MappedObservable<T, U> extends Observed<T> {
 
   void _input(U input) {
     _currentValue = _mapper(input);
-    // TODO: owner always null
-    _changes._add(StateChangeEvent(_currentValue, null));
+    _changes._add(StateChangeEvent(_currentValue));
     _mapped.forEach((m) => m._input(value));
 
   }
@@ -106,9 +114,8 @@ class _MappedObservable<T, U> extends Observed<T> {
 }
 
 class StateChangeEvent<T> extends Event<T> {
-  // TODO consider parameterizing type of owner, or removing this
-  final dynamic owner;
+  // TODO: consider adding old value
   final T newValue;
 
-  StateChangeEvent(this.newValue, this.owner);
+  StateChangeEvent(this.newValue);
 }

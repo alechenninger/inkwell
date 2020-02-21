@@ -8,7 +8,7 @@ import 'package:pedantic/pedantic.dart';
 
 // TODO: Probably rethink this later
 class Scenes {
-  final _newScenes = StreamController<Scene>.broadcast(sync: true);
+  final _newScenes = StreamController<Scene>.broadcast();
   Scene _current;
 
   Scenes() {
@@ -38,16 +38,16 @@ abstract class Scene<T extends Scene<T>> extends Scope<T> {
 }
 
 class _OneTimeScene extends Scene<_OneTimeScene> {
-  final _scope = SettableScope<_OneTimeScene>.notEntered();
+  final _scope = SettableScope2.notEntered();
   final Scenes _scenes;
 
   _OneTimeScene(this._scenes);
 
   Future<Scene> enter() async {
-    _scope.enter(this);
+    _scope.enter();
     _scenes._newScenes.add(this);
     unawaited(_scenes.onNewScene.first.then((_) {
-      _scope.exit(this);
+      _scope.exit();
       _scope.close();
     }));
     return this;
@@ -57,15 +57,15 @@ class _OneTimeScene extends Scene<_OneTimeScene> {
   bool get isEntered => _scope.isEntered;
 
   @override
-  Stream<_OneTimeScene> get onEnter => _scope.onEnter;
+  Stream<_OneTimeScene> get onEnter => _scope.onEnter.map((_) => this);
 
   @override
-  Stream<_OneTimeScene> get onExit => _scope.onExit;
+  Stream<_OneTimeScene> get onExit => _scope.onExit.map((_) => this);
 }
 
 class ReentrantScene extends Scene<ReentrantScene> {
   final Scenes _scenes;
-  final _scope = SettableScope<ReentrantScene>.entered();
+  final _scope = SettableScope2.entered();
   var _isDone = false;
 
   ReentrantScene._(this._scenes) {
@@ -76,7 +76,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
       }
 
       if (_scope.isNotClosed) {
-        _scope.exit(this);
+        _scope.exit();
 
         if (_isDone) {
           _scope.close();
@@ -116,7 +116,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
       throw StateError("Reenterable scene is done; cannot reenter.");
     }
 
-    _scope.enter(this);
+    _scope.enter();
     _scenes._newScenes.add(this);
 
     return this;
@@ -126,8 +126,8 @@ class ReentrantScene extends Scene<ReentrantScene> {
   bool get isEntered => _scope.isEntered;
 
   @override
-  Stream<ReentrantScene> get onEnter => _scope.onEnter;
+  Stream<ReentrantScene> get onEnter => _scope.onEnter.map((_) => this);
 
   @override
-  Stream<ReentrantScene> get onExit => _scope.onExit;
+  Stream<ReentrantScene> get onExit => _scope.onExit.map((_) => this);
 }

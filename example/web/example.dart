@@ -14,10 +14,11 @@ import 'dart:html';
 import 'package:pedantic/pedantic.dart';
 
 // Instantiate modules top level for easy accessibility from script methods
+final story = Story();
 final scenes = Scenes();
 final options = Options(
-  defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final dialog = Dialog(
+    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+final dialog = Dialog(story,
     defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
 final prompts = Prompts();
 
@@ -60,14 +61,14 @@ void dragonStandoff() async {
 
   dialog.narrate('A dragon stands before you!');
 
-  var attack = options.oneTime('Attack it!');
-  var runAway = options.oneTime('Run away!');
+  var attack = options.oneTime('Attack it!', available: dragonStandoff);
+  var runAway = options.oneTime('Run away!', available: dragonStandoff);
 
-  attack.onUse(() {
+  attack.onUse.listen((_) {
     attackDragon(dragonStandoff, sword);
   });
 
-  runAway.onUse(() async {
+  runAway.onUse.listen((_) async {
     dragonStandoff.done();
     runAwayFromDragon(sword);
   });
@@ -79,23 +80,22 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   dialog.narrate('The dragon readies its flame...');
 
   var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
-  var deflectWithShield =
-  options.oneTime('Deflect the fire with your shield.');
+  var deflectWithShield = options.oneTime('Deflect the fire with your shield.');
   var dash = options.oneTime('Dash toward the dragon.');
 
-  deflectWithSword.onUse(() {
+  deflectWithSword.onUse.listen((_) async {
     dialog.narrate('You survive, but your sword has melted!',
         scope: dragonStandoff);
     sword.isMelted.value = true;
-    dragonStandoff.enter();
+    await dragonStandoff.enter();
   });
 
-  deflectWithShield.onUse(() async {
+  deflectWithShield.onUse.listen((_) async {
     await scenes.oneTime().enter();
     dialog.narrate('Your shield sets aflame and you suffer terrible burns.');
   });
 
-  dash.onUse(() async {
+  dash.onUse.listen((_) async {
     await scenes.oneTime().enter();
     dialog.narrate('You make it underneath the dragon, unharmed.');
   });
@@ -120,24 +120,23 @@ void runAwayFromDragon(Sword sword) async {
   var follow = thisWay.addReply('Follow the mysterious voice');
   var hide = thisWay.addReply('Hide');
 
-  follow.onUse(() async {
+  follow.onUse.listen((_) async {
     var following = await scenes.oneTime().enter();
     var player = dialog.voice(name: 'Bob');
     var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
 
     player.say('What are you doing here?');
 
-    var toMysteryVoice =
-    mysteriousVoice.say('I could ask you the same thing.');
+    var toMysteryVoice = mysteriousVoice.say('I could ask you the same thing.');
     var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
     var sayNothing = toMysteryVoice.addReply('Say nothing.');
 
-    needDragonScales.onUse(() {
+    needDragonScales.onUse.listen((_) {
       player.say('I need dragon scales.');
       mysteriousVoice.say('Good luck with that.');
     });
 
-    sayNothing.onUse(() {});
+    sayNothing.onUse.listen((_) {});
   });
 }
 
@@ -153,10 +152,4 @@ class Player {
 // explicitly.
 class Sword {
   final isMelted = Observable<bool>.ofImmutable(false);
-}
-
-extension TerseListen<T> on Stream<T> {
-  StreamSubscription<T> call([Function onData]) {
-    return listen((d) { onData(d); });
-  }
 }

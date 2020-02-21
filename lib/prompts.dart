@@ -13,42 +13,37 @@ class Prompts extends Module<PromptsUi> {
   @override
   PromptsUi ui(InteractionManager mgr) => PromptsUi(this, mgr);
 
-  Prompt add(String text) => Prompt(this, text);
+  Prompt add(String text) {
+    var p = Prompt(this, text);
+    _promptsCtrl.add(p);
+    return p;
+  }
 }
 
 class Prompt {
   final String text;
 
   final Prompts _prompts;
-  final CountScope _count;
+  final CountScope _count = CountScope(1);
   final _entries = Events<EnterPromptEvent>();
 
-  var _entered = false;
 
   Stream<EnterPromptEvent> get entries => _entries.stream;
 
-  Prompt(this._prompts, this.text) {
-    _prompts._promptsCtrl.add(this);
-  }
+  Prompt(this._prompts, this.text);
 
-  Future<EnterPromptEvent> enter(String input) {
-    return _count.increment(and: () {
+  Future<EnterPromptEvent> enter(String input) async {
+    var e = await _entries.event(() {
+      if (_count.isNotEntered) {
+        throw PromptAlreadyEnteredException(this);
+      }
 
+      return EnterPromptEvent(this, input);
     });
 
-    /*
-    count.aroundIncrement((increment) {
-      // do stuff
-      increment();
-      // do stuff
-    });
-     */
+    _count.increment();
 
-//    return _entries.publish(EnterPromptEvent(this, input), check: () {
-//      if (_entered) {
-//        throw PromptAlreadyEnteredException(this);
-//      }
-//    }, sideEffects: () => _entered = true);
+    return e;
   }
 }
 
@@ -92,7 +87,7 @@ class _EnterPrompt extends Interaction {
 
 }
 
-class EnterPromptEvent {
+class EnterPromptEvent extends Event {
   final Prompt prompt;
   final String input;
 

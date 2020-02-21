@@ -3,14 +3,15 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'package:august/august.dart';
-import 'package:august/src/game.dart';
+import 'package:august/src/story.dart';
 
 class Dialog {
-  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
+  final _addSpeechCtrl = StreamController<Speech>();
   final _speech = <Speech>[];
   final GetScope _default;
+  final Story _story;
 
-  Dialog({GetScope defaultScope = getAlways}) : _default = defaultScope;
+  Dialog(this._story, {GetScope defaultScope = getAlways}) : _default = defaultScope;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -34,7 +35,7 @@ class Dialog {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    var speech = Speech(markup, scope, speaker, target);
+    var speech = Speech(markup, scope, speaker, target, _story);
 
     scope.onEnter.listen((_) {
       _speech.add(speech);
@@ -78,6 +79,7 @@ class Speech {
   final Scope _scope;
   final String _speaker;
   final String _target;
+  final Story _story;
 
   final _replies = <Reply>[];
   final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
@@ -90,12 +92,12 @@ class Speech {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target);
+  Speech(this._markup, this._scope, this._speaker, this._target, this._story);
 
   Reply addReply(String markup, {Scope scope = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, scope);
+    var reply = Reply(this, markup, _replyUses, scope, _story);
 
     reply.availability
       ..onEnter.listen((_) {
@@ -135,21 +137,23 @@ class Reply {
 
   bool get isAvailable => _available.observed.value;
 
-  bool get willBeAvailable => _available.observed.nextValue;
-
-  Reply(this.speech, this._markup, this._hasUses, Scope scope, Game game)
+  Reply(this.speech, this._markup, this._hasUses, Scope scope, Story game)
       : _uses = game.newEventStream() {
-    _available = ScopeAsValue(owner: this)..within(AndScope(_hasUses, scope));
+    _available = ScopeAsValue()..within(AndScope(_hasUses, scope));
   }
 
   Future use() async {
-    if (!willBeAvailable) {
-      throw ReplyNotAvailableException(this);
-    }
+    var e = await _uses.event(() {
+      if (!isAvailable) {
+        throw ReplyNotAvailableException(this);
+      }
+
+      return UseReplyEvent(this);
+    });
 
     _hasUses.increment();
-    _uses.eventValue(UseReplyEvent(this));
 
+    return e;
     /*
     return _uses.publish(UseReplyEvent(this), check: () {
       if (_available.observed.nextValue == false) {
@@ -279,7 +283,7 @@ class ReplyNotAvailableException implements Exception {
   ReplyNotAvailableException(this.reply);
 }
 
-class UseReplyEvent {
+class UseReplyEvent extends Event {
   final Reply reply;
 
   UseReplyEvent(this.reply);

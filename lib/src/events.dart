@@ -41,9 +41,7 @@ class Events<T extends Event> {
   }
 }
 
-abstract class Event<T> {
-
-}
+abstract class Event<T> {}
 
 class _EventStream<T> extends Stream<T> {
   var _listeners = <_EventSubscription>[];
@@ -52,8 +50,8 @@ class _EventStream<T> extends Stream<T> {
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
     var sub = _EventSubscription<T>()
-        ..onData(onData)
-        ..onDone(onDone);
+      ..onData(onData)
+      ..onDone(onDone);
     if (_listeners != null) {
       _listeners.add(sub);
     }
@@ -80,6 +78,7 @@ class _EventStream<T> extends Stream<T> {
     _listeners = null;
   }
 
+  bool get _isDone => _listeners == null;
 }
 
 class _EventSubscription<T> extends StreamSubscription<T> {

@@ -12,6 +12,8 @@ import 'package:quiver/time.dart';
 export 'dart:async';
 export 'package:quiver/time.dart' show Clock;
 
+export 'src/story.dart';
+
 // TODO: This library organization is a mess
 part 'input.dart';
 part 'src/events.dart';

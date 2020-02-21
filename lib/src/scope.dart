@@ -64,7 +64,9 @@ abstract class Scope<T> {
   ///
   /// Calls [onEnter] with `null` if the scope is already entered and
   /// [callIfAlreadyEntered] is `true`.
-  void listen({void Function(T) onEnter, void Function(T) onExit,
+  void listen(
+      {void Function(T) onEnter,
+      void Function(T) onExit,
       callIfAlreadyEntered = true}) {
     this.onEnter.listen(onEnter);
     this.onExit.listen(onExit);
@@ -109,11 +111,14 @@ class Never extends Scope<void> {
 class AndScope extends Scope<dynamic> {
   final Scope _first;
   final Scope _second;
+  final Observable<bool> _scope;
   final StreamController _enters = StreamController.broadcast(sync: true);
   final StreamController _exits = StreamController.broadcast(sync: true);
   bool _currentlyEntered;
 
-  AndScope(this._first, this._second) {
+  // TODO: i think there is a bug here now
+  AndScope(this._first, this._second)
+      : _scope = Observable.ofImmutable(_first.isEntered && _second.isEntered) {
     // TODO: Properly clean up once _enters and _exits have no listeners
     _currentlyEntered = isEntered;
 
@@ -203,7 +208,7 @@ class ScopeOfObserved extends Scope<StateChangeEvent<bool>> {
 class SettableScope2 extends Scope<StateChangeEvent<bool>> {
   final Observable<bool> _scope;
 
-  SettableScope2._(bool isEntered): _scope = Observable.ofImmutable(isEntered);
+  SettableScope2._(bool isEntered) : _scope = Observable.ofImmutable(isEntered);
 
   SettableScope2.entered() : this._(true);
 
@@ -217,6 +222,14 @@ class SettableScope2 extends Scope<StateChangeEvent<bool>> {
     _scope.value = false;
   }
 
+  void close() {
+    _scope.close();
+  }
+
+  bool get isClosed => _scope.isClosed;
+
+  bool get isNotClosed => !isClosed;
+
   bool get isEntered => _scope.value;
 
   Stream<StateChangeEvent<bool>> get onEnter =>
@@ -224,7 +237,6 @@ class SettableScope2 extends Scope<StateChangeEvent<bool>> {
 
   Stream<StateChangeEvent<bool>> get onExit =>
       _scope.onChange.where((e) => !e.newValue);
-
 }
 
 class SettableScope<T> extends Scope<T> {
@@ -451,10 +463,8 @@ class Scoped<T> {
   Scope get scope => _mirrorScope;
 
   Scoped.ofImmutable(T initialValue,
-      {T Function(T) enterValue,
-      T Function(T) exitValue,
-      dynamic owner})
-      : _observable = Observable<T>.ofImmutable(initialValue, owner: owner),
+      {T Function(T) enterValue, T Function(T) exitValue})
+      : _observable = Observable<T>.ofImmutable(initialValue),
         _enterValue = enterValue ?? _identity,
         _exitValue = exitValue ?? _identity;
 
@@ -470,17 +480,17 @@ class Scoped<T> {
     if (exitValue != null) _exitValue = exitValue;
 
     if (_backingScope.isEntered) {
-      _observable.set(_enterValue);
+      _observable.value = _enterValue(_observable.value);
     } else {
-      _observable.set(_exitValue);
+      _observable.value = _exitValue(_observable.value);
     }
 
     _enterSubscription = _backingScope.onEnter.listen((e) {
-      _observable.set(_enterValue);
+      _observable.value = _enterValue(_observable.value);
     });
 
     _exitSubscription = _backingScope.onExit.listen((e) {
-      _observable.set(_exitValue);
+      _observable.value = _exitValue(_observable.value);
     });
   }
 }
@@ -501,9 +511,9 @@ class ScopeAsValue {
   Scope get scope => _scoped.scope;
 
   /// Starts as not entered until a scope is set. Set a scope with [within].
-  ScopeAsValue({dynamic owner}) {
+  ScopeAsValue() {
     _scoped = Scoped.ofImmutable(false,
-        owner: owner, enterValue: (_) => true, exitValue: (_) => false);
+        enterValue: (_) => true, exitValue: (_) => false);
 
     _valueScope = ListeningScope.notEntered(_scoped.observed.onChange,
         enterWhen: (e) => e.newValue == true,
