@@ -8,7 +8,7 @@ import 'package:pedantic/pedantic.dart';
 
 // TODO: Probably rethink this later
 class Scenes {
-  final _newScenes = StreamController<Scene>.broadcast();
+  final _newScenes = StreamController<Scene>.broadcast(sync: true);
   Scene _current;
 
   Scenes() {
@@ -40,17 +40,22 @@ abstract class Scene<T extends Scene<T>> extends Scope<T> {
 class _OneTimeScene extends Scene<_OneTimeScene> {
   final _scope = SettableScope2.notEntered();
   final Scenes _scenes;
+  Observed<bool> get asObserved => _scope.asObserved;
 
   _OneTimeScene(this._scenes);
 
-  Future<Scene> enter() async {
-    _scope.enter();
-    _scenes._newScenes.add(this);
-    unawaited(_scenes.onNewScene.first.then((_) {
-      _scope.exit();
-      _scope.close();
-    }));
-    return this;
+  Future<Scene> enter() {
+    return Future(() async {
+      _scope.enter();
+      var first = _scenes.onNewScene.first;
+      _scenes._newScenes.add(this);
+      await first;
+      unawaited(_scenes.onNewScene.first.then((_) {
+        _scope.exit();
+        _scope.close();
+      }));
+      return this;
+    });
   }
 
   @override
@@ -67,6 +72,8 @@ class ReentrantScene extends Scene<ReentrantScene> {
   final Scenes _scenes;
   final _scope = SettableScope2.entered();
   var _isDone = false;
+
+  Observed<bool> get asObserved => _scope.asObserved;
 
   ReentrantScene._(this._scenes) {
     _scenes._newScenes.add(this);
@@ -111,15 +118,19 @@ class ReentrantScene extends Scene<ReentrantScene> {
 
   /// Fails if the scene [_isDone].
   @override
-  Future<ReentrantScene> enter() async {
-    if (_isDone) {
-      throw StateError("Reenterable scene is done; cannot reenter.");
-    }
+  Future<ReentrantScene> enter() {
+    return Future(() async {
+      if (_isDone) {
+        throw StateError("Reenterable scene is done; cannot reenter.");
+      }
 
-    _scope.enter();
-    _scenes._newScenes.add(this);
+      _scope.enter();
+      var first = _scenes.onNewScene.first;
+      _scenes._newScenes.add(this);
+      await first;
 
-    return this;
+      return this;
+    });
   }
 
   @override

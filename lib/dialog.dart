@@ -133,7 +133,7 @@ class Reply {
 
   ScopeAsValue _available;
 
-  Scope<StateChangeEvent<bool>> get availability => _available.asScope;
+  Scope<Change<bool>> get availability => _available.asScope;
 
   bool get isAvailable => _available.observed.value;
 

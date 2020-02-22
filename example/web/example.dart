@@ -61,8 +61,8 @@ void dragonStandoff() async {
 
   dialog.narrate('A dragon stands before you!');
 
-  var attack = options.oneTime('Attack it!', available: dragonStandoff);
-  var runAway = options.oneTime('Run away!', available: dragonStandoff);
+  var attack = options.oneTime('Attack it!');
+  var runAway = options.oneTime('Run away!');
 
   attack.onUse.listen((_) {
     attackDragon(dragonStandoff, sword);

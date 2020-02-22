@@ -41,7 +41,7 @@ class Events<T extends Event> {
   }
 }
 
-abstract class Event<T> {}
+abstract class Event {}
 
 class _EventStream<T> extends Stream<T> {
   var _listeners = <_EventSubscription>[];
@@ -79,6 +79,80 @@ class _EventStream<T> extends Stream<T> {
   }
 
   bool get _isDone => _listeners == null;
+}
+
+/*
+1. listen
+2. first.ondata
+3. second.ondata
+
+ */
+
+class _MergedStream<T> extends Stream<T> {
+  final Stream<T> _first;
+  final Stream<T> _second;
+
+  _MergedStream(this._first, this._second);
+
+  @override
+  StreamSubscription<T> listen(void Function(T event) onData,
+      {Function onError, void Function() onDone, bool cancelOnError}) {
+    return _MergedSubscription(_first.listen(onData), _second.listen(onData));
+  }
+}
+
+class _MergedSubscription<T> extends StreamSubscription<T> {
+  final StreamSubscription<T> _first;
+  final StreamSubscription<T> _second;
+
+  _MergedSubscription(this._first, this._second);
+
+  @override
+  Future<E> asFuture<E>([E futureValue]) {
+    // TODO: review
+    return Future.any(
+        [_first.asFuture(futureValue), _second.asFuture(futureValue)]);
+  }
+
+  @override
+  Future cancel() {
+    return Future.wait([_first.cancel(), _second.cancel()]);
+  }
+
+  @override
+  bool get isPaused => _first.isPaused;
+
+  @override
+  void onData(void Function(T data) handleData) {
+    _first.onData(handleData);
+    _second.onData(handleData);
+  }
+
+  @override
+  void onDone(void Function() handleDone) {
+    _first.onDone(handleDone);
+    _second.onDone(handleDone);
+  }
+
+  @override
+  void onError(Function handleError) {
+    _first.onError(handleError);
+    _second.onError(handleError);
+  }
+
+  @override
+  void pause([Future resumeSignal]) {
+    // TODO: review this
+    var broadcast = resumeSignal.asStream().asBroadcastStream();
+    _first.pause(broadcast.first);
+    _second.pause(broadcast.first);
+  }
+
+  @override
+  void resume() {
+    _first.resume();
+    _second.resume();
+  }
 }
 
 class _EventSubscription<T> extends StreamSubscription<T> {

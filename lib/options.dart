@@ -22,7 +22,7 @@ class Options {
   /// has remaining [uses].
   Option limitedUse(String text, {Scope available, int uses = 1}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option = Option(text, uses: uses);
+    var option = Option(text, uses: uses, available: available ?? _default());
 
     option
       ..availability.onEnter.listen((e) {
@@ -31,8 +31,7 @@ class Options {
       })
       ..availability.onExit.listen((e) {
         _options.remove(option);
-      })
-      ..available(available ?? _default());
+      });
 
     if (option.isAvailable) {
       _options.add(option);
@@ -61,20 +60,18 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final _hasUses = SettableScope2.notEntered();
+  final SettableScope2 _hasUses;
   final _uses = Events<UseOptionEvent>();
 
-  Option(this.text, {this.uses = 1}) {
+  Option(this.text, {this.uses = 1, Scope available})
+      : _hasUses =
+            uses > 0 ? SettableScope2.entered() : SettableScope2.notEntered() {
     if (uses < 0) {
       throw ArgumentError.value(
           uses, 'allowedUseCount', 'Allowed use count must be non-negative.');
     }
 
-    _available = _hasUses;
-
-    if (uses > 0) {
-      _hasUses.enter();
-    }
+    _available = available == null ? _hasUses : _hasUses.and(available);
   }
 
   /// Set a scope which contributes to determining this options availability.

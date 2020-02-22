@@ -59,6 +59,14 @@ abstract class Scope<T> {
     return PredicatedScope(isTrue, this);
   }
 
+  Scope and(Scope scope) {
+    return merge(scope, latest((s1, s2) => s1 && s2));
+  }
+
+  Scope merge(Scope scope, bool Function(bool, bool) merger) {}
+
+  Observed<bool> get asObserved => null;
+
   /// Shorthand to listening to [onEnter] and [onExit] streams of the scope
   /// with the given [onEnter] and [onExit] callbacks.
   ///
@@ -111,16 +119,38 @@ class Never extends Scope<void> {
 class AndScope extends Scope<dynamic> {
   final Scope _first;
   final Scope _second;
-  final Observable<bool> _scope;
-  final StreamController _enters = StreamController.broadcast(sync: true);
-  final StreamController _exits = StreamController.broadcast(sync: true);
+  // Use synchronous broadcast streams because we are already listening on the
+  // back of an async context; the microtask listener of the scope events.
+  // Listening to an AndScope should be transparent and not add another layer of
+  // microtasks.
+  /*
+  TODO: the behavior of this is a bit odd. Because these are separate streams
+    and the backing scopes listeners are fired in separate microtasks,
+    listeners can subscribe to an AndScope and inadvertently get events
+    they wouldn't otherwise, because of the microtask delay of events.
+
+  For example:
+
+  1. loop 1: s1 already entered.
+  2. loop 1: s2 not entered.
+  3. loop 1: andscope subscribes to s2.
+  4. loop 1: s2 enters. andscope listener, so queued in mt.
+  5. loop 1: l1 subscribes to andscope.
+  5. loop 2 (mt): andscope listener called. in scope. notifies l1.
+  6. loop 3 (mt): l1 notified.
+
+  in this example, l1 is notified of a change that happened before it
+  subscribed.
+
+  */
+  final _enters = StreamController.broadcast(sync: true);
+  final _exits = StreamController.broadcast(sync: true);
   bool _currentlyEntered;
 
-  // TODO: i think there is a bug here now
-  AndScope(this._first, this._second)
-      : _scope = Observable.ofImmutable(_first.isEntered && _second.isEntered) {
+  AndScope(this._first, this._second) {
     // TODO: Properly clean up once _enters and _exits have no listeners
-    _currentlyEntered = isEntered;
+
+    _currentlyEntered = _first.isEntered && _second.isEntered;
 
     var enterDoneCount = 0;
     var exitDoneCount = 0;
@@ -139,38 +169,31 @@ class AndScope extends Scope<dynamic> {
 
     _first.onEnter.where((e) => _second.isEntered && !_currentlyEntered).listen(
         (e) {
-      _enters.add(e);
-    }, onDone: enterDone);
+          _currentlyEntered = true;
+          _enters.add(null);
+        }, onDone: enterDone);
 
     _second.onEnter.where((e) => _first.isEntered && !_currentlyEntered).listen(
         (e) {
-      _enters.add(e);
-    }, onDone: enterDone);
+          _currentlyEntered = true;
+          _enters.add(null);
+        }, onDone: enterDone);
 
-    _first.onExit.where((e) => _currentlyEntered).listen((e) {
-      _exits.add(e);
+    _first.onExit.where((_) => _currentlyEntered).listen((e) {
+      _currentlyEntered = false;
+      _exits.add(null);
     }, onDone: exitDone);
-
-    _second.onExit.where((e) => _currentlyEntered).listen((e) {
-      _exits.add(e);
+    _second.onExit.where((_) => _currentlyEntered).listen((e) {
+      _currentlyEntered = false;
+      _exits.add(null);
     }, onDone: exitDone);
-
-    _onEnter = _enters.stream;
-    _onExit = _exits.stream;
-
-    _onEnter.listen((_) => _currentlyEntered = true);
-    _onExit.listen((_) => _currentlyEntered = false);
   }
 
   bool get isEntered => _first.isEntered && _second.isEntered;
 
-  Stream _onEnter;
+  Stream get onEnter => _enters.stream;
 
-  Stream get onEnter => _onEnter;
-
-  Stream _onExit;
-
-  Stream get onExit => _onExit;
+  Stream get onExit => _exits.stream;
 }
 
 class PredicatedScope<T> extends Scope<T> {
@@ -191,22 +214,24 @@ class PredicatedScope<T> extends Scope<T> {
   Stream<T> get onExit => _delegate.onExit;
 }
 
-class ScopeOfObserved extends Scope<StateChangeEvent<bool>> {
+class ScopeOfObserved extends Scope<Change<bool>> {
   final Observed<bool> _observed;
+  Observed<bool> get asObserved => _observed;
 
   ScopeOfObserved(this._observed);
 
   bool get isEntered => _observed.value;
 
-  Stream<StateChangeEvent<bool>> get onEnter =>
+  Stream<Change<bool>> get onEnter =>
       _observed.onChange.where((e) => e.newValue);
 
-  Stream<StateChangeEvent<bool>> get onExit =>
+  Stream<Change<bool>> get onExit =>
       _observed.onChange.where((e) => !e.newValue);
 }
 
-class SettableScope2 extends Scope<StateChangeEvent<bool>> {
+class SettableScope2 extends Scope<Change<bool>> {
   final Observable<bool> _scope;
+  Observed<bool> get asObserved => _scope;
 
   SettableScope2._(bool isEntered) : _scope = Observable.ofImmutable(isEntered);
 
@@ -226,16 +251,24 @@ class SettableScope2 extends Scope<StateChangeEvent<bool>> {
     _scope.close();
   }
 
+  Scope merge(Scope scope, bool Function(bool, bool) merger) {
+   return ScopeOfObserved(_scope.merge(scope.asObserved, merger));
+  }
+
+  Scope map(bool Function(bool) mapper) {
+    return ScopeOfObserved(_scope.map(mapper));
+  }
+
   bool get isClosed => _scope.isClosed;
 
   bool get isNotClosed => !isClosed;
 
   bool get isEntered => _scope.value;
 
-  Stream<StateChangeEvent<bool>> get onEnter =>
+  Stream<Change<bool>> get onEnter =>
       _scope.onChange.where((e) => e.newValue);
 
-  Stream<StateChangeEvent<bool>> get onExit =>
+  Stream<Change<bool>> get onExit =>
       _scope.onChange.where((e) => !e.newValue);
 }
 
@@ -502,11 +535,11 @@ class ScopeAsValue {
 
   Observed<bool> get observed => _scoped.observed;
 
-  ListeningScope<StateChangeEvent<bool>> _valueScope;
+  ListeningScope<Change<bool>> _valueScope;
 
   /// Treats the observed scope change itself as a scope. This is not to be
   /// confused with the scope that determines the observed value.
-  Scope<StateChangeEvent<bool>> get asScope => _valueScope;
+  Scope<Change<bool>> get asScope => _valueScope;
 
   Scope get scope => _scoped.scope;
 
