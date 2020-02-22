@@ -2,15 +2,15 @@ import 'package:august/august.dart';
 import 'package:august/options.dart';
 import 'package:test/test.dart';
 
-main() {
-  group("An available Option", () {
+void main() {
+  group('An available Option', () {
     Option opt;
 
     setUp(() {
       opt = Option("");
     });
 
-    test("is available", () {
+    test('is available', () {
       expect(opt.isAvailable, isTrue);
     });
 
@@ -20,17 +20,29 @@ main() {
         expect(opt.isAvailable, isTrue);
       });
 
-      test('is unavailable after use future completes', () {
-
+      test('is unavailable after use future completes', () async {
+        await opt.use();
+        expect(opt.isAvailable, isFalse);
       });
 
-      test('is unavailable to use listeners', () {
+      test('is unavailable to use listeners', () async {
+        var log = [];
+        opt.onUse.listen((_) => log.add(opt.isAvailable));
+        opt.use();
+        await Future(() {});
+        expect(log, equals([false]));
+      });
 
+      test('future completes before listeners fired', () async {
+        var log = [];
+        opt.onUse.listen((_) => log.add('listener'));
+        await opt.use();
+        expect(log, equals([]));
       });
 
       test('cannot be used again', () {
         opt.use().catchError((_) {});
-        expect(opt.use(), throws);
+        expect(opt.use(), throwsA(isA<OptionNotAvailableException>()));
       });
 
       test('fires use listeners', () {

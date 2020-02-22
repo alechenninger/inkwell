@@ -81,13 +81,6 @@ class _EventStream<T> extends Stream<T> {
   bool get _isDone => _listeners == null;
 }
 
-/*
-1. listen
-2. first.ondata
-3. second.ondata
-
- */
-
 class _MergedStream<T> extends Stream<T> {
   final Stream<T> _first;
   final Stream<T> _second;
