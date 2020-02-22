@@ -6,7 +6,7 @@ import 'package:august/august.dart';
 import 'package:august/src/story.dart';
 
 class Dialog {
-  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
+  final _addSpeechCtrl = StreamController<Speech>();
   final _speech = <Speech>[];
   final GetScope _default;
   final Story _story;
@@ -82,7 +82,7 @@ class Speech {
   final Story _story;
 
   final _replies = <Reply>[];
-  final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
+  final _addReplyCtrl = StreamController<Reply>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.

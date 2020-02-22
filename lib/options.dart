@@ -10,7 +10,7 @@ class Options {
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
-  Stream<Option> get onOptionAvailable => _availableOptCtrl.stream;
+  Stream<Option> get _onOptionAvailable => _availableOptCtrl.stream;
 
   // TODO: OptionGroup exclusive()
   // var a = exclusive.
@@ -123,7 +123,7 @@ class OptionsUi {
   OptionsUi(this._options, this._interactions);
 
   Stream<UiOption> get onOptionAvailable =>
-      _options.onOptionAvailable.map((o) => UiOption(_interactions, o));
+      _options._onOptionAvailable.map((o) => UiOption(_interactions, o));
 }
 
 class UiOption {

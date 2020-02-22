@@ -8,11 +8,17 @@ import 'package:pedantic/pedantic.dart';
 
 // TODO: Probably rethink this later
 class Scenes {
+  /// Internally used to keep track of scene changes, to prevent multiple scenes
+  /// from being in scope at once. These effects must be immediate–that is, it
+  /// can never be observed that two scenes are active at once–so this is why
+  /// the controller is synchronous.
+  // TODO: consider using something other than stream controller her for same
+  //  effect
   final _newScenes = StreamController<Scene>.broadcast(sync: true);
   Scene _current;
 
   Scenes() {
-    onNewScene.listen((scene) => _current = scene);
+    _onNewScene.listen((scene) => _current = scene);
   }
 
   /// Creates a scene which will enter at most once, and exits as soon as
@@ -27,7 +33,7 @@ class Scenes {
 
   ReentrantScene reentrant({String title}) => ReentrantScene._(this);
 
-  Stream<Scene> get onNewScene => _newScenes.stream;
+  Stream<Scene> get _onNewScene => _newScenes.stream;
 
   // TODO: If there is a "root" scene, this is not optional
   Optional<Scene> get currentScene => Optional.ofNullable(_current);
@@ -47,10 +53,8 @@ class _OneTimeScene extends Scene<_OneTimeScene> {
   Future<Scene> enter() {
     return Future(() async {
       _scope.enter();
-      var first = _scenes.onNewScene.first;
       _scenes._newScenes.add(this);
-      await first;
-      unawaited(_scenes.onNewScene.first.then((_) {
+      unawaited(_scenes._onNewScene.first.then((_) {
         _scope.exit();
         _scope.close();
       }));
@@ -76,8 +80,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
   Observed<bool> get asObserved => _scope.asObserved;
 
   ReentrantScene._(this._scenes) {
-    _scenes._newScenes.add(this);
-    _scenes.onNewScene.listen((scene) {
+    _scenes._onNewScene.listen((scene) {
       if (scene == this) {
         return;
       }
@@ -125,9 +128,7 @@ class ReentrantScene extends Scene<ReentrantScene> {
       }
 
       _scope.enter();
-      var first = _scenes.onNewScene.first;
       _scenes._newScenes.add(this);
-      await first;
 
       return this;
     });

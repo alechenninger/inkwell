@@ -22,21 +22,22 @@ Always getAlways() {
 abstract class Scope<T> {
   const Scope();
 
-  /// Immediately available in the current event loop, just before onEnter and
-  /// onExit events are fired.
+  /// Whether or not the scope is currently entered.
   bool get isEntered;
 
   /// See [isEntered]
   bool get isNotEntered => !isEntered;
 
-  /// Streams are synchronous broadcast streams, which means if the scope is
-  /// entered before entries are listened to, the listener will _not_ get an
-  /// entry event, because it already happened. You can check if a scope is
-  /// currently entered using [isEntered].
+  /// Streams are broadcast streams, which means if the scope is entered before
+  /// entries are listened to, the listener will _not_ get an entry event,
+  /// because it already happened. You can check if a scope is currently entered
+  /// using [isEntered].
   ///
-  /// Listeners will be fired immediately in the same event loop.
+  /// Listeners will be fired in a microtask.
   ///
-  /// Some scopes may enter and exit multiple times.
+  /// Some scopes may enter and exit multiple times, although you will never
+  /// get multiple exit or enter events in a row. Events are only published when
+  /// the state has changed from entered to exited or vice versa.
   ///
   /// Streams should emit a done event when a scope is no longer able to be
   /// entered.
@@ -48,14 +49,16 @@ abstract class Scope<T> {
   //  Stream<Change<bool>> get onExit =>
   //      _observed.onChange.where((e) => !e.newValue);
 
-  /// Streams are synchronous broadcast streams, which means if the scope is
-  /// exited before exits are listened to, the listener will _not_ get an exit
-  /// event, because it already happened. You can check if a scope is currently
-  /// entered using [isEntered].
+  /// Streams are broadcast streams, which means if the scope is exited before
+  /// exits are listened to, the listener will _not_ get an exit event, because
+  /// it already happened. You can check if a scope is currently entered using
+  /// [isEntered].
   ///
-  /// Listeners will be fired immediately in the same event loop.
+  /// Listeners will be fired in a microtask.
   ///
-  /// Some scopes may enter and exit multiple times.
+  /// Some scopes may enter and exit multiple times, although you will never
+  /// get multiple exit or enter events in a row. Events are only published when
+  /// the state has changed from entered to exited or vice versa.
   ///
   /// Streams should emit a done event when a scope is no longer able to be
   /// exited.
@@ -75,6 +78,13 @@ abstract class Scope<T> {
     return ScopeFromObserved(asObserved.merge(scope.asObserved, merger));
   }
 
+  /// Produces a [Scope] as a function of this scope's entered state.
+  ///
+  /// A [mapper] function accepts scope entries an exits as true and false
+  /// input respectively, returning a bool to indicate whether the produced
+  /// scope should be entered.
+  ///
+  /// The produced scope's state is updated synchronously as this scope changes.
   Scope map(bool Function(bool) mapper) {
     return ScopeFromObserved(asObserved.map(mapper));
   }

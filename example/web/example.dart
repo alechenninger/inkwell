@@ -64,11 +64,11 @@ void dragonStandoff() async {
   var attack = options.oneTime('Attack it!');
   var runAway = options.oneTime('Run away!');
 
-  attack.onUse.listen((_) {
+  attack.onUse.when(() {
     attackDragon(dragonStandoff, sword);
   });
 
-  runAway.onUse.listen((_) async {
+  runAway.onUse.when(() async {
     dragonStandoff.done();
     runAwayFromDragon(sword);
   });
@@ -83,19 +83,19 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   var deflectWithShield = options.oneTime('Deflect the fire with your shield.');
   var dash = options.oneTime('Dash toward the dragon.');
 
-  deflectWithSword.onUse.listen((_) async {
+  deflectWithSword.onUse.when(() async {
     dialog.narrate('You survive, but your sword has melted!',
         scope: dragonStandoff);
     sword.isMelted.value = true;
     await dragonStandoff.enter();
   });
 
-  deflectWithShield.onUse.listen((_) async {
+  deflectWithShield.onUse.when(() async {
     await scenes.oneTime().enter();
     dialog.narrate('Your shield sets aflame and you suffer terrible burns.');
   });
 
-  dash.onUse.listen((_) async {
+  dash.onUse.when(() async {
     await scenes.oneTime().enter();
     dialog.narrate('You make it underneath the dragon, unharmed.');
   });
@@ -120,7 +120,7 @@ void runAwayFromDragon(Sword sword) async {
   var follow = thisWay.addReply('Follow the mysterious voice');
   var hide = thisWay.addReply('Hide');
 
-  follow.onUse.listen((_) async {
+  follow.onUse.when(() async {
     var following = await scenes.oneTime().enter();
     var player = dialog.voice(name: 'Bob');
     var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
@@ -131,12 +131,12 @@ void runAwayFromDragon(Sword sword) async {
     var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
     var sayNothing = toMysteryVoice.addReply('Say nothing.');
 
-    needDragonScales.onUse.listen((_) {
+    needDragonScales.onUse.when(() {
       player.say('I need dragon scales.');
       mysteriousVoice.say('Good luck with that.');
     });
 
-    sayNothing.onUse.listen((_) {});
+    sayNothing.onUse.when(() {});
   });
 }
 
@@ -152,4 +152,10 @@ class Player {
 // explicitly.
 class Sword {
   final isMelted = Observable<bool>.ofImmutable(false);
+}
+
+extension When<T> on Stream<T> {
+  StreamSubscription<T> when(Function() callback) {
+    return listen((_) { callback(); });
+  }
 }
