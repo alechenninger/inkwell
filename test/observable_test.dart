@@ -34,4 +34,8 @@ void main() {
       expect(next, doesNotComplete);
     });
   });
+
+  group('mapped observable', () {
+
+  });
 }

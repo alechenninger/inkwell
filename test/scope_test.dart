@@ -21,6 +21,12 @@ void main() {
         scope.increment();
         expect(scope.isEntered, isFalse);
       });
+
+      test('emits exit event', () {
+        var exit = scope.onExit.first;
+        scope.increment();
+        expect(exit, completes);
+      });
     });
-  });
+  }, timeout: Timeout(Duration(seconds: 1)));
 }

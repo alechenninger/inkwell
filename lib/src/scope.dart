@@ -198,7 +198,7 @@ class CountScope extends Scope<int> {
       _asObserved.onChange.where((c) => c.newValue).map((_) => _count.value);
 
   Stream<int> get onExit =>
-      _asObserved.onChange.where((c) => c.newValue).map((_) => _count.value);
+      _asObserved.onChange.where((c) => !c.newValue).map((_) => _count.value);
 
   CountScope(int max)
       : max = max,
@@ -217,7 +217,3 @@ class CountScope extends Scope<int> {
 
 typedef GetNewValue<T> = T Function(T currentValue);
 typedef Predicate = bool Function();
-
-T _identity<T>(T value) => value;
-
-bool _never(e) => false;
