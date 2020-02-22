@@ -23,7 +23,8 @@ class Options {
   /// has remaining [uses].
   Option limitedUse(String text, {Scope available, int uses = 1}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option = Option(text, uses: uses, available: available ?? _default());
+    var option = Option(text,
+        uses: CountScope(uses), available: available ?? _default());
 
     option
       ..availability.onEnter.listen((e) {
@@ -46,10 +47,8 @@ class Options {
 class Option {
   final String text;
 
-  final int uses;
-
-  int get useCount => _useCount;
-  int _useCount = 0;
+  int get uses => _hasUses.max;
+  int get useCount => _hasUses.count;
 
   Scope _available;
 
@@ -61,18 +60,12 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final SettableScope _hasUses;
+  final CountScope _hasUses;
   final _uses = Events<UseOptionEvent>();
 
-  Option(this.text, {this.uses = 1, Scope available})
-      : _hasUses =
-            uses > 0 ? SettableScope.entered() : SettableScope.notEntered() {
-    if (uses < 0) {
-      throw ArgumentError.value(
-          uses, 'allowedUseCount', 'Allowed use count must be non-negative.');
-    }
-
-    _available = available == null ? _hasUses : available.and(_hasUses);
+  Option(this.text, {CountScope uses, Scope available = always})
+      : _hasUses = uses ?? CountScope(1) {
+    _available = available.and(_hasUses);
   }
 
   /// Schedules option to be used at the end of the current event queue.
@@ -90,11 +83,7 @@ class Option {
       return UseOptionEvent(this);
     });
 
-    _useCount++;
-
-    if (_useCount == uses) {
-      _hasUses.exit();
-    }
+    _hasUses.increment();
 
     return e;
   }
@@ -102,7 +91,7 @@ class Option {
   String toString() => 'Option{'
       "text='$text',"
       'allowedUseCount=$uses,'
-      'useCount=$_useCount'
+      'useCount=$useCount'
       '}';
 }
 

@@ -202,6 +202,8 @@ class CountScope extends Scope<int> {
   Observed<bool> _asObserved;
   Observed<bool> get asObserved => _asObserved;
 
+  int get count => _count.value;
+
   bool get isEntered => _count.value < max;
 
   Stream<int> get onEnter =>
@@ -213,6 +215,11 @@ class CountScope extends Scope<int> {
   CountScope(int max)
       : max = max,
         _count = Observable.ofImmutable(0) {
+    if (max < 0) {
+      throw ArgumentError.value(
+          max, 'max', 'Max count must be non-negative.');
+    }
+
     _asObserved = _count.map((c) => c < max);
   }
 
