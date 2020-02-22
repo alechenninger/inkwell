@@ -80,6 +80,7 @@ class Option {
   ///
   /// See [isAvailable] and [availability].
   // TODO: move this to constructor
+  @deprecated
   void available(Scope scope) {
     _available = scope.and(_hasUses);
   }

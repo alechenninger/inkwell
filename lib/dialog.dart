@@ -6,7 +6,7 @@ import 'package:august/august.dart';
 import 'package:august/src/story.dart';
 
 class Dialog {
-  final _addSpeechCtrl = StreamController<Speech>();
+  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
   final _speech = <Speech>[];
   final GetScope _default;
   final Story _story;
@@ -133,7 +133,7 @@ class Reply {
 
   final Scope _available;
 
-  Scope<Change<bool>> get availability => _available;
+  Scope get availability => _available;
 
   bool get isAvailable => _available.isEntered;
 
