@@ -131,16 +131,15 @@ class Reply {
 
   Stream get onUse => _uses.stream;
 
-  ScopeAsValue _available;
+  final Scope _available;
 
-  Scope<Change<bool>> get availability => _available.asScope;
+  Scope<Change<bool>> get availability => _available;
 
-  bool get isAvailable => _available.observed.value;
+  bool get isAvailable => _available.isEntered;
 
   Reply(this.speech, this._markup, this._hasUses, Scope scope, Story game)
-      : _uses = game.newEventStream() {
-    _available = ScopeAsValue()..within(AndScope(_hasUses, scope));
-  }
+      : _uses = game.newEventStream(),
+        _available = scope.and(_hasUses);
 
   Future use() async {
     var e = await _uses.event(() {

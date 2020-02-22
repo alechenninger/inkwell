@@ -38,7 +38,7 @@ abstract class Scene<T extends Scene<T>> extends Scope<T> {
 }
 
 class _OneTimeScene extends Scene<_OneTimeScene> {
-  final _scope = SettableScope2.notEntered();
+  final _scope = SettableScope.notEntered();
   final Scenes _scenes;
   Observed<bool> get asObserved => _scope.asObserved;
 
@@ -70,7 +70,7 @@ class _OneTimeScene extends Scene<_OneTimeScene> {
 
 class ReentrantScene extends Scene<ReentrantScene> {
   final Scenes _scenes;
-  final _scope = SettableScope2.entered();
+  final _scope = SettableScope.entered();
   var _isDone = false;
 
   Observed<bool> get asObserved => _scope.asObserved;

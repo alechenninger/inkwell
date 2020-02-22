@@ -34,6 +34,10 @@ abstract class Observed<T> {
   /// The current value.
   T get value;
 
+  const Observed();
+
+  const factory Observed.always(T value) = _AlwaysObserved<T>;
+
   /// Listen to changes of this value.
   ///
   /// All values will be listened to and delivered to listeners in order they
@@ -52,6 +56,7 @@ abstract class Observed<T> {
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper);
 }
 
+@deprecated // may be no longer needed since merge now acts like this anyway
 T Function(U, S) latest<T, U, S>(T Function(U, S) mapper) {
   U latestU;
   S latestS;
@@ -62,6 +67,25 @@ T Function(U, S) latest<T, U, S>(T Function(U, S) mapper) {
 
     return mapper(latestU, latestS);
   };
+}
+
+class _AlwaysObserved<T> extends Observed<T> {
+  final T value;
+
+  const _AlwaysObserved(this.value);
+
+  @override
+  Observed<U> map<U>(U Function(T) mapper) {
+    return _AlwaysObserved(mapper(value));
+  }
+
+  @override
+  Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
+    return other.map((s) => mapper(value, s));
+  }
+
+  @override
+  Stream<Change<T>> get onChange => Stream.empty();
 }
 
 class _ObservableOfImmutable<T> extends Observable<T> {
@@ -99,9 +123,8 @@ class _ObservableOfImmutable<T> extends Observable<T> {
       [U Function(T, S) mapper,
       U Function(T) mapFirst,
       U Function(S) mapSecond]) {
+    // TODO: parameters, defaults and all that kind of complex. this okay?
     mapper = mapper ?? (t, u) => t ?? u;
-    // TODO: use nulls or use current other value
-    //  if nulls, we know which value has changed
     var answer = _MappedObservable(
         _currentValue, mapFirst ?? (x) => mapper(x, other.value));
     var otherMapped = other.map(mapSecond ?? (x) => mapper(_currentValue, x));

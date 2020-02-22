@@ -16,7 +16,7 @@ main() {
 
     group("when made available", () {
       setUp(() {
-        opt.available(SettableScope2.notEntered());
+        opt.available(SettableScope.notEntered());
       });
 
       test("enters availability scope", () {
@@ -54,10 +54,10 @@ main() {
       }, skip: true);
 
       group("via scope onEnter listener", () {
-        SettableScope2 customScope;
+        SettableScope customScope;
 
         setUp(() {
-          customScope = SettableScope2.notEntered();
+          customScope = SettableScope.notEntered();
           opt.available(customScope);
         });
 

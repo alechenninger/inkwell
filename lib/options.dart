@@ -60,18 +60,18 @@ class Option {
   // TODO: Consider simply Stream<Option>
   Stream<UseOptionEvent> get onUse => _uses.stream;
 
-  final SettableScope2 _hasUses;
+  final SettableScope _hasUses;
   final _uses = Events<UseOptionEvent>();
 
   Option(this.text, {this.uses = 1, Scope available})
       : _hasUses =
-            uses > 0 ? SettableScope2.entered() : SettableScope2.notEntered() {
+            uses > 0 ? SettableScope.entered() : SettableScope.notEntered() {
     if (uses < 0) {
       throw ArgumentError.value(
           uses, 'allowedUseCount', 'Allowed use count must be non-negative.');
     }
 
-    _available = available == null ? _hasUses : _hasUses.and(available);
+    _available = available == null ? _hasUses : available.and(_hasUses);
   }
 
   /// Set a scope which contributes to determining this options availability.
@@ -81,7 +81,7 @@ class Option {
   /// See [isAvailable] and [availability].
   // TODO: move this to constructor
   void available(Scope scope) {
-    _available = AndScope(scope, _hasUses);
+    _available = scope.and(_hasUses);
   }
 
   /// Schedules option to be used at the end of the current event queue.
