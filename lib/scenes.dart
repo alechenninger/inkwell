@@ -12,7 +12,7 @@ class Scenes {
   /// from being in scope at once. These effects must be immediate–that is, it
   /// can never be observed that two scenes are active at once–so this is why
   /// the controller is synchronous.
-  // TODO: consider using something other than stream controller her for same
+  // TODO: consider using something other than stream controller here for same
   //  effect
   final _newScenes = StreamController<Scene>.broadcast(sync: true);
   Scene _current;

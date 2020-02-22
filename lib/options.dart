@@ -14,6 +14,7 @@ class Options {
 
   // TODO: OptionGroup exclusive()
   // var a = exclusive.
+
   Option oneTime(String text, {Scope available}) {
     return limitedUse(text, available: available, uses: 1);
   }
@@ -72,17 +73,6 @@ class Option {
     }
 
     _available = available == null ? _hasUses : available.and(_hasUses);
-  }
-
-  /// Set a scope which contributes to determining this options availability.
-  /// An option's availability is always governed by its [useCount] and
-  /// [uses] in addition to the provided scope.
-  ///
-  /// See [isAvailable] and [availability].
-  // TODO: move this to constructor
-  @deprecated
-  void available(Scope scope) {
-    _available = scope.and(_hasUses);
   }
 
   /// Schedules option to be used at the end of the current event queue.

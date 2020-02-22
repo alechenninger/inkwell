@@ -153,15 +153,6 @@ class Reply {
     _hasUses.increment();
 
     return e;
-    /*
-    return _uses.publish(UseReplyEvent(this), check: () {
-      if (_available.observed.nextValue == false) {
-        throw ReplyNotAvailableException(this);
-      }
-    }, sideEffects: () {
-      _hasUses.increment();
-    });
-    */
   }
 }
 

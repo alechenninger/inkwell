@@ -192,7 +192,7 @@ class SettableScope extends Scope<Change<bool>> {
   Stream<Change<bool>> get onExit => _scope.onChange.where((e) => !e.newValue);
 }
 
-// A simple scope that is entered until incremented a maximum number of times.
+/// A simple scope that is entered until incremented a maximum number of times.
 // TODO: consider generalizing this a bit to be able to produce scopes off of
 // various counts which all share the same counter
 class CountScope extends Scope<int> {

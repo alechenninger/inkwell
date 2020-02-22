@@ -102,7 +102,7 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
 }
 
 void runAwayFromDragon(Sword sword) async {
-  var runningAway = await scenes.oneTime().enter();
+  await scenes.oneTime().enter();
 
   dialog.narrate('Running away.');
 
