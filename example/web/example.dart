@@ -104,7 +104,7 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
 }
 
 void runAwayFromDragon(Sword sword) async {
-  await scenes.oneTime().enter();
+  var runningAway = await scenes.oneTime().enter();
 
   dialog.narrate('Running away.');
 
@@ -115,23 +115,31 @@ void runAwayFromDragon(Sword sword) async {
 
   var thisWay = dialog.add('This way!');
 
-//    var follow = options.exclusive('Follow the mysterious voice');
-//    var hide = follow.exclusiveWith('Hide');
-//    hide.exclusiveWith('')
+  // TODO: how to make reply exclusive with options
+  var whosThere = thisWay.addReply("Who's there!?");
 
-  var follow = thisWay.addReply('Follow the mysterious voice');
-  var hide = thisWay.addReply('Hide');
+  var follow = options.oneTime('Follow the mysterious voice',
+      available: whosThere.availability.and(runningAway));
+  var hide = follow.exclusiveWith('Hide',
+      available: whosThere.availability.and(runningAway));
+
+  var player = dialog.voice(name: 'Bob');
+  var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
+
+  whosThere.onUse.when(() async {
+    player.say("Who's there!?");
+  });
 
   follow.onUse.when(() async {
-    var following = await scenes.oneTime().enter();
-    var player = dialog.voice(name: 'Bob');
-    var mysteriousVoice = dialog.voice(name: '(mysterious voice)');
+    await scenes.oneTime().enter();
+
+    dialog.narrate('You hurry along toward the dark shapes ahead.');
 
     player.say('What are you doing here?');
 
     var toMysteryVoice = mysteriousVoice.say('I could ask you the same thing.');
     var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
-    var sayNothing = toMysteryVoice.addReply('Say nothing.');
+    var sayNothing = toMysteryVoice.addReply('...');
 
     needDragonScales.onUse.when(() {
       player.say('I need dragon scales.');
@@ -139,6 +147,10 @@ void runAwayFromDragon(Sword sword) async {
     });
 
     sayNothing.onUse.when(() {});
+  });
+
+  hide.onUse.when(() async {
+    await scenes.oneTime().enter();
   });
 }
 
