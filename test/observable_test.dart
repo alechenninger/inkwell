@@ -117,7 +117,28 @@ void main() {
     });
   });
 
-  group('mapped observable', () {});
+  group('mapped observable', () {
+    Observable<num> o1;
+
+    setUp(() {
+      o1 = Observable.ofImmutable(1);
+    });
+
+    test('notifies listeners after original notifies listeners of changes', () async {
+      var mapped = o1.map((n) => n * -1);
+
+      var log = [];
+
+      o1.onChange.listen((c) => log.add('o1'));
+      mapped.onChange.listen((c) => log.add('mapped'));
+
+      o1.value = 2;
+
+      await Future.microtask(() {});
+
+      expect(log, equals(['o1', 'mapped']));
+    });
+  });
 }
 
 num sum(num x, num y) => x + y;

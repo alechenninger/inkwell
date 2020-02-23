@@ -200,6 +200,8 @@ to produce both synchronous and asynchronous events.
 
 One way to mitigate some downsides would be to make synchronous stream private.
 
+2 also makes map easy to implement, and composes effortlessly whether merged or mapped etc.
+
 ### What else should all event streams have in common?
 
 The fundamentals are above. But is there anything else that would be valueable?
