@@ -16,15 +16,15 @@ class Options {
   // var a = exclusive.
 
   Option oneTime(String text, {Scope available}) {
-    return limitedUse(text, available: available, uses: 1);
+    return limitedUse(text, available: available, uses: CountScope(1));
   }
 
   /// Creates a new limited use option that can be used while [available] and
   /// has remaining [uses].
-  Option limitedUse(String text, {Scope available, int uses = 1}) {
+  Option limitedUse(String text, {Scope available, CountScope uses}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option = Option(text,
-        uses: CountScope(uses), available: available ?? _default());
+    var option =
+        Option._(this, text, uses: uses, available: available ?? _default());
 
     option
       ..availability.onEnter.listen((e) {
@@ -62,8 +62,10 @@ class Option {
 
   final CountScope _hasUses;
   final _uses = Events<UseOptionEvent>();
+  final Options _options;
 
-  Option(this.text, {CountScope uses, Scope available = always})
+  Option._(this._options, this.text,
+      {CountScope uses, Scope available = always})
       : _hasUses = uses ?? CountScope(1) {
     _available = available.and(_hasUses);
   }
@@ -86,6 +88,10 @@ class Option {
     _hasUses.increment();
 
     return e;
+  }
+
+  Option exclusiveWith(String text, {Scope available}) {
+    return _options.limitedUse(text, uses: _hasUses, available: available);
   }
 
   String toString() => 'Option{'

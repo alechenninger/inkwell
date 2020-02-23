@@ -3,11 +3,13 @@ import 'package:august/options.dart';
 import 'package:test/test.dart';
 
 void main() {
+  var options = Options();
+
   group('An available Option', () {
     Option opt;
 
     setUp(() {
-      opt = Option("");
+      opt = options.oneTime('');
     });
 
     test('is available', () {
@@ -59,7 +61,7 @@ void main() {
 
     setUp(() {
       customScope = SettableScope.notEntered();
-      opt = Option('', available: customScope);
+      opt = options.oneTime('', available: customScope);
     });
 
     group('when made available', () {

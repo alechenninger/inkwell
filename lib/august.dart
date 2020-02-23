@@ -8,6 +8,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:quiver/time.dart';
+import 'package:rxdart/rxdart.dart';
 
 export 'dart:async';
 export 'package:quiver/time.dart' show Clock;

@@ -38,6 +38,8 @@ abstract class Observed<T> {
 
   const factory Observed.always(T value) = _AlwaysObserved<T>;
 
+  Stream<T> get mapTest;
+
   /// Listen to changes of this value.
   ///
   /// All values will be listened to and delivered to listeners in order they
@@ -86,14 +88,21 @@ class _AlwaysObserved<T> extends Observed<T> {
 
   @override
   Stream<Change<T>> get onChange => Stream.empty();
+
+  @override
+  Stream<T> get mapTest => Stream.empty();
 }
 
 class _ObservableOfImmutable<T> extends Observable<T> {
   T _currentValue;
   T get value => _currentValue;
+//  Stream<T> get mapTest => _changes;
 
   final _changes = _EventStream<Change<T>>();
   Stream<Change<T>> get onChange => _changes;
+
+  @override
+  Stream<T> get mapTest => _changes.synchronous.map((c) => c.newValue);
 
   final _mapped = <_MappedObservable<dynamic, T>>[];
 
@@ -119,21 +128,25 @@ class _ObservableOfImmutable<T> extends Observable<T> {
     return answer;
   }
 
-  Observed<U> merge<U, S>(Observed<S> other,
+  Observed<U> merge1<U, S>(Observed<S> other,
       [U Function(T, S) mapper,
       U Function(T) mapFirst,
       U Function(S) mapSecond]) {
     // TODO: parameters, defaults and all that kind of complex. this okay?
     mapper = mapper ?? (t, u) => t ?? u;
-    var answer = _MappedObservable(
+    var thisMapped = _MappedObservable(
         _currentValue, mapFirst ?? (x) => mapper(x, other.value));
     var otherMapped = other.map(mapSecond ?? (x) => mapper(_currentValue, x));
-    _mapped.add(answer);
+    _mapped.add(thisMapped);
     U mapCurrentValue() {
       return mapper(_currentValue, other.value);
     }
 
-    return _MergedObservable(answer, otherMapped, mapCurrentValue);
+    return _MergedObservable(thisMapped, otherMapped, mapCurrentValue);
+  }
+
+  Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
+    return _MergedObservable2(this, other, mapper);
   }
 
   void close() {
@@ -143,15 +156,87 @@ class _ObservableOfImmutable<T> extends Observable<T> {
   bool get isClosed => _changes._isDone;
 }
 
-Or<T, U> or<T, U>(T t, U u) {
-  return Or(t, u);
+class _MergedObservable3<T, U, S> extends Observed<T> {
+  final Observed<U> _first;
+  final Observed<S> _second;
+  final T Function(U, S) _mapper;
+  T _lastSeen;
+  final _ctrl = StreamController<Change<T>>.broadcast(sync: true);
+
+  _MergedObservable3(this._first, this._second, this._mapper) {
+    _lastSeen = value;
+    _first.onChange.map((c) => Change(_mapper(c.newValue, _second.value))).mergeWith([
+      _second.onChange.map((c) => Change(_mapper(_first.value, c.newValue)))
+    ]).forEach((c) {
+      if (c.newValue == _lastSeen) {
+        return;
+      }
+
+      _ctrl.add(Change(c.newValue));
+    });
+  }
+
+  @override
+  Observed<U> map<U>(U Function(T) mapper) {
+    // TODO: implement map
+    return null;
+  }
+
+  @override
+  // TODO: implement mapTest
+  Stream<T> get mapTest => null;
+
+  @override
+  Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
+    // TODO: implement merge
+    return null;
+  }
+
+  @override
+  // TODO: implement onChange
+  Stream<Change<T>> get onChange => _ctrl.stream;
+
+  @override
+  // TODO: implement value
+  T get value => _mapper(_first.value, _second.value);
+
 }
 
-class Or<T, U> {
-  final T t;
-  final U u;
+class _MergedObservable2<T, U, S> extends Observed<T> {
+  final Observed<U> _first;
+  final Observed<S> _second;
+  final T Function(U, S) _mapper;
+  Observable<T> _observable;
 
-  Or(this.t, this.u);
+  _MergedObservable2(this._first, this._second, this._mapper) {
+    _observable = Observable.ofImmutable(_mapper(_first.value, _second.value));
+    _first.mapTest.map((c) => Change(_mapper(c, _second.value))).mergeWith([
+      _second.mapTest.map((c) => Change(_mapper(_first.value, c)))
+    ]).forEach((c) => _observable.value = c.newValue);
+  }
+
+  @override
+  Observed<U> map<U>(U Function(T) mapper) {
+    // TODO: implement map
+    return null;
+  }
+
+  @override
+  Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
+    // TODO: implement merge
+    return null;
+  }
+
+  @override
+  Stream<Change<T>> get onChange => _observable.onChange;
+
+  @override
+  // TODO: implement value
+  T get value => _observable.value;
+
+  @override
+  // TODO: implement mapTest
+  Stream<T> get mapTest => null;
 }
 
 class _MergedObservable<T> extends Observed<T> {
@@ -163,22 +248,26 @@ class _MergedObservable<T> extends Observed<T> {
 
   @override
   Observed<U> map<U>(U Function(T) mapper) {
-    // TODO: implement map
-    return null;
+    var first = _first.map(mapper);
+    var second = _second.map(mapper);
+    return _MergedObservable(first, second, () => mapper(value));
   }
 
   @override
   Stream<Change<T>> get onChange =>
-      _MergedStream(_first.onChange, _second.onChange).distinct();
+      _first.onChange.mergeWith([_second.onChange]).distinct();
 
   @override
   T get value => _currentValue();
 
   @override
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
-    // TODO: implement mapMerge
-    return null;
+    throw UnimplementedError();
   }
+
+  @override
+  // TODO: implement mapTest
+  Stream<T> get mapTest => null;
 }
 
 class _MappedObservable<T, U> extends Observed<T> {
@@ -214,9 +303,12 @@ class _MappedObservable<T, U> extends Observed<T> {
 
   @override
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper) {
-    // TODO: implement mapMerge
-    return null;
+    throw UnimplementedError();
   }
+
+  @override
+  // TODO: implement mapTest
+  Stream<T> get mapTest => _changes.synchronous.map((c) => c.newValue);
 }
 
 class Change<T> extends Event {

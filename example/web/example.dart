@@ -62,7 +62,7 @@ void dragonStandoff() async {
   dialog.narrate('A dragon stands before you!');
 
   var attack = options.oneTime('Attack it!');
-  var runAway = options.oneTime('Run away!');
+  var runAway = attack.exclusiveWith('Run away!');
 
   attack.onUse.when(() {
     attackDragon(dragonStandoff, sword);
@@ -86,6 +86,8 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   deflectWithSword.onUse.when(() async {
     dialog.narrate('You survive, but your sword has melted!',
         scope: dragonStandoff);
+    options.oneTime('Throw the stub of your sword at the dragon.',
+        available: dragonStandoff);
     sword.isMelted.value = true;
     await dragonStandoff.enter();
   });
@@ -156,6 +158,8 @@ class Sword {
 
 extension When<T> on Stream<T> {
   StreamSubscription<T> when(Function() callback) {
-    return listen((_) { callback(); });
+    return listen((_) {
+      callback();
+    });
   }
 }
