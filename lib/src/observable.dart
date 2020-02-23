@@ -101,7 +101,8 @@ class _ObservableOfImmutable<T> extends Observable<T> {
   Stream<Change<T>> get onChange => _changes;
 
   @override
-  Stream<T> get _onChange => _changes.synchronous.map((c) => c.newValue);
+  Stream<T> get _onChange =>
+      _changes.asSynchronousStream.map((c) => c.newValue);
 
   _ObservableOfImmutable(this._currentValue);
 
@@ -116,7 +117,7 @@ class _ObservableOfImmutable<T> extends Observable<T> {
 
   Observed<U> map<U>(U Function(T) mapper) {
     var mapped = Observable.ofImmutable(mapper(value));
-    _onChange.listen((v) => mapped.value = mapper(v));
+    _onChange.listen((v) => mapped.value = mapper(v), onDone: mapped.close);
     return mapped;
   }
 
@@ -126,7 +127,7 @@ class _ObservableOfImmutable<T> extends Observable<T> {
     _onChange
         .map((c) => merger(c, other.value))
         .mergeWith([other._onChange.map((c) => merger(value, c))])
-        .forEach((c) => merged.value = c);
+        .listen((e) => merged.value = e, onDone: merged.close);
 
     return merged;
   }

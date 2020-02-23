@@ -50,97 +50,79 @@ class Events<T extends Event> {
 abstract class Event {}
 
 class _EventStream<T> extends Stream<T> {
-  var _listeners = <_EventSubscription>[];
-  // TODO: change to syncListeners, could use common supertype for both
-  var _syncStreams = <_SynchronousEventStream>[];
+  // Maintain separate listener lists, as it is important that async listeners
+  // are scheduled before sync listeners are run. This is because sync listeners
+  // may themselves schedule tasks, which should not become before the original
+  // scheduled tasks. Think of this stream itself as the first of the
+  // synchronous "reactions" – the listeners to this shouldn't skip ahead.
+  var _asyncListeners = <_AsyncEventSubscription>[];
+  var _syncListeners = <_SyncEventSubscription>[];
 
   final bool isBroadcast = true;
 
-  _SynchronousEventStream<T> get synchronous {
-    var sync = _SynchronousEventStream<T>();
-    _syncStreams.add(sync);
-    return sync;
-  }
+  _SynchronousEventStream<T> get asSynchronousStream =>
+      _SynchronousEventStream<T>(this);
 
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
-    var sub = _EventSubscription<T>()
+    var sub = _AsyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_listeners != null) {
-      _listeners.add(sub);
+    if (_asyncListeners != null) {
+      _asyncListeners.add(sub);
     }
     return sub;
   }
 
   void _add(T event) {
-    if (_listeners == null) {
+    if (_asyncListeners == null) {
       throw StateError('Cannot add event to done stream');
     }
-    _listeners.forEach((sub) => sub._add(event));
-    _syncStreams.forEach((s) => s._add(event));
+    _asyncListeners.forEach((sub) => sub._add(event));
+    _syncListeners.forEach((sub) => sub._add(event));
   }
 
   void _addError(dynamic error) {
-    if (_listeners == null) {
+    if (_asyncListeners == null) {
       throw StateError('Cannot add error to done stream');
     }
-    _listeners.forEach((sub) => sub._addError(error));
-    _syncStreams.forEach((s) => s._addError(error));
+    _asyncListeners.forEach((sub) => sub._addError(error));
+    _syncListeners.forEach((sub) => sub._addError(error));
   }
 
   void _done() {
     // TODO: not sure if done logic around here is right
-    _listeners.forEach((sub) => sub._done());
-    _syncStreams.forEach((s) => s._done());
-    _syncStreams = null;
-    _listeners = null;
+    _asyncListeners.forEach((sub) => sub._done());
+    _syncListeners.forEach((sub) => sub._done());
+    _asyncListeners = null;
+    _syncListeners = null;
   }
 
-  bool get _isDone => _listeners == null;
+  bool get _isDone => _asyncListeners == null;
 }
+
 class _SynchronousEventStream<T> extends Stream<T> {
-  var _listeners = <_SynchronousEventSubscription>[];
+  final _EventStream _backing;
 
   final bool isBroadcast = true;
+
+  _SynchronousEventStream(this._backing);
 
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
-    var sub = _SynchronousEventSubscription<T>()
+    var sub = _SyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_listeners != null) {
-      _listeners.add(sub);
+    if (_backing._syncListeners != null) {
+      _backing._syncListeners.add(sub);
     }
     return sub;
   }
-
-  void _add(T event) {
-    if (_listeners == null) {
-      throw StateError('Cannot add event to done stream');
-    }
-    _listeners.forEach((sub) => sub._add(event));
-  }
-
-  void _addError(dynamic error) {
-    if (_listeners == null) {
-      throw StateError('Cannot add error to done stream');
-    }
-    _listeners.forEach((sub) => sub._addError(error));
-  }
-
-  void _done() {
-    // TODO: not sure if done logic around here is right
-    _listeners.forEach((sub) => sub._done());
-    _listeners = null;
-  }
-
-  bool get _isDone => _listeners == null;
 }
 
-class _EventSubscription<T> extends StreamSubscription<T> {
+abstract class _EventSubscription<T> extends StreamSubscription<T> {
   void Function(T) _onData;
   void Function() _onDone;
   var _pauses = 0;
@@ -196,7 +178,7 @@ class _EventSubscription<T> extends StreamSubscription<T> {
   }
 
   void _addError(dynamic error) {
-    // TODO
+    throw UnimplementedError('addError. got $error');
   }
 
   void _add(T event) {
@@ -204,7 +186,7 @@ class _EventSubscription<T> extends StreamSubscription<T> {
     if (_onData == null) return;
     if (!isPaused) {
       var cb = _onData;
-      scheduleMicrotask(() {
+      _dispatch(() {
         if (!isPaused && !_isCanceled) {
           cb(event);
         }
@@ -219,88 +201,20 @@ class _EventSubscription<T> extends StreamSubscription<T> {
     if (_isDone) return;
     _isDone = true;
     if (_onDone == null) return;
-    var cb = _onDone;
-    scheduleMicrotask(() {
-      cb();
-    });
+    _dispatch(_onDone);
+  }
+
+  void _dispatch(Function fn);
+}
+
+class _AsyncEventSubscription<T> extends _EventSubscription<T> {
+  void _dispatch(Function fn) {
+    scheduleMicrotask(fn);
   }
 }
 
-
-class _SynchronousEventSubscription<T> extends StreamSubscription<T> {
-  void Function(T) _onData;
-  void Function() _onDone;
-  var _pauses = 0;
-  var _buffer = Queue<T>();
-  var _isCanceled = false;
-  var _isDone = false;
-
-  @override
-  Future<E> asFuture<E>([E futureValue]) {
-    // TODO: implement asFuture
-    throw UnimplementedError();
-  }
-
-  @override
-  Future cancel() {
-    _onData = null;
-    _buffer = null;
-    _pauses = 0;
-    _isCanceled = true;
-    return Future.value();
-  }
-
-  @override
-  bool get isPaused => _pauses > 0;
-
-  @override
-  void onData(void Function(T data) handleData) {
-    _onData = handleData;
-  }
-
-  @override
-  void onDone(void Function() handleDone) {
-    _onDone = handleDone;
-  }
-
-  @override
-  void onError(Function handleError) {
-    throw UnimplementedError();
-  }
-
-  @override
-  void pause([Future resumeSignal]) {
-    if (_isCanceled) return;
-    _pauses++;
-  }
-
-  @override
-  void resume() {
-    if (!isPaused || _isCanceled) return;
-    _pauses--;
-    // TODO: reschedule events
-    throw UnimplementedError();
-  }
-
-  void _addError(dynamic error) {
-    // TODO
-  }
-
-  void _add(T event) {
-    if (_isCanceled) return;
-    if (_onData == null) return;
-    if (!isPaused) {
-      _onData(event);
-    } else {
-      _buffer.add(event);
-    }
-  }
-
-  void _done() {
-    // TODO: is this logic right?
-    if (_isDone) return;
-    _isDone = true;
-    if (_onDone == null) return;
-    _onDone();
+class _SyncEventSubscription<T> extends _EventSubscription<T> {
+  void _dispatch(Function fn) {
+    fn();
   }
 }
