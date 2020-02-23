@@ -37,10 +37,10 @@ void main() {
     test('listeners of merged value are notified in next microtask', () async {
       var log = <String>[];
       var merged = o1.merge(o2, sum);
-      merged.onChange.listen((c) => log.add('listener: ${c.newValue}'));
+      merged.onChange.listen((c) => log.add('listener'));
       o1.value = 3;
       await Future.microtask(() => log.add('mt'));
-      expect(log, equals(['listener: 5', 'mt']));
+      expect(log, equals(['listener', 'mt']));
     });
 
     test(
@@ -60,11 +60,9 @@ void main() {
         'setting original observable to same value does not emit from merged observable',
         () async {
       var merged = o1.merge(o2, sum);
-      var log = [];
-      merged.onChange.listen((e) => log.add(e.newValue));
+      var next = merged.onChange.first;
       o1.value = 1;
-      await Future.microtask(() {});
-      expect(log, equals([]));
+      expect(next, doesNotComplete);
     });
 
     test(
@@ -72,11 +70,21 @@ void main() {
         () async {
       // Note use of max
       var merged = o1.merge(o2, max);
-      var log = [];
-      merged.onChange.listen((e) => log.add(e.newValue));
+      var next = merged.onChange.first;
       o1.value = 0;
-      await Future.microtask(() {});
-      expect(log, equals([]));
+      expect(next, doesNotComplete);
+    });
+
+    test(
+        'changes to originals that result in original duplicate merged values does not emit from merged observable',
+        () async {
+      // Note use of max
+      var merged = o1.merge(o2, max);
+      var next = merged.onChange.first;
+      o1.value = 0;
+      o1.value = 2;
+      o2.value = 1;
+      expect(next, doesNotComplete);
     });
 
     test(
@@ -90,6 +98,22 @@ void main() {
       o2.value = 3;
       await Future.microtask(() {});
       expect(log, equals([3]));
+      expect(merged.onChange.first, doesNotComplete);
+    });
+
+    test(
+        'listeners do not receive earlier events but do receive later ones',
+        () async {
+      var merged = o1.merge(o2, sum);
+      var log = [];
+      o1.value = 2;
+      o2.value = 3;
+      merged.onChange.listen((e) => log.add(e.newValue));
+      o1.value = 3;
+      o2.value = 4;
+      await Future.microtask(() {});
+      expect(log, equals([6, 7]));
+      expect(merged.onChange.first, doesNotComplete);
     });
   });
 

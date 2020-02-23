@@ -187,6 +187,19 @@ or stream. Catching errors can help (e.g. in the option.use() case when it is al
 of checking for it to be used first, just use it and catch the error. If you want to just know if 
 it was used, schedule an event or listen to onUse). 
 
+##### Merging observables
+
+Two options:
+
+1. Build on top of mapping observables, which is a synchronous notification
+2. Expose a synchronous broadcast stream from observables, use that to build merge
+
+2 works well and probably has the cleanest and most sensible implementation. But I don't like that
+it exposes a synchronous stream which can be misused, and that we have to expand our custom stream 
+to produce both synchronous and asynchronous events.
+
+One way to mitigate some downsides would be to make synchronous stream private.
+
 ### What else should all event streams have in common?
 
 The fundamentals are above. But is there anything else that would be valueable?
