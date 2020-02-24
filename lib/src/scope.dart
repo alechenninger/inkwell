@@ -216,8 +216,7 @@ class CountScope extends Scope<int> {
       : max = max,
         _count = Observable.ofImmutable(0) {
     if (max < 0) {
-      throw ArgumentError.value(
-          max, 'max', 'Max count must be non-negative.');
+      throw ArgumentError.value(max, 'max', 'Max count must be non-negative.');
     }
 
     _asObserved = _count.map((c) => c < max);
@@ -234,3 +233,34 @@ class CountScope extends Scope<int> {
 
 typedef GetNewValue<T> = T Function(T currentValue);
 typedef Predicate = bool Function();
+
+/// A scope that forwards another, possibly changing, scope.
+///
+/// Normally changing a scope would require change references; listeners
+/// subscribed before the change would still be listening to the previous
+/// stream(s). This scope and the stream pointers it returns are *stable*
+/// through changes in backing scope.
+class MutableScope extends Scope {
+  final Observable<bool> _observable;
+  StreamSubscription _current;
+
+  void changeTo(Scope next) {
+    _current?.cancel();
+    _observable.value = next.isEntered;
+    _current =
+        next.asObserved._onChange.listen((val) => _observable.value = val);
+  }
+
+  MutableScope(Scope current)
+      : _observable = Observable.ofImmutable(current.isEntered) {
+    changeTo(current);
+  }
+
+  Observed<bool> get asObserved => _observable;
+
+  bool get isEntered => _observable.value;
+
+  Stream get onEnter => _observable.onChange.where((c) => c.newValue);
+
+  Stream get onExit => _observable.onChange.where((c) => !c.newValue);
+}

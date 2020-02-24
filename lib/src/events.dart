@@ -138,7 +138,9 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   Future cancel() {
+    // TODO: just remove self from listeners list?
     _onData = null;
+    _onDone = null;
     _buffer = null;
     _pauses = 0;
     _isCanceled = true;

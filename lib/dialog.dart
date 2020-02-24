@@ -137,8 +137,8 @@ class Reply {
 
   bool get isAvailable => _available.isEntered;
 
-  Reply(this.speech, this._markup, this._hasUses, Scope scope, Story game)
-      : _uses = game.newEventStream(),
+  Reply(this.speech, this._markup, this._hasUses, Scope scope, Story story)
+      : _uses = story.newEventStream(),
         _available = scope.and(_hasUses);
 
   Future use() async {

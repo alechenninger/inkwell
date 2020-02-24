@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:quiver/check.dart';
 import 'package:quiver/time.dart';
 import 'package:rxdart/rxdart.dart';
 
