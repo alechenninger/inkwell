@@ -58,19 +58,6 @@ abstract class Observed<T> {
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper);
 }
 
-@deprecated // may be no longer needed since merge now acts like this anyway
-T Function(U, S) latest<T, U, S>(T Function(U, S) mapper) {
-  U latestU;
-  S latestS;
-
-  return (U u, S s) {
-    latestU = u ?? latestU;
-    latestS = s ?? latestS;
-
-    return mapper(latestU, latestS);
-  };
-}
-
 class _AlwaysObserved<T> extends Observed<T> {
   final T value;
 
@@ -137,29 +124,6 @@ class _ObservableOfImmutable<T> extends Observable<T> {
   }
 
   bool get isClosed => _changes._isDone;
-}
-
-class Merged<T, U> {
-  final T t;
-  final U u;
-
-  Merged(this.t, this.u);
-
-  @override
-  String toString() {
-    return 'Merged{t: $t, u: $u}';
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Merged &&
-          runtimeType == other.runtimeType &&
-          t == other.t &&
-          u == other.u;
-
-  @override
-  int get hashCode => t.hashCode ^ u.hashCode;
 }
 
 class Change<T> extends Event {
