@@ -206,11 +206,11 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
     _dispatch(_onDone);
   }
 
-  void _dispatch(Function fn);
+  void _dispatch(void Function() fn);
 }
 
 class _AsyncEventSubscription<T> extends _EventSubscription<T> {
-  void _dispatch(Function fn) {
+  void _dispatch(void Function() fn) {
     scheduleMicrotask(fn);
   }
 }

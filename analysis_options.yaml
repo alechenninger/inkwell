@@ -13,5 +13,7 @@ linter:
     annotate_overrides: false
 
 analyzer:
+  strong-mode:
+    implicit-casts: false
 #   exclude:
 #     - path/to/excluded/files/**

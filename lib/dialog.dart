@@ -94,10 +94,10 @@ class Speech {
   // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target, this._story);
 
-  Reply addReply(String markup, {Scope scope = const Always()}) {
+  Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, scope, _story);
+    var reply = Reply(this, markup, _replyUses, available, _story);
 
     reply.availability
       ..onEnter.listen((_) {
@@ -125,11 +125,11 @@ class Reply {
   final Speech speech;
 
   final String _markup;
-  final CountScope _hasUses;
+  final CountScope uses;
 
-  final Events<UseReplyEvent> _uses;
+  final Events<UseReplyEvent> _onUse;
 
-  Stream get onUse => _uses.stream;
+  Stream get onUse => _onUse.stream;
 
   final Scope _available;
 
@@ -137,12 +137,12 @@ class Reply {
 
   bool get isAvailable => _available.isEntered;
 
-  Reply(this.speech, this._markup, this._hasUses, Scope scope, Story story)
-      : _uses = story.newEventStream(),
-        _available = scope.and(_hasUses);
+  Reply(this.speech, this._markup, this.uses, Scope available, Story story)
+      : _onUse = story.newEventStream(),
+        _available = available.and(uses);
 
   Future use() async {
-    var e = await _uses.event(() {
+    var e = await _onUse.event(() {
       if (!isAvailable) {
         throw ReplyNotAvailableException(this);
       }
@@ -150,7 +150,7 @@ class Reply {
       return UseReplyEvent(this);
     });
 
-    _hasUses.increment();
+    uses.increment();
 
     return e;
   }

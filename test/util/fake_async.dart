@@ -222,7 +222,7 @@ class _FakeAsync extends FakeAsync {
         _microtasks.add(microtask);
       });
 
-  _drainTimersWhile(bool predicate(_FakeTimer)) {
+  _drainTimersWhile(bool Function(_FakeTimer) predicate) {
     _drainMicrotasks();
     _FakeTimer next;
     while ((next = _getNextTimer()) != null && predicate(next)) {

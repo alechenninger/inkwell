@@ -97,20 +97,13 @@ abstract class Scope<T> {
   void listen(
       {void Function(T) onEnter,
       void Function(T) onExit,
-      callIfAlreadyEntered = true}) {
+      bool callIfAlreadyEntered = true}) {
     this.onEnter.listen(onEnter);
     this.onExit.listen(onExit);
     if (isEntered && callIfAlreadyEntered) {
       onEnter(null);
     }
   }
-
-// TODO: Maybe add a convenience API for listen to onEnter + check isEntered
-//  void around({onEnter(Scope<T> scope), onExit(Scope<T> scope)}) {
-//    if (isEntered) onEnter(this);
-//    this.onEnter.listen((_) { onEnter(this); });
-//    this.onExit.listen((_) { onExit(this); });
-//  }
 }
 
 const always = Always();
@@ -193,8 +186,6 @@ class SettableScope extends Scope<Change<bool>> {
 }
 
 /// A simple scope that is entered until incremented a maximum number of times.
-// TODO: consider generalizing this a bit to be able to produce scopes off of
-// various counts which all share the same counter
 class CountScope extends Scope<int> {
   final int max;
 
@@ -212,19 +203,41 @@ class CountScope extends Scope<int> {
   Stream<int> get onExit =>
       _asObserved.onChange.where((c) => !c.newValue).map((_) => _count.value);
 
-  CountScope(int max)
+  CountScope(int max, [Observable<int> count])
       : max = max,
-        _count = Observable.ofImmutable(0) {
+        _count = count ?? Observable.ofImmutable(0) {
     if (max < 0) {
       throw ArgumentError.value(max, 'max', 'Max count must be non-negative.');
+    }
+
+    if (_count.value < 0) {
+      throw ArgumentError.value(
+          _count, 'counter', 'Count must start at 0 or greater.');
     }
 
     _asObserved = _count.map((c) => c < max);
   }
 
+  /// Produces a new [CountScope] which shares the same underlying counter, but
+  /// may use a different [max]. That is, multiple scopes will exist, where an
+  /// an increment of any will increment all, but each scope will be exited
+  /// independently depending on its own [max] value.
+  CountScope withMax(int max) => CountScope(max, _count);
+
+  /// Produces a new [CountScope] which shares the same underlying counter, but
+  /// may use a different max, as defined by how many [remaining] times the
+  /// counter may be incremented beyond the current number as time of call. That
+  /// is, multiple scopes will exist, where an an increment of any will
+  /// increment all, but each scope will be exited independently depending on
+  /// its own max value.
+  CountScope withRemaining(int remaining) =>
+      CountScope(remaining + _count.value, _count);
+
   void increment() {
-    if (_count.value == max) {
-      throw StateError('Max of $max already met, cannot increment.');
+    // TODO: does this make sense if we keep sharing counter?
+    if (_count.value >= max) {
+      throw StateError('Max of $max already met (current value is '
+          '${_count.value}, cannot increment.');
     }
 
     _count.value++;

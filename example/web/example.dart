@@ -115,13 +115,11 @@ void runAwayFromDragon(Sword sword) async {
 
   var thisWay = dialog.add('This way!');
 
-  // TODO: how to make reply exclusive with options
   var whosThere = thisWay.addReply("Who's there!?");
 
-  var follow = options.oneTime('Follow the mysterious voice',
-      available: whosThere.availability.and(runningAway));
-  var hide = follow.exclusiveWith('Hide',
-      available: whosThere.availability.and(runningAway));
+  var follow =
+      options.limitedUse('Follow the mysterious voice', exclusiveWith: whosThere.uses);
+  var hide = options.limitedUse('Hide', exclusiveWith: whosThere.uses);
 
   var player = dialog.voice(name: 'Bob');
   var mysteriousVoice = dialog.voice(name: '(mysterious voice)');

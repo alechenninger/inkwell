@@ -16,15 +16,15 @@ class Options {
   // var a = exclusive.
 
   Option oneTime(String text, {Scope available}) {
-    return limitedUse(text, available: available, uses: CountScope(1));
+    return limitedUse(text, available: available, exclusiveWith: CountScope(1));
   }
 
   /// Creates a new limited use option that can be used while [available] and
-  /// has remaining [uses].
-  Option limitedUse(String text, {Scope available, CountScope uses}) {
+  /// has remaining [exclusiveWith].
+  Option limitedUse(String text, {Scope available, CountScope exclusiveWith}) {
     // TODO: Could just pass scope here and keep track of use state in closure
     var option =
-        Option._(this, text, uses: uses, available: available ?? _default());
+        Option._(this, text, uses: exclusiveWith, available: available ?? _default());
 
     option
       ..availability.onEnter.listen((e) {
@@ -47,8 +47,8 @@ class Options {
 class Option {
   final String text;
 
-  int get uses => _hasUses.max;
-  int get useCount => _hasUses.count;
+  int get maxUses => uses.max;
+  int get useCount => uses.count;
 
   Scope _available;
 
@@ -58,16 +58,16 @@ class Option {
   Scope get availability => _available;
 
   // TODO: Consider simply Stream<Option>
-  Stream<UseOptionEvent> get onUse => _uses.stream;
+  Stream<UseOptionEvent> get onUse => _onUse.stream;
 
-  final CountScope _hasUses;
-  final _uses = Events<UseOptionEvent>();
+  final CountScope uses;
+  final _onUse = Events<UseOptionEvent>();
   final Options _options;
 
   Option._(this._options, this.text,
       {CountScope uses, Scope available = always})
-      : _hasUses = uses ?? CountScope(1) {
-    _available = available.and(_hasUses);
+      : uses = uses ?? CountScope(1) {
+    _available = available.and(this.uses);
   }
 
   /// Schedules option to be used at the end of the current event queue.
@@ -77,7 +77,7 @@ class Option {
   /// available to be used.
   Future<UseOptionEvent> use() async {
     // Wait to check isAvailable until option actually about to be used
-    var e = await _uses.event(() {
+    var e = await _onUse.event(() {
       if (!isAvailable) {
         throw OptionNotAvailableException(this);
       }
@@ -85,18 +85,18 @@ class Option {
       return UseOptionEvent(this);
     });
 
-    _hasUses.increment();
+    uses.increment();
 
     return e;
   }
 
   Option exclusiveWith(String text, {Scope available}) {
-    return _options.limitedUse(text, uses: _hasUses, available: available);
+    return _options.limitedUse(text, exclusiveWith: uses, available: available);
   }
 
   String toString() => 'Option{'
       "text='$text',"
-      'allowedUseCount=$uses,'
+      'allowedUseCount=$maxUses,'
       'useCount=$useCount'
       '}';
 }
