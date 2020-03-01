@@ -64,7 +64,7 @@ void dragonStandoff() async {
   await delay(seconds: 1);
 
   var attack = options.oneTime('Attack it!');
-  var runAway = attack.exclusiveWith('Run away!');
+  var runAway = options.limitedUse('Run away!', exclusiveWith: attack.uses);
 
   attack.onUse.when(() {
     attackDragon(dragonStandoff, sword);
