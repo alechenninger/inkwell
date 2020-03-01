@@ -83,7 +83,7 @@ abstract class Interactor {
   void run(String action, Map<String, dynamic> parameters);
 }
 
-Future<Null> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
+Future<void> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
   return Future.delayed(Duration(
       minutes: minutes, seconds: seconds, milliseconds: milliseconds));
 }

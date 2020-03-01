@@ -12,19 +12,18 @@ class Options {
 
   Stream<Option> get _onOptionAvailable => _availableOptCtrl.stream;
 
-  // TODO: OptionGroup exclusive()
-  // var a = exclusive.
-
-  Option oneTime(String text, {Scope available}) {
-    return limitedUse(text, available: available, exclusiveWith: CountScope(1));
+  Option oneTime(String text, {Scope available, CountScope exclusiveWith}) {
+    return limitedUse(text,
+        available: available,
+        exclusiveWith: exclusiveWith?.withRemaining(1) ?? CountScope(1));
   }
 
   /// Creates a new limited use option that can be used while [available] and
   /// has remaining [exclusiveWith].
   Option limitedUse(String text, {Scope available, CountScope exclusiveWith}) {
     // TODO: Could just pass scope here and keep track of use state in closure
-    var option =
-        Option._(this, text, uses: exclusiveWith, available: available ?? _default());
+    var option = Option._(this, text,
+        uses: exclusiveWith, available: available ?? _default());
 
     option
       ..availability.onEnter.listen((e) {

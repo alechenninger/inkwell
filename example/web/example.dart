@@ -61,6 +61,8 @@ void dragonStandoff() async {
 
   dialog.narrate('A dragon stands before you!');
 
+  await delay(seconds: 1);
+
   var attack = options.oneTime('Attack it!');
   var runAway = attack.exclusiveWith('Run away!');
 
@@ -78,6 +80,8 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   await scenes.oneTime().enter();
 
   dialog.narrate('The dragon readies its flame...');
+
+  await delay(seconds: 1);
 
   var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
   var deflectWithShield = options.oneTime('Deflect the fire with your shield.');
@@ -104,9 +108,11 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
 }
 
 void runAwayFromDragon(Sword sword) async {
-  var runningAway = await scenes.oneTime().enter();
+  await scenes.oneTime().enter();
 
   dialog.narrate('Running away.');
+
+  await delay(seconds: 1);
 
   if (sword.isMelted()) {
     dialog.narrate(
@@ -115,10 +121,12 @@ void runAwayFromDragon(Sword sword) async {
 
   var thisWay = dialog.add('This way!');
 
+  await delay(seconds: 1);
+
   var whosThere = thisWay.addReply("Who's there!?");
 
-  var follow =
-      options.limitedUse('Follow the mysterious voice', exclusiveWith: whosThere.uses);
+  var follow = options.limitedUse('Follow the mysterious voice',
+      exclusiveWith: whosThere.uses);
   var hide = options.limitedUse('Hide', exclusiveWith: whosThere.uses);
 
   var player = dialog.voice(name: 'Bob');
@@ -133,14 +141,24 @@ void runAwayFromDragon(Sword sword) async {
 
     dialog.narrate('You hurry along toward the dark shapes ahead.');
 
+    await delay(seconds: 1);
+
     player.say('What are you doing here?');
 
+    await delay(seconds: 1);
+
     var toMysteryVoice = mysteriousVoice.say('I could ask you the same thing.');
+
+    await delay(seconds: 1);
+
     var needDragonScales = toMysteryVoice.addReply('I need dragon scales');
     var sayNothing = toMysteryVoice.addReply('...');
 
-    needDragonScales.onUse.when(() {
+    needDragonScales.onUse.when(() async {
       player.say('I need dragon scales.');
+
+      await delay(seconds: 1);
+
       mysteriousVoice.say('Good luck with that.');
     });
 
