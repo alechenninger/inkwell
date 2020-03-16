@@ -124,7 +124,7 @@ class FastForwarder {
           ? parent.scheduleMicrotask(zone, microtask)
           : _microtasks.add(microtask));
 
-  _runTimersUntil(Duration elapsingTo) {
+  void _runTimersUntil(Duration elapsingTo) {
     _FastForwarderTimer next;
     while ((next = _getNextTimer()) != null && next.nextCall <= elapsingTo) {
       _elapseTo(next.nextCall);
@@ -133,7 +133,7 @@ class FastForwarder {
     }
   }
 
-  _elapseTo(Duration to) {
+  void _elapseTo(Duration to) {
     if (to > _elapsed) {
       _elapsed = to;
     }
@@ -156,7 +156,7 @@ class FastForwarder {
       ? null
       : _timers.reduce((t1, t2) => t1.nextCall <= t2.nextCall ? t1 : t2);
 
-  _runTimer(_FastForwarderTimer timer) {
+  void _runTimer(_FastForwarderTimer timer) {
     assert(timer.isActive);
     if (timer.isPeriodic) {
       timer.callback(timer);
@@ -167,7 +167,7 @@ class FastForwarder {
     }
   }
 
-  _drainMicrotasks() {
+  void _drainMicrotasks() {
     while (_microtasks.isNotEmpty) {
       _microtasks.removeFirst()();
     }

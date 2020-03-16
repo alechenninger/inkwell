@@ -1,7 +1,6 @@
+import 'package:quiver/testing/async.dart';
 import 'package:test/test.dart';
 import 'package:august/august.dart';
-
-import 'util/fake_async.dart' show FakeAsync;
 
 void main() {
   Persistence persistence;
@@ -21,8 +20,8 @@ void main() {
 
   Duration currentOffset() => interactionMngr.currentOffset;
 
-  group("Running a script with saved interactions", () {
-    test("replays saved interactions in order", () {
+  group('Running a script with saved interactions', () {
+    test('replays saved interactions in order', () {
       var occurred = [];
 
       persistence.saveInteraction(
