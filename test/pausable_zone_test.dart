@@ -4,223 +4,369 @@ import 'package:august/august.dart';
 
 void main() {
   PausableZone zone;
-  List<String> log;
+  List<dynamic> log;
   FakeAsync fakeAsync;
 
   setUp(() {
     log = [];
     fakeAsync = FakeAsync();
+    zone = fakeAsync.run((async) {
+      var start = DateTime.now();
+      var fakeClock = fakeAsync.getClock(start);
+      return PausableZone(() => fakeClock.now().difference(start));
+    }) as PausableZone;
   });
 
-  PausableZone pausableZone() {
-    var start = DateTime.now();
-    var clock = fakeAsync.getClock(start);
-    return PausableZone(() {
-      var now = clock.now();
-      return now.difference(start);
-    });
-  }
+  group('non-periodic timers', () {
+    test('created while paused do not run', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          ctrl.pause();
 
-  test('timers created while paused do not run', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        ctrl.pause();
-
-        Timer(Duration(seconds: 2), () {
-          log.add('test');
+          Timer(2.seconds, () {
+            log.add('test');
+          });
         });
+
+        async.elapse(3.seconds);
+
+        expect(log, isEmpty);
       });
-
-      async.elapse(Duration(seconds: 3));
-
-      expect(log, isEmpty);
     });
-  });
 
-  test('periodic timers created while paused do not run', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        ctrl.pause();
+    test('created while paused run after unpausing', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          ctrl.pause();
 
-        Timer.periodic(Duration(seconds: 2), (t) {
-          log.add('test');
-        });
-      });
-
-      async.elapse(Duration(seconds: 3));
-
-      expect(log, isEmpty);
-    });
-  });
-
-  test('timers created while paused run after unpausing', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        ctrl.pause();
-
-        Timer(Duration(seconds: 2), () {
-          log.add('test');
+          Timer(2.seconds, () {
+            log.add('test');
+          });
         });
 
-        Zone.current.parent.createTimer(Duration(seconds: 1), () {
-          ctrl.resume();
+        Timer(1.seconds, () {
+          zone.resume();
           // paused for 1 second
         });
+
+        async.elapse(3.seconds);
+
+        expect(log, equals(['test']));
+      });
+    });
+
+    test('run when unpaused', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer(2.seconds, () {
+            log.add('test');
+          });
+        });
+
+        async.elapse(2.seconds);
+
+        expect(log, equals(['test']));
+      });
+    });
+
+    test('do not run when paused', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer(2.seconds, () {
+            log.add('test');
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+          });
+        });
+
+        async.elapse(3.seconds);
+
+        expect(log, isEmpty);
+      });
+    });
+
+    group('unpaused with 1 second remaining', () {
+      setUp(() {
+        // t0 - start 2 second timer under test
+        // t1 - pause (1 second remaining)
+        // t2 - unpause (1 second remaining)
+
+        zone.run((ctrl) {
+          Timer(2.seconds, () {
+            log.add('test');
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+            // timer has 1 second remaining
+          });
+        });
+
+        fakeAsync.run((async) {
+          // Elapse both timers; now paused
+          async.elapse(1.seconds);
+
+          // 1 second later, unpause.
+          Timer(1.seconds, () {
+            zone.resume();
+            // paused for 1 second
+          });
+
+          // Move to 1 second later; now unpaused
+          async.elapse(1.seconds);
+        });
       });
 
-      async.elapse(Duration(seconds: 3));
+      test('runs when unpaused after 1 second', () {
+        fakeAsync.run((async) {
+          async.elapse(1.seconds);
 
-      expect(log, equals(['test']));
+          expect(log, equals(['test']));
+        });
+      });
+
+      test('unpaused timers do not run before remaining time', () {
+        fakeAsync.run((async) {
+          async.elapse(999.millis);
+
+          expect(log, isEmpty);
+        });
+      });
     });
   });
 
-  test('periodic timers created while paused run after unpausing', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        ctrl.pause();
-
-        Timer.periodic(Duration(seconds: 2), (t) {
-          log.add('test');
-        });
-
-        Zone.current.parent.createTimer(Duration(seconds: 1), () {
-          ctrl.resume();
-        });
-      });
-
-      async.elapse(Duration(seconds: 5));
-
-      expect(log, equals(['test', 'test']));
-    });
-  });
-
-  test('unpaused timers do run', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        Timer(Duration(seconds: 2), () {
-          log.add('test');
-        });
-      });
-
-      async.elapse(Duration(seconds: 2));
-
-      expect(log, equals(['test']));
-    });
-  });
-
-  test('paused timers do not run', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        Timer(Duration(seconds: 2), () {
-          log.add('test');
-        });
-        Timer(Duration(seconds: 1), () {
+  group('periodic timers', () {
+    test('created while paused do not run', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
           ctrl.pause();
+
+          Timer.periodic(2.seconds, (t) {
+            log.add('test');
+          });
         });
+
+        async.elapse(3.seconds);
+
+        expect(log, isEmpty);
       });
-
-      async.elapse(Duration(seconds: 3));
-
-      expect(log, isEmpty);
     });
-  });
 
-  test('paused periodic timers do not run', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        Timer.periodic(Duration(seconds: 2), (t) {
-          log.add('test');
-        });
-        Timer(Duration(seconds: 1), () {
+    test('created while paused run after unpausing', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
           ctrl.pause();
-        });
-      });
 
-      async.elapse(Duration(seconds: 3));
-
-      expect(log, isEmpty);
-    });
-  });
-
-  test('unpaused timers run after remaining time', () {
-
-  });
-
-  test('unpaused timers do not run before remaining time', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        Timer(Duration(seconds: 2), () {
-          log.add('test');
-        });
-        Timer(Duration(seconds: 1), () {
-          ctrl.pause();
-          // timer has 1 second remaining
+          Timer.periodic(2.seconds, (t) {
+            log.add(ctrl.offset);
+          });
         });
 
-        Zone.current.parent.createTimer(Duration(seconds: 2), () {
-          ctrl.resume();
-        });
-      });
-
-      async.elapse(Duration(seconds: 2, milliseconds: 999));
-
-      expect(log, isEmpty);
-    });
-  });
-
-  test('unpaused periodic timers run after remaining time', () {
-    fakeAsync.run((async) {
-      zone = pausableZone();
-      zone.run((ctrl) {
-        Timer.periodic(Duration(seconds: 2), (t) {
-          log.add('test');
-        });
-        Timer(Duration(seconds: 1), () {
-          ctrl.pause();
-          // timer has 1 second remaining
-        });
-
-        Zone.current.parent.createTimer(Duration(seconds: 2), () {
-          ctrl.resume();
+        Timer(1.seconds, () {
+          zone.resume();
           // paused for 1 second
         });
+
+        async.elapse(5.seconds);
+
+        expect(log, equals([3.seconds, 5.seconds]));
       });
-
-      async.elapse(Duration(seconds: 3));
-
-      expect(log, equals(['test']));
     });
-  });
 
-  test('unpaused periodic timers run periodically, offset by pause time', () {
+    test('do not run when paused', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer.periodic(2.seconds, (t) {
+            log.add('test');
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+          });
+        });
 
+        async.elapse(3.seconds);
+
+        expect(log, isEmpty);
+      });
+    });
+
+    test('unpaused periodic timers do not run before remaining time', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer.periodic(2.seconds, (t) {
+            log.add('test');
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+            // timer has 1 second remaining
+          });
+        });
+
+        Timer(2.seconds, () {
+          zone.resume();
+          // paused for 1 second
+        });
+
+        async.elapse(2.seconds + 999.millis);
+
+        expect(log, isEmpty);
+      });
+    });
+
+    test('unpaused periodic timers run after remaining time', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer.periodic(2.seconds, (t) {
+            log.add('test');
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+            // timer has 1 second remaining
+          });
+        });
+
+        Timer(2.seconds, () {
+          zone.resume();
+          // paused for 1 second
+        });
+
+        async.elapse(3.seconds);
+
+        expect(log, equals(['test']));
+      });
+    });
+
+    test('unpaused periodic timers run periodically, offset by pause time', () {
+      fakeAsync.run((async) {
+        zone.run((ctrl) {
+          Timer.periodic(2.seconds, (t) {
+            log.add(ctrl.offset);
+          });
+          Timer(1.seconds, () {
+            ctrl.pause();
+            // timer has 1 second remaining
+          });
+        });
+
+        Timer(2.seconds, () {
+          zone.resume();
+          // paused for 1 second
+        });
+
+        async.elapse(5.seconds);
+
+        expect(log, equals([3.seconds, 5.seconds]));
+      });
+    });
   });
 
   test('unpaused timers retain order they were scheduled', () {
+    zone.run((ctrl) {
+      Timer(10.seconds, () => log.add('first'));
+      Timer(10.seconds, () => log.add('second'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
 
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(11.seconds);
+    });
+
+    expect(log, equals(['first', 'second']));
   });
 
   test('unpaused periodic timers retain order they were scheduled', () {
+    zone.run((ctrl) {
+      Timer.periodic(10.seconds, (t) => log.add('first'));
+      Timer.periodic(10.seconds, (t) => log.add('second'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
 
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(11.seconds);
+    });
+
+    expect(log, equals(['first', 'second']));
   });
 
   test(
-      'upnaused periodic timers retain order when colliding with non periodic timers',
+      'unpaused periodic timers scheduled before timers run before colliding timers',
       () {
+    zone.run((ctrl) {
+      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.offset.inSeconds}'));
+      Timer(10.seconds, () => log.add('t'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
 
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(11.seconds);
+    });
+
+    expect(log, equals(['p6', 'p11', 't']));
   });
 
-  test('completed timers do not run after resuming', () {
+  test(
+      'unpaused periodic timers scheduled after timers run after colliding timers',
+      () {
+    zone.run((ctrl) {
+      Timer(10.seconds, () => log.add('t'));
+      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.offset.inSeconds}'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
 
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(11.seconds);
+    });
+
+    expect(log, equals(['p6', 't', 'p11']));
   });
+
+  test(
+      'unpaused periodic timers scheduled before shorter timers run after',
+      () {
+    zone.run((ctrl) {
+      Timer.periodic(10.seconds, (t) => log.add('p${ctrl.offset.inSeconds}'));
+      Timer(5.seconds, () => log.add('t'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
+
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(11.seconds);
+    });
+
+    expect(log, equals(['t', 'p11']));
+  });
+
+  test('complex order is retained', () {
+    zone.run((ctrl) {
+      Timer.periodic(5.seconds, (t) => log.add('p1_${ctrl.offset.inSeconds}'));
+      Timer(10.seconds, () => log.add('t1'));
+      Timer(20.seconds, () => log.add('t2'));
+      Timer.periodic(10.seconds, (t) => log.add('p2_${ctrl.offset.inSeconds}'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
+
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(21.seconds);
+    });
+
+    expect(
+        log,
+        equals(
+            ['p1_6', 'p1_11', 't1', 'p2_11', 'p1_16', 'p1_21', 't2', 'p2_21']));
+  });
+
+  test('completed timers do not run after resuming', () {});
 
   // TODO: test cancellations
+}
+
+extension Durations on int {
+  Duration get seconds => Duration(seconds: this);
+  Duration get millis => Duration(milliseconds: this);
 }

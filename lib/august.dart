@@ -31,6 +31,8 @@ abstract class Module<UiType> {
   Interactor interactor();
 }
 
+// TODO: Consider a "StoryZone" which aggregates all capabilities for stories
+//   another one that would be useful might be scaling times e.g 1 second is actually 2
 ///
 class PausableZone {
   /// All timers, regardless of state, so we can track what we need to pause.
@@ -49,8 +51,9 @@ class PausableZone {
   /// Forked zone with pausable timers
   Zone _zone;
 
-  PausableZone(this.parentOffset) {
-    _zone = Zone.current.fork(
+  PausableZone(this.parentOffset, {Zone parent}) {
+    parent = parent ?? Zone.current;
+    _zone = parent.fork(
         specification: ZoneSpecification(
       createPeriodicTimer: pausablePeriodicTimer,
       createTimer: pausableTimer,
@@ -71,7 +74,7 @@ class PausableZone {
 
     _timers.add(answer._next);
 
-    if (_isPaused) {
+    if (isPaused) {
       _paused.add(answer._next);
     } else {
       answer.start();
@@ -94,10 +97,11 @@ class PausableZone {
 
     _timers.add(answer._scheduled);
 
-    if (_isPaused) {
+    if (isPaused) {
       _paused.add(answer._scheduled);
     } else {
-      answer.start();
+      // TODO: remove this start offset hack!
+      answer.start(answer._scheduled.nextCall - duration);
     }
 
     return answer;
@@ -107,7 +111,7 @@ class PausableZone {
     return _sequence++;
   }
 
-  bool get _isPaused => _pausedAt != null;
+  bool get isPaused => _pausedAt != null;
 
   void pausableMicrotask(
       Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
@@ -136,12 +140,11 @@ class PausableZone {
   }
 
   void resume() {
-
     /*
     schedule all microtasks
     */
 
-    _resumeAvailableTimers();
+    _resumeAvailableTimers(_pausedAt);
 
     /*
     restart all timers with durations - elapsed pause duration
@@ -157,13 +160,16 @@ class PausableZone {
     _pausedAt = null;
   }
 
-  void _resumeAvailableTimers() {
-    while (_paused.isNotEmpty) {
+  void _resumeAvailableTimers(Duration offset) {
+    Duration maxOffset;
+
+    while (_paused.isNotEmpty &&
+        (maxOffset == null || _paused.first.nextCall < maxOffset)) {
       var scheduled = _paused.removeFirst();
       var timer = scheduled.timer;
 
       if (timer is _PausableTimer) {
-        timer.start();
+        timer.start(offset);
       } else {
         var periodic = timer as _PausablePeriodicTimer;
 
@@ -180,18 +186,20 @@ class PausableZone {
           var continueResume = () {
             _timers.remove(t._scheduled);
             periodic.startNow();
-            _resumeAvailableTimers();
+            _resumeAvailableTimers(scheduled.nextCall);
           };
           return _zone.parent.createTimer(d, continueResume);
         }
 
-        var answer = _PausableTimer(
-            this, _nextSequence(), _createTimer, scheduled.nextCall - _pausedAt);
-        answer.start();
+        var duration = scheduled.nextCall - offset;
+        var answer =
+            _PausableTimer(this, _nextSequence(), _createTimer, duration);
+        // TODO: remove this start offset hack!
+        answer.start(answer._scheduled.nextCall - duration);
 
         _timers.add(answer._scheduled);
 
-        break;
+        maxOffset = scheduled.nextCall;
       }
     }
   }
@@ -220,6 +228,8 @@ class Controller {
   void resume() {
     _pausable.resume();
   }
+
+  Duration get offset => _pausable.parentOffset();
 }
 
 class _Scheduled implements Comparable<_Scheduled> {
@@ -243,9 +253,14 @@ class _Scheduled implements Comparable<_Scheduled> {
 
   @override
   int compareTo(_Scheduled other) {
-    var byCall = nextCall.compareTo(other.nextCall);
-    if (byCall != 0) return byCall;
+//    var byCall = nextCall.compareTo(other.nextCall);
+//    if (byCall != 0) return byCall;
     return sequence.compareTo(other.sequence);
+  }
+
+  @override
+  String toString() {
+    return '_Scheduled{nextCall: $nextCall, sequence: $sequence, timer: $timer}';
   }
 }
 
@@ -254,21 +269,18 @@ class _PausableTimer implements Timer {
   final Timer Function(_PausableTimer, Duration) _createTimer;
   _Scheduled _scheduled;
   Timer _delegate;
-  Duration _timeRemaining;
 
   _PausableTimer(
       this._zone, int sequence, this._createTimer, Duration duration) {
     _scheduled = _Scheduled(_zone.parentOffset() + duration, sequence, this);
-    _timeRemaining = duration;
   }
 
   void pauseAt(Duration offset) {
-    _timeRemaining = _scheduled.nextCall - offset;
     _delegate.cancel();
   }
 
-  void start() {
-    _delegate = _createTimer(this, _timeRemaining);
+  void start(Duration offset) {
+    _delegate = _createTimer(this, _scheduled.nextCall - offset);
   }
 
   @override
