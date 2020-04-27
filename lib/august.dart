@@ -43,13 +43,20 @@ class PausableZone {
 
   final Duration Function() parentOffset;
 
+  /// The parent offset that we last paused at
   Duration _pausedAt;
 
-  /// Orders timers
+  /// The cumulative total time the zone has been paused
+  Duration _pausedFor = Duration.zero;
+
+  /// Maintains a sequence number to order timers in creation order
   int _sequence = 0;
 
   /// Forked zone with pausable timers
   Zone _zone;
+
+  /// The offset of this zone, which does not progress while paused.
+  Duration get offset => _pausedAt ?? parentOffset() - _pausedFor;
 
   PausableZone(this.parentOffset, {Zone parent}) {
     parent = parent ?? Zone.current;
@@ -61,47 +68,40 @@ class PausableZone {
     ));
   }
 
-  Timer pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function(Timer) f) {
-    Timer _createTimer(void Function() f) {
-      return parent.createPeriodicTimer(self, duration, (_) {
-        f();
-      });
-    }
-
-    var answer = _PausablePeriodicTimer(
-        this, _nextSequence(), _createTimer, duration, f);
-
-    _timers.add(answer._next);
+  Timer pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function() f) {
+    var answer = _PausableNonPeriodicTimer(
+        this,
+        _nextSequence(),
+        (t, d) => parent.createTimer(self, d, () {
+              _timers.remove(t._scheduled);
+              f();
+            }),
+        offset + duration);
 
     if (isPaused) {
-      _paused.add(answer._next);
+      _paused.add(answer._scheduled);
     } else {
-      answer.start();
+      answer.startFrom(offset);
     }
 
     return answer;
   }
 
-  Timer pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function() f) {
-    Timer _createTimer(_PausableTimer t, Duration d) {
-      var removeTimerThenRunCallback = () {
-        _timers.remove(t._scheduled);
-        f();
-      };
-      return parent.createTimer(self, d, removeTimerThenRunCallback);
-    }
-
-    var answer = _PausableTimer(this, _nextSequence(), _createTimer, duration);
-
-    _timers.add(answer._scheduled);
+  Timer pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function(Timer) f) {
+    var answer = _PausablePeriodicTimer(
+        this,
+        _nextSequence(),
+        (f) => parent.createPeriodicTimer(self, duration, (_) => f()),
+        duration,
+        f);
 
     if (isPaused) {
-      _paused.add(answer._scheduled);
+      _paused
+          .add(_Scheduled(offset + duration, answer._sequence, answer, true));
     } else {
-      // TODO: remove this start offset hack!
-      answer.start(answer._scheduled.nextCall - duration);
+      answer.start();
     }
 
     return answer;
@@ -119,21 +119,14 @@ class PausableZone {
   }
 
   void pause() {
-    // TODO: can stop the stopwatch if we don't need to keep track of how long
-    //   we paused
-
     if (_pausedAt != null) return;
     _pausedAt = parentOffset();
 
-    while (_timers.isNotEmpty) {
-      var scheduled = _timers.removeFirst();
-      var timer = scheduled.timer;
-      // TODO: this can/should? polymorphic
-      if (timer is _PausableTimer) {
-        timer.pauseAt(_pausedAt);
-      } else {
-        (timer as _PausablePeriodicTimer).pause();
+    for (var scheduled in _timers.toList()) {
+      if (!scheduled.timer.isActive) {
+        continue;
       }
+      scheduled.timer.pause();
       _paused.add(scheduled);
     }
     // TODO: also microtasks
@@ -143,8 +136,10 @@ class PausableZone {
     /*
     schedule all microtasks
     */
+    _pausedFor += parentOffset() - _pausedAt;
+    _pausedAt = null;
 
-    _resumeAvailableTimers(_pausedAt);
+    _resumeUntilNextPeriodic();
 
     /*
     restart all timers with durations - elapsed pause duration
@@ -156,50 +151,44 @@ class PausableZone {
 
 
      */
-
-    _pausedAt = null;
   }
 
-  void _resumeAvailableTimers(Duration offset) {
-    Duration maxOffset;
+  void _resumeUntilNextPeriodic() {
+    Duration nextPeriodic;
 
     while (_paused.isNotEmpty &&
-        (maxOffset == null || _paused.first.nextCall < maxOffset)) {
+        (nextPeriodic == null || _paused.first.nextCall < nextPeriodic)) {
       var scheduled = _paused.removeFirst();
+
+      if (scheduled.forPeriodic) {
+        // May overwrite if sooner; that's okay.
+        nextPeriodic = scheduled.nextCall;
+      }
+
       var timer = scheduled.timer;
 
-      if (timer is _PausableTimer) {
-        timer.start(offset);
+      if (timer is _PausableNonPeriodicTimer) {
+        timer.startFrom(offset);
       } else {
         var periodic = timer as _PausablePeriodicTimer;
 
-        // TODO: come back to this
-        // basically if the remaining time on the first tick is == period, we
-        // can just directly start again. but how to tell?
-//        if (!periodic.isStarted) {
-//          periodic.start();
-//          continue;
-//        }
-
-        // TODO: DRY this bit
-        Timer _createTimer(_PausableTimer t, Duration d) {
-          var continueResume = () {
-            _timers.remove(t._scheduled);
-            periodic.startNow();
-            _resumeAvailableTimers(scheduled.nextCall);
-          };
-          return _zone.parent.createTimer(d, continueResume);
+        if (!periodic.isStarted) {
+          periodic.start();
+          continue;
         }
 
-        var duration = scheduled.nextCall - offset;
-        var answer =
-            _PausableTimer(this, _nextSequence(), _createTimer, duration);
-        // TODO: remove this start offset hack!
-        answer.start(answer._scheduled.nextCall - duration);
+        periodic.cancel();
 
-        _timers.add(answer._scheduled);
-
-        maxOffset = scheduled.nextCall;
+        var answer = _PausableNonPeriodicTimer.forPeriodic(
+            this,
+            scheduled.sequence,
+            (t, d) => _zone.parent.createTimer(d, () {
+                  _timers.remove(t._scheduled);
+                  periodic.startNow();
+                  _resumeUntilNextPeriodic();
+                }),
+            scheduled.nextCall);
+        answer.startFrom(offset);
       }
     }
   }
@@ -217,27 +206,30 @@ class PausableZone {
 }
 
 class Controller {
-  final PausableZone _pausable;
+  final PausableZone _zone;
 
-  Controller(this._pausable);
+  Controller(this._zone);
 
   void pause() {
-    _pausable.pause();
+    _zone.pause();
   }
 
   void resume() {
-    _pausable.resume();
+    _zone.resume();
   }
 
-  Duration get offset => _pausable.parentOffset();
+  Duration get parentOffset => _zone.parentOffset();
+
+  Duration get offset => _zone.offset;
 }
 
 class _Scheduled implements Comparable<_Scheduled> {
   final Duration nextCall;
   final int sequence;
-  final Timer timer;
+  final PausableTimer timer;
+  final bool forPeriodic;
 
-  _Scheduled(this.nextCall, this.sequence, this.timer);
+  _Scheduled(this.nextCall, this.sequence, this.timer, this.forPeriodic);
 
   @override
   bool operator ==(Object other) =>
@@ -253,8 +245,6 @@ class _Scheduled implements Comparable<_Scheduled> {
 
   @override
   int compareTo(_Scheduled other) {
-//    var byCall = nextCall.compareTo(other.nextCall);
-//    if (byCall != 0) return byCall;
     return sequence.compareTo(other.sequence);
   }
 
@@ -264,22 +254,36 @@ class _Scheduled implements Comparable<_Scheduled> {
   }
 }
 
-class _PausableTimer implements Timer {
+abstract class PausableTimer implements Timer {
+  void pause();
+}
+
+class _PausableNonPeriodicTimer implements PausableTimer {
   final PausableZone _zone;
-  final Timer Function(_PausableTimer, Duration) _createTimer;
+  final Timer Function(_PausableNonPeriodicTimer, Duration) _createTimer;
   _Scheduled _scheduled;
   Timer _delegate;
 
-  _PausableTimer(
-      this._zone, int sequence, this._createTimer, Duration duration) {
-    _scheduled = _Scheduled(_zone.parentOffset() + duration, sequence, this);
+  _PausableNonPeriodicTimer(
+      this._zone, int sequence, this._createTimer, Duration nextCall) {
+    // TODO: consider modelling this more like periodic:
+    //   don't create scheduled until started.
+    //   maybe just take duration in start?
+    _scheduled = _Scheduled(nextCall, sequence, this, false);
+    _zone._timers.add(_scheduled);
   }
 
-  void pauseAt(Duration offset) {
+  _PausableNonPeriodicTimer.forPeriodic(
+      this._zone, int sequence, this._createTimer, Duration nextCall) {
+    _scheduled = _Scheduled(nextCall, sequence, this, true);
+    _zone._timers.add(_scheduled);
+  }
+
+  void pause() {
     _delegate.cancel();
   }
 
-  void start(Duration offset) {
+  void startFrom(Duration offset) {
     _delegate = _createTimer(this, _scheduled.nextCall - offset);
   }
 
@@ -296,7 +300,7 @@ class _PausableTimer implements Timer {
   int get tick => _delegate.tick;
 }
 
-class _PausablePeriodicTimer implements Timer {
+class _PausablePeriodicTimer implements PausableTimer {
   final PausableZone _zone;
   final Timer Function(void Function() f) _createTimer;
   final int _sequence;
@@ -304,12 +308,10 @@ class _PausablePeriodicTimer implements Timer {
   final Function(Timer) _callback;
   _Scheduled _next;
   Timer _delegate;
-  int _offsetTicks;
+  //int _offsetTicks;
 
   _PausablePeriodicTimer(this._zone, this._sequence, this._createTimer,
-      this._period, this._callback) {
-    _next = _Scheduled(_zone.parentOffset() + _period, _sequence, this);
-  }
+      this._period, this._callback);
 
   void pause() {
     _delegate?.cancel();
@@ -318,19 +320,18 @@ class _PausablePeriodicTimer implements Timer {
   }
 
   void startNow() {
-    _zone._timers.remove(_next);
-    _zone._timers
-        .add(_next = _Scheduled(_next.nextCall + _period, _sequence, this));
     _callback(this);
-
     start();
   }
 
   void start() {
+    _zone._timers
+        .add(_next = _Scheduled(_zone.offset + _period, _sequence, this, true));
+
     _delegate = _createTimer(() {
       _zone._timers.remove(_next);
-      _zone._timers
-          .add(_next = _Scheduled(_next.nextCall + _period, _sequence, this));
+      _zone._timers.add(
+          _next = _Scheduled(_next.nextCall + _period, _sequence, this, true));
       _callback(this);
     });
   }
