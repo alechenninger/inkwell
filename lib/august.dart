@@ -128,7 +128,7 @@ class PausableZone {
             }),
         offset + duration);
 
-    if (!isPaused) {
+    if (!isPaused && _paused.length == 1) {
       answer.startFrom(offset);
     }
 
@@ -144,7 +144,7 @@ class PausableZone {
         duration,
         f);
 
-    if (!isPaused) {
+    if (!isPaused && _paused.length == 1) {
       answer.start();
     }
 

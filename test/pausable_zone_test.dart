@@ -509,6 +509,7 @@ void main() {
   });
 
   // TODO: test cancellations
+  // TODO: test timers which create other timers
 }
 
 extension IntDurations on int {
@@ -517,5 +518,5 @@ extension IntDurations on int {
 }
 
 extension DblDurations on double {
-  Duration get seconds => Duration(milliseconds: (this * 1000).truncate());
+  Duration get seconds => (this * 1000).truncate().millis;
 }
