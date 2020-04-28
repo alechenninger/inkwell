@@ -318,7 +318,8 @@ void main() {
       'unpaused periodic timers scheduled before timers run before colliding timers',
       () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t'));
       Timer(4.seconds, () => ctrl.pause());
     });
@@ -335,7 +336,8 @@ void main() {
       'unpaused periodic timers scheduled before timers run before colliding timers multiple pauses',
       () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t'));
     });
 
@@ -354,7 +356,8 @@ void main() {
       'unpaused periodic timers scheduled before timers run before colliding timers multiple pauses within a period',
       () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t'));
     });
 
@@ -374,7 +377,8 @@ void main() {
       () {
     zone.run((ctrl) {
       Timer(10.seconds, () => log.add('t'));
-      Timer.periodic(5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
       Timer(4.seconds, () => ctrl.pause());
     });
 
@@ -389,7 +393,8 @@ void main() {
   test('unpaused periodic timers scheduled before shorter timers run after',
       () {
     zone.run((ctrl) {
-      Timer.periodic(10.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          10.seconds, (t) => log.add('p${ctrl.parentOffset.inSeconds}'));
       Timer(5.seconds, () => log.add('t'));
       Timer(4.seconds, () => ctrl.pause());
     });
@@ -404,9 +409,11 @@ void main() {
 
   test('complex order is retained 2', () {
     zone.run((ctrl) {
-      Timer.periodic(15.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          15.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t1'));
-      Timer.periodic(5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
       Timer(4.seconds, () => ctrl.pause());
     });
 
@@ -415,16 +422,15 @@ void main() {
       a.elapse(16.seconds);
     });
 
-    expect(
-        log,
-        equals(
-            ['p1_6', 't1', 'p1_11', 'p2_16', 'p1_16']));
+    expect(log, equals(['p1_6', 't1', 'p1_11', 'p2_16', 'p1_16']));
   });
 
   test('complex order is retained 3', () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
-      Timer.periodic(15.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          15.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t1'));
       Timer(4.seconds, () => ctrl.pause());
     });
@@ -434,18 +440,17 @@ void main() {
       a.elapse(16.seconds);
     });
 
-    expect(
-        log,
-        equals(
-            ['p1_6', 'p1_11', 't1', 'p1_16', 'p2_16']));
+    expect(log, equals(['p1_6', 'p1_11', 't1', 'p1_16', 'p2_16']));
   });
 
   test('complex order is retained', () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t1'));
       Timer(20.seconds, () => log.add('t2'));
-      Timer.periodic(10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
       Timer(4.seconds, () => ctrl.pause());
     });
 
@@ -462,10 +467,12 @@ void main() {
 
   test('complex order is retained after multiple pauses', () {
     zone.run((ctrl) {
-      Timer.periodic(5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
       Timer(10.seconds, () => log.add('t1'));
       Timer(20.seconds, () => log.add('t2'));
-      Timer.periodic(10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
     });
 
     fakeAsync.run((a) {
