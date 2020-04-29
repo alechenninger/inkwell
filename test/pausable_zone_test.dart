@@ -407,6 +407,28 @@ void main() {
     expect(log, equals(['t', 'p11']));
   });
 
+  test('complex order is retained', () {
+    zone.run((ctrl) {
+      Timer.periodic(
+          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer(10.seconds, () => log.add('t1'));
+      Timer(20.seconds, () => log.add('t2'));
+      Timer.periodic(
+          10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer(4.seconds, () => ctrl.pause());
+    });
+
+    fakeAsync.run((a) {
+      Timer(5.seconds, () => zone.resume());
+      a.elapse(21.seconds);
+    });
+
+    expect(
+        log,
+        equals(
+            ['p1_6', 'p1_11', 't1', 'p2_11', 'p1_16', 'p1_21', 't2', 'p2_21']));
+  });
+
   test('complex order is retained 2', () {
     zone.run((ctrl) {
       Timer.periodic(
@@ -443,26 +465,85 @@ void main() {
     expect(log, equals(['p1_6', 'p1_11', 't1', 'p1_16', 'p2_16']));
   });
 
-  test('complex order is retained', () {
+  test(
+      'more frequent periodics scheduled later should not resume later timers before earlier periodics',
+      () {
     zone.run((ctrl) {
       Timer.periodic(
-          5.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
-      Timer(10.seconds, () => log.add('t1'));
-      Timer(20.seconds, () => log.add('t2'));
+          10.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
       Timer.periodic(
-          10.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
-      Timer(4.seconds, () => ctrl.pause());
+          5.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          4.seconds, (t) => log.add('p3_${ctrl.parentOffset.inSeconds}'));
+      Timer(20.seconds, () => log.add('t1'));
     });
 
     fakeAsync.run((a) {
+      Timer(4.seconds, () => zone.pause());
       Timer(5.seconds, () => zone.resume());
       a.elapse(21.seconds);
     });
 
     expect(
         log,
-        equals(
-            ['p1_6', 'p1_11', 't1', 'p2_11', 'p1_16', 'p1_21', 't2', 'p2_21']));
+        equals([
+          'p3_4',
+          'p2_6',
+          'p3_9',
+          'p1_11',
+          'p2_11',
+          'p3_13',
+          'p2_16',
+          'p3_17',
+          'p1_21',
+          'p2_21',
+          'p3_21',
+          't1'
+        ]));
+  });
+
+  test(
+      'timers created while paused retain order',
+      () {
+    zone.run((ctrl) {
+      Timer(2.seconds, () {
+        ctrl.pause();
+        Timer.periodic(
+            10.seconds, (t) => log.add('p3_${ctrl.parentOffset.inSeconds}'));
+        Timer(20.seconds, () => log.add('t1'));
+      });
+
+      Timer.periodic(
+          11.seconds, (t) => log.add('p1_${ctrl.parentOffset.inSeconds}'));
+      Timer.periodic(
+          2.seconds, (t) => log.add('p2_${ctrl.parentOffset.inSeconds}'));
+    });
+
+    fakeAsync.run((a) {
+      Timer(3.seconds, () => zone.resume());
+      a.elapse(23.seconds);
+    });
+
+    expect(
+        log,
+        equals([
+          'p2_3',
+          'p2_5',
+          'p2_7',
+          'p2_9',
+          'p2_11',
+          'p1_12',
+          'p2_13',
+          'p3_13',
+          'p2_15',
+          'p2_17',
+          'p2_19',
+          'p2_21',
+          'p1_23',
+          'p2_23',
+          'p3_23',
+          't1'
+        ]));
   });
 
   test('complex order is retained after multiple pauses', () {
