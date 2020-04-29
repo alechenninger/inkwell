@@ -32,10 +32,22 @@ abstract class Module<UiType> {
   Interactor interactor();
 }
 
+abstract class PausableZone {
+  factory PausableZone(Duration Function() parentOffset, {Zone parent}) =
+      _PausableZone;
+
+  void pause();
+  void resume();
+  bool get isPaused;
+  Duration get offset;
+  Duration get parentOffset;
+  R run<R>(R Function(Controller) f);
+}
+
 // TODO: Consider a "StoryZone" which aggregates all capabilities for stories
 //   another one that would be useful might be scaling times e.g 1 second is actually 2
 ///
-class PausableZone {
+class _PausableZone implements PausableZone {
   /// Timers which are currently running, so we can track what we need to pause.
   ///
   /// Timers are ordered by [_sequence], so we pause and resume cycles retain
@@ -76,7 +88,7 @@ class PausableZone {
   /// Forked zone with pausable timers
   Zone _zone;
 
-  PausableZone(this._parentOffset, {Zone parent}) {
+  _PausableZone(this._parentOffset, {Zone parent}) {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
@@ -172,8 +184,6 @@ class PausableZone {
       } else {
         var periodic = timer as _PausablePeriodicTimer;
 
-        periodic.cancel();
-
         var unpause = continueResumeWithPeriodicAt(scheduled, periodic,
             nextPeriodic: nextPeriodic);
         unpause.startFrom(offset);
@@ -194,6 +204,8 @@ class PausableZone {
   _PausableNonPeriodicTimer continueResumeWithPeriodicAt(
       _Scheduled scheduled, _PausablePeriodicTimer periodic,
       {Duration nextPeriodic}) {
+    _paused.remove(scheduled);
+
     var timer = _PausableNonPeriodicTimer.forPeriodic(
         this,
         scheduled.sequence,
@@ -207,6 +219,7 @@ class PausableZone {
               _resumeUntilNextPeriodic(nextPeriodic: nextPeriodic);
             }),
         scheduled.nextCall);
+
     return timer;
   }
 
@@ -235,7 +248,7 @@ class Controller {
     _zone.resume();
   }
 
-  Duration get parentOffset => _zone._parentOffset();
+  Duration get parentOffset => _zone.parentOffset;
 
   Duration get offset => _zone.offset;
 }
@@ -276,7 +289,7 @@ abstract class PausableTimer implements Timer {
 }
 
 class _PausableNonPeriodicTimer implements PausableTimer {
-  final PausableZone _zone;
+  final _PausableZone _zone;
   final Timer Function(_PausableNonPeriodicTimer, Duration) _createTimer;
   _Scheduled _scheduled;
   Timer _delegate;
@@ -338,7 +351,7 @@ class _PausableNonPeriodicTimer implements PausableTimer {
 }
 
 class _PausablePeriodicTimer implements PausableTimer {
-  final PausableZone _zone;
+  final _PausableZone _zone;
   final Timer Function(void Function() f) _createTimer;
   final int _sequence;
   final Duration _period;
