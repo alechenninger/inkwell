@@ -36,12 +36,33 @@ abstract class PausableZone {
   factory PausableZone(Duration Function() parentOffset, {Zone parent}) =
       _PausableZone;
 
+  factory PausableZone.alt(Duration Function() parentOffset, {Zone parent}) =
+      _CallbackQueueZone;
+
   void pause();
   void resume();
   bool get isPaused;
   Duration get offset;
   Duration get parentOffset;
   R run<R>(R Function(Controller) f);
+}
+
+class Controller {
+  final PausableZone _zone;
+
+  Controller(this._zone);
+
+  void pause() {
+    _zone.pause();
+  }
+
+  void resume() {
+    _zone.resume();
+  }
+
+  Duration get parentOffset => _zone.parentOffset;
+
+  Duration get offset => _zone.offset;
 }
 
 // TODO: Consider a "StoryZone" which aggregates all capabilities for stories
@@ -235,24 +256,6 @@ class _PausableZone implements PausableZone {
   }
 }
 
-class Controller {
-  final PausableZone _zone;
-
-  Controller(this._zone);
-
-  void pause() {
-    _zone.pause();
-  }
-
-  void resume() {
-    _zone.resume();
-  }
-
-  Duration get parentOffset => _zone.parentOffset;
-
-  Duration get offset => _zone.offset;
-}
-
 class _Scheduled implements Comparable<_Scheduled> {
   final Duration nextCall;
   final int sequence;
@@ -297,9 +300,6 @@ class _PausableNonPeriodicTimer implements PausableTimer {
 
   _PausableNonPeriodicTimer(
       this._zone, int sequence, this._createTimer, Duration nextCall) {
-    // TODO: consider modelling this more like periodic:
-    //   don't create scheduled until started.
-    //   maybe just take duration in start?
     _scheduled = _Scheduled(nextCall, sequence, this, false);
     pause();
   }
@@ -432,6 +432,223 @@ class _PausablePeriodicTimer implements PausableTimer {
   @override
   //offsetTicks + _delegate?.tick ?? 0;
   int get tick => throw UnimplementedError('tick');
+}
+
+class _CallbackQueueZone implements PausableZone {
+  final _callbacks = SplayTreeSet<_ScheduledTimer>();
+  final _timers = Queue<Timer>();
+
+  /// The offset of the parent zone, which progresses independently of pauses.
+  ///
+  /// In most cases this is the "real", monotonic time a player experiences.
+  Duration get parentOffset => _parentOffset();
+
+  final Duration Function() _parentOffset;
+
+  /// The offset of this zone, which does not progress while paused.
+  Duration get offset => _pausedAt ?? parentOffset - _pausedFor;
+
+  /// The parent offset that we last paused at
+  Duration _pausedAt;
+
+  bool get isPaused => _pausedAt != null;
+
+  /// The cumulative total time the zone has been paused
+  Duration _pausedFor = Duration.zero;
+
+  /// Maintains a sequence number to order timers in creation order
+  int _sequence = 0;
+
+  int _nextSequence() {
+    return _sequence++;
+  }
+
+  /// Forked zone with pausable timers
+  Zone _zone;
+
+  _CallbackQueueZone(this._parentOffset, {Zone parent}) {
+    parent = parent ?? Zone.current;
+    _zone = parent.fork(
+        specification: ZoneSpecification(
+      createPeriodicTimer: pausablePeriodicTimer,
+      createTimer: pausableTimer,
+      scheduleMicrotask: pausableMicrotask,
+    ));
+  }
+
+  void pause() {
+    if (_pausedAt != null) return;
+    _pausedAt = _parentOffset();
+
+    while (_timers.isNotEmpty) {
+      _timers.removeFirst().cancel();
+    }
+  }
+
+  void resume() {
+    _pausedFor += _parentOffset() - _pausedAt;
+    _pausedAt = null;
+
+    for (var cb in _callbacks) {
+      var remaining = cb.nextCall - offset;
+
+      var t = _zone.parent.createTimer(remaining, () {
+        var next = _callbacks.first;
+        _callbacks.remove(next);
+
+        if (next.isPeriodic) {
+          var pt = _zone.parent.createPeriodicTimer(cb.duration, (_) {
+            var next = _callbacks.first;
+            _callbacks.remove(next);
+            _callbacks.add(next.next());
+            next.callback(_SimpleCallbackTimer(next.sequence, this));
+          });
+          _timers.add(pt);
+          next._timer = pt;
+          _callbacks.add(next.next());
+        }
+
+        next.callback();
+      });
+
+      _timers.add(t);
+      cb._timer = t;
+    }
+  }
+
+  Timer pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function() f) {
+    var scheduled = _ScheduledTimer(_nextSequence(), duration, offset,
+        ([t]) => f(), false, null, null, this);
+    _callbacks.add(scheduled);
+
+    if (!isPaused) {
+      var timer = parent.createTimer(self, duration, () {
+        var next = _callbacks.first;
+        _callbacks.remove(next);
+        next.callback();
+      });
+      _timers.add(timer);
+      scheduled._timer = timer;
+    }
+
+    return _SimpleCallbackTimer(scheduled.sequence, this);
+  }
+
+  Timer pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function(Timer) f) {
+    var scheduled = _ScheduledTimer(_nextSequence(), duration, offset,
+        ([t]) => f(t), true, null, null, this);
+    _callbacks.add(scheduled);
+
+    var answer = _SimpleCallbackTimer(scheduled.sequence, this);
+
+    if (!isPaused) {
+      var timer = parent.createPeriodicTimer(self, duration, (_) {
+        var next = _callbacks.first;
+        _callbacks.remove(next);
+        _callbacks.add(next.next());
+        next.callback(answer);
+      });
+      _timers.add(timer);
+      scheduled._timer = timer;
+    }
+
+    return answer;
+  }
+
+  void pausableMicrotask(
+      Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    parent.scheduleMicrotask(zone, f);
+  }
+
+  R run<R>(R Function(Controller) f) {
+    return _zone.run(() {
+      return f(Controller(this));
+    });
+  }
+
+  void _cancel(int id) {
+    // TODO: sorted map by sequence
+    var cb = _callbacks.firstWhere((t) => t.sequence == id);
+    cb._timer.cancel();
+    _callbacks.remove(cb);
+    // TODO: also remove timer associated with id
+  }
+
+  bool _isActive(int id) => _callbacks.any((t) => t.sequence == id);
+
+  int _ticks(int id) {
+    throw UnimplementedError();
+  }
+}
+
+class _ScheduledTimer implements Comparable<_ScheduledTimer> {
+  final int sequence;
+  final Duration duration;
+  final Duration started;
+  final void Function([Timer]) callback;
+  final bool isPeriodic;
+
+  final _CallbackQueueZone _zone;
+  final Timer Function(Duration, void Function()) _createTimer;
+  final Timer Function(Duration, void Function()) _createPeriodicTimer;
+
+  Timer _timer;
+
+  _ScheduledTimer(
+      this.sequence,
+      this.duration,
+      this.started,
+      this.callback,
+      this.isPeriodic,
+      this._createTimer,
+      this._createPeriodicTimer,
+      this._zone);
+
+  Duration get nextCall => started + duration;
+
+  @override
+  int compareTo(_ScheduledTimer other) {
+    var byCall = nextCall.compareTo(other.nextCall);
+    if (byCall != 0) return byCall;
+    return sequence.compareTo(other.sequence);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ScheduledTimer &&
+          runtimeType == other.runtimeType &&
+          sequence == other.sequence &&
+          started == other.started;
+
+  @override
+  int get hashCode => sequence.hashCode ^ started.hashCode;
+
+  _ScheduledTimer next() {
+    return _ScheduledTimer(sequence, duration, started + duration, callback,
+        isPeriodic, _createTimer, _createPeriodicTimer, _zone);
+  }
+}
+
+class _SimpleCallbackTimer implements Timer {
+  final int _id;
+  final _CallbackQueueZone _zone;
+
+  _SimpleCallbackTimer(this._id, this._zone);
+
+  @override
+  void cancel() {
+    _zone._cancel(_id);
+  }
+
+  @override
+  bool get isActive => _zone._isActive(_id);
+
+  @override
+  // TODO: implement tick
+  int get tick => _zone._ticks(_id);
 }
 
 /*

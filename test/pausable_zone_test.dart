@@ -13,7 +13,7 @@ void main() {
     zone = fakeAsync.run((async) {
       var start = DateTime.now();
       var fakeClock = fakeAsync.getClock(start);
-      return PausableZone(() => fakeClock.now().difference(start));
+      return PausableZone.alt(() => fakeClock.now().difference(start));
     }) as PausableZone;
   });
 
