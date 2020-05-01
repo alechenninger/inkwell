@@ -544,6 +544,27 @@ void main() {
         ]));
   });
 
+  test('timers created by resumed periodic timers are pausable', () {
+    Timer t;
+
+    zone.run((ctrl) {
+      Timer.periodic(2.seconds, (_) {
+        t = Timer(1.seconds, () => log.add('t1 ${ctrl.parentOffset}'));
+      });
+    });
+
+    fakeAsync.run((a) {
+      Timer(1.seconds, () => zone.pause());
+      Timer(2.seconds, () => zone.resume());
+      Timer(3.5.seconds, () => zone.pause());
+      Timer(4.seconds, () => zone.resume());
+      a.elapse(4.5.seconds);
+    });
+
+    expect(log, equals(['t1 ${4.5.seconds}']));
+    expect(t.runtimeType.toString(), equals('_CallbackTimer'));
+  });
+
   test('complex order is retained after multiple pauses', () {
     zone.run((ctrl) {
       Timer.periodic(
