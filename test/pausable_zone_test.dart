@@ -1,6 +1,8 @@
+import 'dart:async';
+
+import 'package:august/src/pausable.dart';
 import 'package:quiver/testing/async.dart';
 import 'package:test/test.dart';
-import 'package:august/august.dart';
 
 void main() {
   PausableZone zone;
