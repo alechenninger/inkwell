@@ -88,16 +88,6 @@ Future<void> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
       minutes: minutes, seconds: seconds, milliseconds: milliseconds));
 }
 
-class Interactable {
-  final Sink<Interaction> _interactions;
-
-  Interactable(this._interactions);
-
-  void add(Interaction interaction) {
-    _interactions.add(interaction);
-  }
-}
-
 // Experimenting with generalization of an interaction that modules could reuse
 // as component instead of reimplementing common capabilities (like visibility
 // vs availability).

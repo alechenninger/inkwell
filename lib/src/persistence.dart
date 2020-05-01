@@ -60,6 +60,7 @@ class FastForwarder {
     _switchedToParent = _realClock.now();
   }
 
+  // FIXME: non-monotonic offset
   Duration get currentOffset => _useParentZone
       ? _elapsed + _realClock.now().difference(_switchedToParent)
       : _elapsed;
@@ -99,6 +100,9 @@ class FastForwarder {
     while (_timers.isNotEmpty) {
       var t = _timers.first;
       if (t.isPeriodic) {
+        // TODO: I think this has side effect of reordering timers, because a
+        //   non-periodic timer at same time will run before a periodic timer
+        //   where it might not have otherwise
         _zone.parent.createTimer(t.nextCall - _elapsed, () {
           var trackingTimer = _TrackingTimer();
           t.callback(trackingTimer);
@@ -198,8 +202,13 @@ class _FastForwarderTimer implements Timer {
   cancel() => ff._cancelTimer(this);
 
   @override
-  // TODO: implement tick
-  int get tick => null;
+  int get tick => throw UnimplementedError('tick');
+//      isPeriodic
+//      ? min(
+//          0,
+//          (ff._elapsed - nextCall - duration).inMilliseconds ~/
+//              duration.inMilliseconds)
+//      : (ff._elapsed >= nextCall ? 1 : 0);
 }
 
 class _TrackingTimer implements Timer {
@@ -209,8 +218,8 @@ class _TrackingTimer implements Timer {
   }
 
   @override
-  int get tick => throw UnimplementedError("tick");
+  int get tick => throw UnimplementedError('tick');
 }
 
-typedef void Callback();
-typedef void TimerCallback(Timer timer);
+typedef Callback = void Function();
+typedef TimerCallback = void Function(Timer timer);

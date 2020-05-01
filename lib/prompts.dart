@@ -4,14 +4,12 @@ class Prompts extends Module<PromptsUi> {
   final _promptsCtrl = StreamController<Prompt>();
 
   Interactor interactor() {
-    // TODO: implement interactor
-    return null;
+    return PromptInteractor();
   }
 
-  String get name => 'Prompts';
-
   @override
-  PromptsUi ui(InteractionManager mgr) => PromptsUi(this, mgr);
+  PromptsUi ui(Sink<Interaction> interactionSink) =>
+      PromptsUi(this, interactionSink);
 
   Prompt add(String text) {
     var p = Prompt(this, text);
@@ -26,7 +24,6 @@ class Prompt {
   final Prompts _prompts;
   final CountScope _count = CountScope(1);
   final _entries = Events<EnterPromptEvent>();
-
 
   Stream<EnterPromptEvent> get entries => _entries.stream;
 
@@ -52,7 +49,6 @@ class PromptAlreadyEnteredException implements Exception {
 
   PromptAlreadyEnteredException(this.prompt);
 }
-
 
 class PromptsUi {
   final Prompts _prompts;
@@ -84,7 +80,6 @@ class _EnterPrompt extends Interaction {
   String get name => '$_EnterPrompt';
 
   Map<String, dynamic> get parameters => {'input': input};
-
 }
 
 class EnterPromptEvent extends Event {
@@ -92,4 +87,15 @@ class EnterPromptEvent extends Event {
   final String input;
 
   EnterPromptEvent(this.prompt, this.input);
+}
+
+class PromptInteractor extends Interactor {
+  @override
+  String get moduleName => 'august.Prompts';
+
+  @override
+  void run(String action, Map<String, dynamic> parameters) {
+    // TODO: implement run
+  }
+
 }

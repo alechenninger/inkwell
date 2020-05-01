@@ -10,13 +10,12 @@ import 'package:august/prompts.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
-  final Element _container;
   final _dialogContainer = DivElement()..classes.add('dialog');
   final _optionsContainer = UListElement()..classes.add('options');
 
   final _domQueue = Queue<Function>();
 
-  SimpleHtmlUi(this._container, OptionsUi options, DialogUi dialog,
+  SimpleHtmlUi.install(Element _container, OptionsUi options, DialogUi dialog,
       PromptsUi promptsUi) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
