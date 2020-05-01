@@ -32,11 +32,10 @@ abstract class Module<UiType> {
   Interactor interactor();
 }
 
+// TODO: Consider a "StoryZone" which aggregates all capabilities for stories
+//   another one that would be useful might be scaling times e.g 1 second is actually 2
 abstract class PausableZone {
   factory PausableZone(Duration Function() parentOffset, {Zone parent}) =
-      _PausableZone;
-
-  factory PausableZone.alt(Duration Function() parentOffset, {Zone parent}) =
       _CallbackQueueZone;
 
   void pause();
@@ -65,10 +64,9 @@ class Controller {
   Duration get offset => _zone.offset;
 }
 
-// TODO: Consider a "StoryZone" which aggregates all capabilities for stories
-//   another one that would be useful might be scaling times e.g 1 second is actually 2
-///
-class _PausableZone implements PausableZone {
+/// A [PausableZone] which works by precisely resuming timers in order, which
+/// requires special handling for periodics.
+class _OrderedTimerZone implements PausableZone {
   /// Timers which are currently running, so we can track what we need to pause.
   ///
   /// Timers are ordered by [_sequence], so we pause and resume cycles retain
@@ -109,14 +107,20 @@ class _PausableZone implements PausableZone {
   /// Forked zone with pausable timers
   Zone _zone;
 
-  _PausableZone(this._parentOffset, {Zone parent}) {
+  _OrderedTimerZone(this._parentOffset, {Zone parent}) {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
-      createPeriodicTimer: pausablePeriodicTimer,
-      createTimer: pausableTimer,
-      scheduleMicrotask: pausableMicrotask,
+      createPeriodicTimer: _pausablePeriodicTimer,
+      createTimer: _pausableTimer,
+      scheduleMicrotask: _pausableMicrotask,
     ));
+  }
+
+  R run<R>(R Function(Controller) action) {
+    return _zone.run(() {
+      return action(Controller(this));
+    });
   }
 
   void pause() {
@@ -127,67 +131,15 @@ class _PausableZone implements PausableZone {
       var timer = scheduled.timer;
       timer.pause();
     }
-    // TODO: also microtasks
+    // TODO: also microtasks?
   }
 
   void resume() {
-    /*
-    schedule all microtasks
-    */
     _pausedFor += _parentOffset() - _pausedAt;
     _pausedAt = null;
 
+    // TODO: microtasks?
     _resumeUntilNextPeriodic();
-
-    /*
-    restart all timers with durations - elapsed pause duration
-
-    drain timers in order (order by next call, scheduled order)
-    if not periodic, schedule
-    if periodic, stop draining, schedule timer at offset which will then schedule periodic
-    and start draining again per above algorithm
-
-
-     */
-  }
-
-  Timer pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function() f) {
-    var answer = _PausableNonPeriodicTimer(
-        this,
-        _nextSequence(),
-        (t, d) => parent.createTimer(self, d, () {
-              _running.remove(t._scheduled);
-              f();
-            }),
-        offset + duration);
-
-    if (!isPaused && _paused.length == 1) {
-      answer.startFrom(offset);
-    }
-
-    return answer;
-  }
-
-  Timer pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function(Timer) f) {
-    var answer = _PausablePeriodicTimer(
-        this,
-        _nextSequence(),
-        (f) => parent.createPeriodicTimer(self, duration, (_) => f()),
-        duration,
-        f);
-
-    if (!isPaused && _paused.length == 1) {
-      answer.start();
-    }
-
-    return answer;
-  }
-
-  void pausableMicrotask(
-      Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
-    parent.scheduleMicrotask(zone, f);
   }
 
   void _resumeUntilNextPeriodic({Duration nextPeriodic}) {
@@ -244,10 +196,43 @@ class _PausableZone implements PausableZone {
     return timer;
   }
 
-  R run<R>(R Function(Controller) action) {
-    return _zone.run(() {
-      return action(Controller(this));
-    });
+  Timer _pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function() f) {
+    var answer = _PausableNonPeriodicTimer(
+        this,
+        _nextSequence(),
+        (t, d) => parent.createTimer(self, d, () {
+              _running.remove(t._scheduled);
+              f();
+            }),
+        offset + duration);
+
+    if (!isPaused && _paused.length == 1) {
+      answer.startFrom(offset);
+    }
+
+    return answer;
+  }
+
+  Timer _pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function(Timer) f) {
+    var answer = _PausablePeriodicTimer(
+        this,
+        _nextSequence(),
+        (f) => parent.createPeriodicTimer(self, duration, (_) => f()),
+        duration,
+        f);
+
+    if (!isPaused && _paused.length == 1) {
+      answer.start();
+    }
+
+    return answer;
+  }
+
+  void _pausableMicrotask(
+      Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    parent.scheduleMicrotask(zone, f);
   }
 
   @override
@@ -259,7 +244,7 @@ class _PausableZone implements PausableZone {
 class _Scheduled implements Comparable<_Scheduled> {
   final Duration nextCall;
   final int sequence;
-  final PausableTimer timer;
+  final _PausableTimer timer;
   final bool forPeriodic;
 
   _Scheduled(this.nextCall, this.sequence, this.timer, this.forPeriodic);
@@ -287,12 +272,12 @@ class _Scheduled implements Comparable<_Scheduled> {
   }
 }
 
-abstract class PausableTimer implements Timer {
+abstract class _PausableTimer implements Timer {
   void pause();
 }
 
-class _PausableNonPeriodicTimer implements PausableTimer {
-  final _PausableZone _zone;
+class _PausableNonPeriodicTimer implements _PausableTimer {
+  final _OrderedTimerZone _zone;
   final Timer Function(_PausableNonPeriodicTimer, Duration) _createTimer;
   _Scheduled _scheduled;
   Timer _delegate;
@@ -350,8 +335,8 @@ class _PausableNonPeriodicTimer implements PausableTimer {
   int get tick => _delegate?.tick ?? 0;
 }
 
-class _PausablePeriodicTimer implements PausableTimer {
-  final _PausableZone _zone;
+class _PausablePeriodicTimer implements _PausableTimer {
+  final _OrderedTimerZone _zone;
   final Timer Function(void Function() f) _createTimer;
   final int _sequence;
   final Duration _period;
@@ -434,8 +419,22 @@ class _PausablePeriodicTimer implements PausableTimer {
   int get tick => throw UnimplementedError('tick');
 }
 
+/// A [PausableZone] which works by decoupling timers from their callbacks.
+/// Every timer runs the next callback in the queue, regardless of what callback
+/// the timer is actually associated with. Every callback tracks a timer that
+/// is associated only in timing, not actually what callback the timer will run.
+///
+/// To pause, we simply cancel all timers.
+///
+/// To resume, we reschedule timers for each callback: one that will run at each
+/// callback's time. Each timer will then pop the next callback off the queue.
+///
+/// This makes it easy to schedule timers, because the order of scheduled timers
+/// does not matter as long as they are scheduled at the right times. Callbacks
+/// are always called in the right order, because timers only ever run the next
+/// callback that should be run.
 class _CallbackQueueZone implements PausableZone {
-  final _callbacks = SplayTreeSet<_ScheduledTimer>();
+  final _callbacks = SplayTreeSet<_ScheduledCallback>();
 
   /// The offset of the parent zone, which progresses independently of pauses.
   ///
@@ -469,9 +468,9 @@ class _CallbackQueueZone implements PausableZone {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
-      createPeriodicTimer: pausablePeriodicTimer,
-      createTimer: pausableTimer,
-      scheduleMicrotask: pausableMicrotask,
+      createPeriodicTimer: _pausablePeriodicTimer,
+      createTimer: _pausableTimer,
+      scheduleMicrotask: _pausableMicrotask,
     ));
   }
 
@@ -484,80 +483,30 @@ class _CallbackQueueZone implements PausableZone {
     }
   }
 
-  _ScheduledTimer _popCallback() {
-    var first = _callbacks.first;
-    _callbacks.remove(first);
-    return first;
-  }
-
   void resume() {
-    _pausedFor += _parentOffset() - _pausedAt;
+    _pausedFor += parentOffset - _pausedAt;
     _pausedAt = null;
 
     for (var cb in _callbacks) {
       var remaining = cb.nextCall - offset;
+      Timer timer;
 
-      var t = _zone.parent.createTimer(remaining, () {
-        var next = _popCallback();
+      // Schedule timer(s) at the timing(s) for this callback.
 
-        if (next.isPeriodic) {
-          var pt = _zone.parent.createPeriodicTimer(cb.duration, (_) {
-            var next = _popCallback().next();
-            _callbacks.add(next);
-            next.callback(_CallbackTimer(next.sequence, this));
-          });
-          next._timer = pt;
-          _callbacks.remove(next);
-          _callbacks.add(next.next());
-        }
+      if (cb.isPeriodic) {
+        timer = _zone.parent.createTimer(remaining, () {
+          var periodic = _zone.parent
+              .createPeriodicTimer(cb.duration, (_) => _runNextCallback());
+          cb._timer = periodic;
 
-        next.callback();
-      });
+          _runNextCallback();
+        });
+      } else {
+        timer = _zone.parent.createTimer(remaining, _runNextCallback);
+      }
 
-      cb._timer = t;
+      cb._timer = timer;
     }
-  }
-
-  Timer pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function() f) {
-    var scheduled = _ScheduledTimer(_nextSequence(), duration, offset,
-        ([t]) => f(), false, this);
-    _callbacks.add(scheduled);
-
-    if (!isPaused) {
-      var timer = parent.createTimer(self, duration, () {
-        var next = _popCallback();
-        next.callback();
-      });
-      scheduled._timer = timer;
-    }
-
-    return _CallbackTimer(scheduled.sequence, this);
-  }
-
-  Timer pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
-      Duration duration, void Function(Timer) f) {
-    var scheduled = _ScheduledTimer(_nextSequence(), duration, offset,
-        ([t]) => f(t), true, this);
-    _callbacks.add(scheduled);
-
-    var answer = _CallbackTimer(scheduled.sequence, this);
-
-    if (!isPaused) {
-      var timer = parent.createPeriodicTimer(self, duration, (_) {
-        var next = _popCallback().next();
-        _callbacks.add(next);
-        next.callback(answer);
-      });
-      scheduled._timer = timer;
-    }
-
-    return answer;
-  }
-
-  void pausableMicrotask(
-      Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
-    parent.scheduleMicrotask(zone, f);
   }
 
   R run<R>(R Function(Controller) f) {
@@ -567,11 +516,10 @@ class _CallbackQueueZone implements PausableZone {
   }
 
   void _cancel(int id) {
-    // TODO: sorted map by sequence
+    // TODO: could index callbacks by id
     var cb = _callbacks.firstWhere((cb) => cb.sequence == id);
     cb._timer?.cancel();
     _callbacks.remove(cb);
-    // TODO: also remove timer associated with id
   }
 
   bool _isActive(int id) => _callbacks.any((cb) => cb.sequence == id);
@@ -579,9 +527,60 @@ class _CallbackQueueZone implements PausableZone {
   int _ticks(int id) {
     throw UnimplementedError();
   }
+
+  _ScheduledCallback _popCallback() {
+    var first = _callbacks.first;
+    _callbacks.remove(first);
+    return first;
+  }
+
+  void _runNextCallback() {
+    var next = _popCallback();
+
+    if (next.isPeriodic) {
+      next.callback(_CallbackTimer(next.sequence, this));
+      _callbacks.add(next.next());
+    } else {
+      next.callback();
+    }
+  }
+
+  Timer _pausableTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function() f) {
+    var scheduled = _ScheduledCallback(
+        _nextSequence(), duration, offset, ([t]) => f(), false, this);
+    _callbacks.add(scheduled);
+
+    if (!isPaused) {
+      var timer = parent.createTimer(self, duration, _runNextCallback);
+      scheduled._timer = timer;
+    }
+
+    return _CallbackTimer(scheduled.sequence, this);
+  }
+
+  Timer _pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
+      Duration duration, void Function(Timer) f) {
+    var scheduled = _ScheduledCallback(
+        _nextSequence(), duration, offset, ([t]) => f(t), true, this);
+    _callbacks.add(scheduled);
+
+    if (!isPaused) {
+      var timer =
+          parent.createPeriodicTimer(self, duration, (_) => _runNextCallback());
+      scheduled._timer = timer;
+    }
+
+    return _CallbackTimer(scheduled.sequence, this);
+  }
+
+  void _pausableMicrotask(
+      Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    parent.scheduleMicrotask(zone, f);
+  }
 }
 
-class _ScheduledTimer implements Comparable<_ScheduledTimer> {
+class _ScheduledCallback implements Comparable<_ScheduledCallback> {
   final int sequence;
   final Duration duration;
   final Duration started;
@@ -590,18 +589,25 @@ class _ScheduledTimer implements Comparable<_ScheduledTimer> {
 
   final _CallbackQueueZone _zone;
 
+  /// A timer that will run at the same offset this callback is (next)
+  /// scheduled.
   Timer _timer;
 
-  _ScheduledTimer(this.sequence, this.duration, this.started, this.callback,
+  _ScheduledCallback(this.sequence, this.duration, this.started, this.callback,
       this.isPeriodic, this._zone);
 
-  _ScheduledTimer.next(this.sequence, this.duration, this.started,
+  _ScheduledCallback.next(this.sequence, this.duration, this.started,
       this.callback, this.isPeriodic, this._zone, this._timer);
 
   Duration get nextCall => started + duration;
 
+  _ScheduledCallback next() {
+    return _ScheduledCallback.next(sequence, duration, started + duration,
+        callback, isPeriodic, _zone, _timer);
+  }
+
   @override
-  int compareTo(_ScheduledTimer other) {
+  int compareTo(_ScheduledCallback other) {
     var byCall = nextCall.compareTo(other.nextCall);
     if (byCall != 0) return byCall;
     return sequence.compareTo(other.sequence);
@@ -610,18 +616,13 @@ class _ScheduledTimer implements Comparable<_ScheduledTimer> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is _ScheduledTimer &&
+      other is _ScheduledCallback &&
           runtimeType == other.runtimeType &&
           sequence == other.sequence &&
           started == other.started;
 
   @override
   int get hashCode => sequence.hashCode ^ started.hashCode;
-
-  _ScheduledTimer next() {
-    return _ScheduledTimer.next(sequence, duration, started + duration,
-        callback, isPeriodic, _zone, _timer);
-  }
 
   @override
   String toString() {
@@ -645,57 +646,21 @@ class _CallbackTimer implements Timer {
   bool get isActive => _zone._isActive(_id);
 
   @override
-  // TODO: implement tick
   int get tick => _zone._ticks(_id);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _CallbackTimer &&
+          runtimeType == other.runtimeType &&
+          _id == other._id &&
+          _zone == other._zone;
+
+  @override
+  int get hashCode => _id.hashCode ^ _zone.hashCode;
+
+  @override
+  String toString() {
+    return '_CallbackTimer{_id: $_id, _zone: $_zone}';
+  }
 }
-
-/*
-    Worried about this case:
-    p scheduled every 2 sec
-    t scheduled for 4 sec
-
-    p is before t
-
-    pause at 1 sec
-    when resume
-
-    p (as a timer) scheduled for 1 sec later
-    t scheduled 3 sec later
-    when p runs, schedules periodic for 2 sec
-
-    now t is before p
-
-    one soln might be to wait to schedule t until all peer p's before it are
-    scheduled
-    this would include new and paused t's.
-
-    for all p
-      for all t_scheduled_after_p
-        if (p.willFireAt(t.duration)) {
-          offsetPeriodic(p, peers: [t, ...]
-          p.schedulePeer(t, t.duration)
-
-    another is to schedule p at gcd of both remaining time and actual period,
-    but only run callback at actual period. would also need to impl ticks
-    differently.
-
-    another might be to track order somehow so when t runs, it knows to let p
-    go first?
-    keep all timers, in order–we are doing this already
-    when timer fires, check if current offset is after any periodics which , if so schedule in next future
-    if not, run, and remove itself it is not periodic.
-    if period, track offset it last ran (ticks?)
-    maybe dont need to be so complicated. every time a timer runs, it just pulls
-    of the next timer from the queue.
-    so maintain an ordered queue.
-
-    what if instead of cancelling, we let run, but let callbacks deal with
-    pauses?
-    cb:
-    check pause time. if > 0, schedule new timer at pause time with pause
-    offset.
-    if this is periodic, have to schedule a timer that then schedules the
-    periodic
-    problem is reoordering is potentially dramatic if multiple timers fall on
-    the same offset.
-     */

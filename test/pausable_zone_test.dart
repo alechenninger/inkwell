@@ -13,7 +13,7 @@ void main() {
     zone = fakeAsync.run((async) {
       var start = DateTime.now();
       var fakeClock = fakeAsync.getClock(start);
-      return PausableZone.alt(() => fakeClock.now().difference(start));
+      return PausableZone(() => fakeClock.now().difference(start));
     }) as PausableZone;
   });
 
@@ -502,9 +502,7 @@ void main() {
         ]));
   });
 
-  test(
-      'timers created while paused retain order',
-      () {
+  test('timers created while paused retain order', () {
     zone.run((ctrl) {
       Timer(2.seconds, () {
         ctrl.pause();
@@ -587,6 +585,44 @@ void main() {
     });
 
     expect(log, equals(['t1']));
+  });
+
+  group('with real time', () {
+    Stopwatch realTime;
+    setUp(() {
+      realTime = Stopwatch();
+      realTime.start();
+      zone = PausableZone(() => realTime.elapsed);
+    });
+
+    test('timers can be paused and resumed', () async {
+      zone.run((ctrl) {
+        Timer(500.millis,
+            () => log.add('t1 ${ctrl.offset} ${ctrl.parentOffset}'));
+        Timer.periodic(250.millis,
+            (_) => log.add('p1 ${ctrl.offset} ${ctrl.parentOffset}'));
+        Timer.periodic(550.millis,
+            (_) => log.add('p2 ${ctrl.offset} ${ctrl.parentOffset}'));
+      });
+
+      var done = Future.delayed(1400.millis);
+
+      Future.delayed(250.millis, () => zone.pause());
+      Future.delayed(500.millis, () => zone.resume());
+
+      await done;
+
+//      await Future.delayed(500.millis);
+//      await Future.delayed(1.seconds);
+//      await Future.delayed(698.millis);
+
+//      await Future.delayed(2199.millis);
+
+      print('${zone.parentOffset}');
+      print(log.join('\n'));
+
+      expect(log, hasLength(equals(7)));
+    });
   });
 
   // TODO: test cancellations
