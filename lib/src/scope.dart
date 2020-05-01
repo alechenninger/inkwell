@@ -264,6 +264,8 @@ class MutableScope extends Scope {
   void changeTo(Scope next) {
     _current?.cancel();
     _observable.value = next.isEntered;
+    // TODO: Consider combining this file with observable in order to keep
+    //  .values private
     _current =
         next.asObserved.values.listen((val) => _observable.value = val);
   }

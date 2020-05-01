@@ -3,6 +3,8 @@ import 'package:quiver/time.dart';
 import 'dart:async';
 import 'dart:collection';
 
+// TODO: maybe combine this lib with input.dart?
+
 abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
