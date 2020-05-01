@@ -5,26 +5,22 @@ library august;
 
 import 'dart:async';
 import 'dart:collection';
-import 'dart:math';
 
-import 'package:collection/collection.dart';
-import 'package:quiver/check.dart';
-import 'package:quiver/collection.dart';
-import 'package:quiver/time.dart';
-import 'package:rxdart/rxdart.dart';
+import 'input.dart';
+import 'src/events.dart';
+import 'src/observable.dart';
+import 'src/persistence.dart';
+import 'src/scope.dart';
 
 export 'dart:async';
+
 export 'package:quiver/time.dart' show Clock;
 
+export 'input.dart';
+export 'src/observable.dart';
 export 'src/story.dart';
-
-// TODO: This library organization is a mess
-part 'input.dart';
-part 'ui.dart';
-part 'src/events.dart';
-part 'src/persistence.dart';
-part 'src/scope.dart';
-part 'src/observable.dart';
+export 'src/scope.dart';
+export 'src/persistence.dart';
 
 // Experimenting with a Module type to capture module design pattern
 abstract class Module<UiType> {

@@ -1,4 +1,7 @@
-part of 'august.dart';
+import 'src/persistence.dart';
+import 'package:quiver/time.dart';
+
+export 'src/persistence.dart' show Persistence, Interaction, NoPersistence;
 
 class InteractionManager implements Sink<Interaction> {
   final _interactorsByModule = <String, Interactor>{};
@@ -71,12 +74,6 @@ class InteractionManager implements Sink<Interaction> {
   }
 }
 
-abstract class Interaction {
-  String get moduleName;
-  String get name;
-  Map<String, dynamic> get parameters;
-}
-
 abstract class Interactor {
   /// The name of the module this interactor supports.
   String get moduleName;
@@ -91,9 +88,9 @@ Future<void> delay({int minutes = 0, int seconds = 0, int milliseconds = 0}) {
 // Experimenting with generalization of an interaction that modules could reuse
 // as component instead of reimplementing common capabilities (like visibility
 // vs availability).
-class Usable {
-  Scope<Usable> _visible;
-  Scope<Usable> _available;
-
-
-}
+//class Usable {
+//  Scope<Usable> _visible;
+//  Scope<Usable> _available;
+//
+//
+//}

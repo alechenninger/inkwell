@@ -1,4 +1,4 @@
-import '../august.dart';
+import 'events.dart';
 
 class Story {
   Events<T> newEventStream<T extends Event>() {

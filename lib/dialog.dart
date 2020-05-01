@@ -2,8 +2,12 @@
 
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'package:august/august.dart';
-import 'package:august/src/story.dart';
+import 'august.dart';
+import 'input.dart';
+import 'src/story.dart';
+import 'src/scope.dart';
+import 'src/persistence.dart';
+import 'src/events.dart';
 
 class Dialog {
   final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
@@ -11,7 +15,8 @@ class Dialog {
   final GetScope _default;
   final Story _story;
 
-  Dialog(this._story, {GetScope defaultScope = getAlways}) : _default = defaultScope;
+  Dialog(this._story, {GetScope defaultScope = getAlways})
+      : _default = defaultScope;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?

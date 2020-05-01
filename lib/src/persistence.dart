@@ -1,4 +1,7 @@
-part of '../august.dart';
+import 'package:quiver/time.dart';
+
+import 'dart:async';
+import 'dart:collection';
 
 abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
@@ -18,6 +21,12 @@ class NoPersistence implements Persistence {
       Map<String, dynamic> parameters) {}
 
   const NoPersistence();
+}
+
+abstract class Interaction {
+  String get moduleName;
+  String get name;
+  Map<String, dynamic> get parameters;
 }
 
 class SavedInteraction implements Interaction {

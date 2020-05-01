@@ -1,8 +1,11 @@
-part of '../august.dart';
+import 'dart:async';
+import 'dart:collection';
+
+export 'dart:async';
 
 // TODO: should use common supertype of T like `Event` or something like that?
 class Events<T extends Event> {
-  final _stream = _EventStream<T>();
+  final _stream = EventStream<T>();
 
   Stream<T> get stream => _stream;
 
@@ -23,17 +26,17 @@ class Events<T extends Event> {
       try {
         theEvent = event();
       } catch (e) {
-        _stream._addError(e);
+        _stream.addError(e);
         rethrow;
       }
-      _stream._add(theEvent);
+      _stream.add(theEvent);
       return theEvent;
     });
   }
 
   Future<T> eventValue(T event) {
     return Future(() {
-      _stream._add(event);
+      _stream.add(event);
       return event;
     });
   }
@@ -43,13 +46,13 @@ class Events<T extends Event> {
 //  }
 
   void done() {
-    _stream._done();
+    _stream.done();
   }
 }
 
 abstract class Event {}
 
-class _EventStream<T> extends Stream<T> {
+class EventStream<T> extends Stream<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
   // may themselves schedule tasks, which should not become before the original
@@ -75,7 +78,7 @@ class _EventStream<T> extends Stream<T> {
     return sub;
   }
 
-  void _add(T event) {
+  void add(T event) {
     if (_asyncListeners == null) {
       throw StateError('Cannot add event to done stream');
     }
@@ -83,7 +86,7 @@ class _EventStream<T> extends Stream<T> {
     _syncListeners.forEach((sub) => sub._add(event));
   }
 
-  void _addError(dynamic error) {
+  void addError(dynamic error) {
     if (_asyncListeners == null) {
       throw StateError('Cannot add error to done stream');
     }
@@ -91,7 +94,7 @@ class _EventStream<T> extends Stream<T> {
     _syncListeners.forEach((sub) => sub._addError(error));
   }
 
-  void _done() {
+  void done() {
     // TODO: not sure if done logic around here is right
     _asyncListeners.forEach((sub) => sub._done());
     _syncListeners.forEach((sub) => sub._done());
@@ -99,11 +102,11 @@ class _EventStream<T> extends Stream<T> {
     _syncListeners = null;
   }
 
-  bool get _isDone => _asyncListeners == null;
+  bool get isDone => _asyncListeners == null;
 }
 
 class _SynchronousEventStream<T> extends Stream<T> {
-  final _EventStream _backing;
+  final EventStream _backing;
 
   final bool isBroadcast = true;
 

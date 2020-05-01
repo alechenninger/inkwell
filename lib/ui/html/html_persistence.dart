@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'dart:html';
 
-import 'package:august/august.dart';
+import '../../src/persistence.dart';
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;

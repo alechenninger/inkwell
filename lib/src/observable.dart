@@ -1,7 +1,11 @@
 // Copyright (c) 2016, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of '../august.dart';
+import 'events.dart';
+
+import 'package:rxdart/rxdart.dart';
+
+export 'dart:async';
 
 // TODO: Interface will change if type is mutable
 abstract class Observable<T> extends Observed<T> {
@@ -38,8 +42,6 @@ abstract class Observed<T> {
 
   const factory Observed.always(T value) = _AlwaysObserved<T>;
 
-  Stream<T> get _onChange;
-
   /// Listen to changes of this value.
   ///
   /// All values will be listened to and delivered to listeners in order they
@@ -56,6 +58,9 @@ abstract class Observed<T> {
   Observed<U> map<U>(U Function(T) mapper);
 
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) mapper);
+
+  /// A synchronous stream of values. **Use with care.**
+  Stream<T> get values;
 }
 
 class _AlwaysObserved<T> extends Observed<T> {
@@ -77,19 +82,18 @@ class _AlwaysObserved<T> extends Observed<T> {
   Stream<Change<T>> get onChange => Stream.empty();
 
   @override
-  Stream<T> get _onChange => Stream.empty();
+  Stream<T> get values => Stream.empty();
 }
 
 class _ObservableOfImmutable<T> extends Observable<T> {
   T _currentValue;
   T get value => _currentValue;
 
-  final _changes = _EventStream<Change<T>>();
+  final _changes = EventStream<Change<T>>();
   Stream<Change<T>> get onChange => _changes;
 
   @override
-  Stream<T> get _onChange =>
-      _changes.asSynchronousStream.map((c) => c.newValue);
+  Stream<T> get values => _changes.asSynchronousStream.map((c) => c.newValue);
 
   _ObservableOfImmutable(this._currentValue);
 
@@ -99,31 +103,32 @@ class _ObservableOfImmutable<T> extends Observable<T> {
     }
 
     _currentValue = value;
-    _changes._add(Change(value));
+    _changes.add(Change(value));
   }
 
   Observed<U> map<U>(U Function(T) mapper) {
     var mapped = Observable.ofImmutable(mapper(value));
-    _onChange.listen((v) => mapped.value = mapper(v), onDone: mapped.close);
+    values.listen((v) => mapped.value = mapper(v), onDone: mapped.close);
     return mapped;
   }
 
   Observed<U> merge<U, S>(Observed<S> other, U Function(T, S) merger) {
     var merged = Observable.ofImmutable(merger(value, other.value));
 
-    _onChange
+    values
         .map((c) => merger(c, other.value))
-        .mergeWith([other._onChange.map((c) => merger(value, c))])
-        .listen((e) => merged.value = e, onDone: merged.close);
+        .mergeWith([other.values.map((c) => merger(value, c))]).listen(
+            (e) => merged.value = e,
+            onDone: merged.close);
 
     return merged;
   }
 
   void close() {
-    _changes._done();
+    _changes.done();
   }
 
-  bool get isClosed => _changes._isDone;
+  bool get isClosed => _changes.isDone;
 }
 
 class Change<T> extends Event {

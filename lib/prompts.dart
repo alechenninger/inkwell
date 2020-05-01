@@ -1,4 +1,8 @@
 import 'august.dart';
+import 'input.dart';
+import 'src/persistence.dart';
+import 'src/scope.dart';
+import 'src/events.dart';
 
 class Prompts extends Module<PromptsUi> {
   final _promptsCtrl = StreamController<Prompt>();

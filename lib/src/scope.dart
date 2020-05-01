@@ -1,7 +1,11 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-part of '../august.dart';
+import 'observable.dart';
+
+export 'dart:async';
+
+export 'observable.dart';
 
 typedef GetScope = Scope Function();
 
@@ -261,7 +265,7 @@ class MutableScope extends Scope {
     _current?.cancel();
     _observable.value = next.isEntered;
     _current =
-        next.asObserved._onChange.listen((val) => _observable.value = val);
+        next.asObserved.values.listen((val) => _observable.value = val);
   }
 
   MutableScope(Scope current)
