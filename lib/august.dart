@@ -3,23 +3,14 @@
 
 library august;
 
-import 'input.dart';
-import 'src/persistence.dart';
-
 export 'dart:async';
 
 export 'package:quiver/time.dart' show Clock;
 
 export 'input.dart';
+export 'module.dart';
 export 'src/observable.dart';
 export 'src/persistence.dart';
 export 'src/scope.dart';
 export 'src/story.dart';
-
-// Experimenting with a Module type to capture module design pattern
-abstract class Module<UiType> {
-  UiType ui(Sink<Interaction> interactionSink);
-  Interactor interactor();
-}
-
 

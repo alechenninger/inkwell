@@ -1,9 +1,9 @@
 import 'src/persistence.dart';
 import 'package:quiver/time.dart';
 
-export 'src/persistence.dart' show Persistence, Interaction, NoPersistence;
+export 'src/persistence.dart' show Persistence, Action, NoPersistence;
 
-class InteractionManager implements Sink<Interaction> {
+class InteractionManager implements Sink<Action> {
   final _interactorsByModule = <String, Interactor>{};
   final Persistence _persistence;
   final Clock _clock;
@@ -30,7 +30,7 @@ class InteractionManager implements Sink<Interaction> {
   Duration get currentOffset => _ff.currentOffset;
 
   @override
-  void add(Interaction interaction) {
+  void add(Action interaction) {
     _persistInteraction(interaction);
     _runInteraction(interaction);
   }
@@ -56,12 +56,12 @@ class InteractionManager implements Sink<Interaction> {
     }
   }
 
-  void _persistInteraction(Interaction interaction) {
+  void _persistInteraction(Action interaction) {
     _persistence.saveInteraction(currentOffset, interaction.moduleName,
         interaction.name, interaction.parameters);
   }
 
-  void _runInteraction(Interaction interaction) {
+  void _runInteraction(Action interaction) {
     var interactor = _interactorsByModule[interaction.moduleName];
 
     if (interactor == null) {

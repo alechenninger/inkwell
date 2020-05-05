@@ -25,13 +25,15 @@ class NoPersistence implements Persistence {
   const NoPersistence();
 }
 
-abstract class Interaction {
+abstract class Action<C> {
   String get moduleName;
-  String get name;
+  String get name => runtimeType.toString();
   Map<String, dynamic> get parameters;
+
+  void run(C controller);
 }
 
-class SavedInteraction implements Interaction {
+class SavedInteraction implements Action {
   final Duration offset;
   @override
   final String moduleName;

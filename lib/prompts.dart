@@ -12,7 +12,7 @@ class Prompts extends Module<PromptsUi> {
   }
 
   @override
-  PromptsUi ui(Sink<Interaction> interactionSink) =>
+  PromptsUi ui(Sink<Action> interactionSink) =>
       PromptsUi(this, interactionSink);
 
   Prompt add(String text) {
@@ -56,14 +56,14 @@ class PromptAlreadyEnteredException implements Exception {
 
 class PromptsUi {
   final Prompts _prompts;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   PromptsUi(this._prompts, this._interactions);
 }
 
 class UIPrompt {
   final Prompt _prompt;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   UIPrompt(this._prompt, this._interactions);
 
@@ -74,7 +74,7 @@ class UIPrompt {
   }
 }
 
-class _EnterPrompt extends Interaction {
+class _EnterPrompt extends Action {
   final String input;
 
   _EnterPrompt(this.input);

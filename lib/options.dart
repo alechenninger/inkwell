@@ -3,6 +3,7 @@
 
 import 'august.dart';
 import 'input.dart';
+import 'ui.dart';
 import 'src/events.dart';
 import 'src/scope.dart';
 import 'src/persistence.dart';
@@ -102,18 +103,19 @@ class Option {
 }
 
 class OptionsUi {
-  final Options _options;
-  final Sink<Interaction> _interactions;
+  final Stream<UiEvent> _events;
+  final Sink<Action> _interactions;
 
-  OptionsUi(this._options, this._interactions);
+  OptionsUi(this._events, this._interactions);
 
   Stream<UiOption> get onOptionAvailable =>
-      _options._onOptionAvailable.map((o) => UiOption(_interactions, o));
+      _events.ofType('option_availalble').map((o) => UiOption(_interactions, o));
 }
+
 
 class UiOption {
   final Option _option;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   String get text => _option.text;
 
@@ -129,16 +131,12 @@ class UiOption {
       _option.availability.onExit.map((e) => this);
 }
 
-class _UseOption implements Interaction {
+class _UseOption implements Action {
   final String moduleName = '$Options';
   final String name = '$_UseOption';
+  final Map<String, dynamic> parameters;
 
-  Map<String, dynamic> _params;
-  Map<String, dynamic> get parameters => _params;
-
-  _UseOption(Option option) {
-    _params = {'text': option.text};
-  }
+  _UseOption(Option option): parameters = {'text': option.text };
 
   static void run(Map<String, dynamic> parameters, Options options) {
     if (!parameters.containsKey('text')) {

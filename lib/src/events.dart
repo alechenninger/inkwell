@@ -5,7 +5,7 @@ export 'dart:async';
 
 // TODO: should use common supertype of T like `Event` or something like that?
 class Events<T extends Event> {
-  final _stream = EventStream<T>();
+  final EventStream<T> _stream = EventStream<T>();
 
   Stream<T> get stream => _stream;
 
@@ -20,9 +20,9 @@ class Events<T extends Event> {
   //   that isn't like regular listening mechanism.
   //   however, adds a way to add logic that fires after the event is added to
   //   the stream, without needing [post] parameter functionality.
-  Future<T> event(T Function() event) {
+  Future<U> event<U extends T>(U Function() event) {
     return Future(() {
-      T theEvent;
+      U theEvent;
       try {
         theEvent = event();
       } catch (e) {
@@ -34,7 +34,7 @@ class Events<T extends Event> {
     });
   }
 
-  Future<T> eventValue(T event) {
+  Future<U> eventValue<U extends T>(U event) {
     return Future(() {
       _stream.add(event);
       return event;
@@ -42,7 +42,7 @@ class Events<T extends Event> {
   }
 
 //  void publishNow(T event) {
-//    _stream._add(event);
+//    _stream.add(event);
 //  }
 
   void done() {

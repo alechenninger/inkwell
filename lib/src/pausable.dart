@@ -510,7 +510,9 @@ class _CallbackQueueZone implements PausableZone {
 
     if (next.isPeriodic) {
       next.callback(_CallbackTimer(next.sequence, this));
-      _callbacks.add(next.next());
+      if (_isActive(next.sequence)) {
+        _callbacks.add(next.next());
+      }
     } else {
       next.callback();
     }

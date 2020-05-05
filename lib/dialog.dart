@@ -163,7 +163,7 @@ class Reply {
 
 class DialogUi {
   final Dialog _dialog;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   DialogUi(this._dialog, this._interactions);
 
@@ -194,7 +194,7 @@ class DialogInteractor extends Interactor {
 
 class UiSpeech {
   final Speech _speech;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   UiSpeech(this._speech, this._interactions);
 
@@ -212,7 +212,7 @@ class UiSpeech {
 
 class UiReply {
   final Reply _reply;
-  final Sink<Interaction> _interactions;
+  final Sink<Action> _interactions;
 
   UiReply(this._reply, this._interactions);
 
@@ -225,7 +225,7 @@ class UiReply {
   }
 }
 
-class _UseReplyAction implements Interaction {
+class _UseReplyAction implements Action {
   static const _name = 'UseReply';
 
   final Reply _reply;
