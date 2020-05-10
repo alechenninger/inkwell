@@ -6,9 +6,9 @@ import 'src/events.dart';
 import 'src/persistence.dart';
 import 'src/scope.dart';
 
-class Prompts extends Module {
+class Prompts extends Emitter {
   final GetScope _defaultScope;
-  final _prompts = ScopedEmitters<Prompt>();
+  final _prompts = ScopedEmitters<Prompt, String>();
 
   Prompts({GetScope defaultScope = getAlways}) : _defaultScope = defaultScope;
 
@@ -18,21 +18,20 @@ class Prompts extends Module {
     var prompt = Prompt(text,
         entries: exclusiveWith, available: available ?? _defaultScope());
 
-    _prompts.add(prompt, prompt.availability, prompt.id,
-        () => PromptAvailable(prompt.id, text));
+    _prompts.add(prompt, prompt.availability,
+        key: prompt.text,
+        onAvailable: () => PromptAvailable(text),
+        onUnavailable: () => PromptUnavailable(text));
 
     return prompt;
   }
 }
 
-class Prompt with Available, Identifiable implements Emitter {
+class Prompt with Available implements Emitter {
   Prompt(this.text, {CountScope entries, Scope available = always})
-      : entries = entries ?? CountScope(1),
-        id = Id() {
+      : entries = entries ?? CountScope(1) {
     _available = available.and(this.entries);
   }
-
-  final Id id;
 
   final String text;
 
@@ -50,7 +49,7 @@ class Prompt with Available, Identifiable implements Emitter {
         throw PromptNotAvailableException(this);
       }
 
-      return PromptEntered(id, input);
+      return PromptEntered(text, input);
     });
 
     entries.increment();
@@ -66,10 +65,10 @@ class PromptNotAvailableException implements Exception {
 }
 
 class EnterPrompt extends Action<Prompts> {
-  final Id id;
+  final String prompt;
   final String input;
 
-  EnterPrompt(this.id, this.input);
+  EnterPrompt(this.prompt, this.input);
 
   String get moduleName => '$Prompts';
 
@@ -78,24 +77,29 @@ class EnterPrompt extends Action<Prompts> {
   Map<String, dynamic> get parameters => {'input': input};
 
   void run(Prompts controller) {
-    var prompt = controller._prompts.available[id];
-    if (prompt == null) {
+    var it = controller._prompts.available[prompt];
+    if (it == null) {
       throw StateError('prompt not available');
     }
-    prompt.enter(input);
+    it.enter(input);
   }
 }
 
 class PromptEntered extends Event {
-  final Id prompt;
+  final String prompt;
   final String input;
 
   PromptEntered(this.prompt, this.input);
 }
 
 class PromptAvailable extends Event {
-  final Id id;
   final String prompt;
 
-  PromptAvailable(this.id, this.prompt);
+  PromptAvailable(this.prompt);
+}
+
+class PromptUnavailable extends Event {
+  final String prompt;
+
+  PromptUnavailable(this.prompt);
 }

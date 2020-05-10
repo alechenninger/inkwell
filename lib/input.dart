@@ -1,7 +1,15 @@
 import 'src/persistence.dart';
 import 'package:quiver/time.dart';
 
-export 'src/persistence.dart' show Persistence, Action, NoPersistence;
+export 'src/persistence.dart' show Persistence, NoPersistence;
+
+abstract class Action<M> {
+  String get moduleName;
+  String get name => runtimeType.toString();
+  Map<String, dynamic> get parameters;
+
+  void run(M module);
+}
 
 class InteractionManager implements Sink<Action> {
   final _interactorsByModule = <String, Interactor>{};

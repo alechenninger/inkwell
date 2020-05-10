@@ -2,6 +2,8 @@
 
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+import 'package:august/src/scoped_object.dart';
+
 import 'august.dart';
 import 'input.dart';
 import 'src/story.dart';
@@ -10,8 +12,7 @@ import 'src/persistence.dart';
 import 'src/events.dart';
 
 class Dialog {
-  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
-  final _speech = <Speech>[];
+  final _speech = ScopedEmitters<Speech>();
   final GetScope _default;
   final Story _story;
 
@@ -79,14 +80,17 @@ class Voice implements Speaks {
       _dialog.add(markup, speaker: name, target: target, scope: scope);
 }
 
-class Speech {
+class Speech extends Emitter {
   final String _markup;
   final Scope _scope;
   final String _speaker;
   final String _target;
   final Story _story;
 
-  final _replies = <Reply>[];
+  final _events = Events();
+  Stream<Event> get events => _events.stream;
+
+  final _replies = ScopedEmitters<Reply>();
   final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
 
   /// Lazily initialized scope which all replies share, making them mutually
@@ -126,7 +130,7 @@ class Speech {
   Stream<Reply> get _onReplyAvailable => _addReplyCtrl.stream;
 }
 
-class Reply {
+class Reply extends Emitter {
   final Speech speech;
 
   final String _markup;
@@ -134,7 +138,8 @@ class Reply {
 
   final Events<UseReplyEvent> _onUse;
 
-  Stream get onUse => _onUse.stream;
+  Stream<Event> get events => onUse;
+  Stream<UseReplyEvent> get onUse => _onUse.stream;
 
   final Scope _available;
 

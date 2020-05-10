@@ -1,12 +1,15 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'dart:html';
+import 'dart:async';
 import 'dart:collection';
+import 'dart:html';
 
-import 'package:august/options.dart';
 import 'package:august/dialog.dart';
+import 'package:august/input.dart';
+import 'package:august/options.dart';
 import 'package:august/prompts.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Quick hacked together UI
 class SimpleHtmlUi {
@@ -15,11 +18,15 @@ class SimpleHtmlUi {
 
   final _domQueue = Queue<Function>();
 
-  SimpleHtmlUi.install(Element _container, OptionsUi options, DialogUi dialog,
-      PromptsUi promptsUi) {
+  final _actions = StreamController();
+  Stream<Action> get actions => null;
+
+  SimpleHtmlUi.install(Element _container, Stream<Event> events) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
     // TODO: Add options and dialog already present
+
+//    events.whereType<DialogA()
 
     dialog.onAdd.listen((speech) {
       var speechElement = DivElement()..classes.add('speech');

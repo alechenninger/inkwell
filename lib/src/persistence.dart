@@ -25,14 +25,6 @@ class NoPersistence implements Persistence {
   const NoPersistence();
 }
 
-abstract class Action<M> {
-  String get moduleName;
-  String get name => runtimeType.toString();
-  Map<String, dynamic> get parameters;
-
-  void run(M module);
-}
-
 class SavedAction {
   final Duration offset;
   final String moduleName;

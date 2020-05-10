@@ -37,25 +37,19 @@ abstract class Available {
   bool get isNotAvailable => availability.isNotEntered;
 }
 
-abstract class Identifiable {
-  Id get id;
+abstract class Identifiable<T> {
+  T get key;
 }
 
-class Id {
+class Key {
   final String value;
 
-  Id.of(this.value);
-
-  // See https://github.com/Daegalus/dart-uuid/blob/master/lib/uuid_util.dart
-  // for more bits of random example
-  Id(): this.of(Random().nextInt(4294967296).toRadixString(36));
+  Key(this.value);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is Id &&
-              runtimeType == other.runtimeType &&
-              value == other.value;
+      other is Key && runtimeType == other.runtimeType && value == other.value;
 
   @override
   int get hashCode => value.hashCode;
@@ -65,34 +59,31 @@ class Id {
 }
 
 // TODO: better name
-class ScopedEmitters<O extends Emitter> {
-  final _available = <Id, O>{};
+class ScopedEmitters<O extends Emitter, K> extends Emitter {
+  final _available = <K, O>{};
 
-  Map<Id, O> get available => UnmodifiableMapView(_available);
+  Map<K, O> get available => UnmodifiableMapView(_available);
 
   final _events = StreamController<Event>(sync: true);
 
   Stream<Event> get events => _events.stream;
 
-  void add(O object, Scope available, Id id, Event Function() onAvailable) {
+  void add(O object, Scope available,
+      {@required K key,
+      @required Event Function() onAvailable,
+      @required Event Function() onUnavailable}) {
     // TODO: why shouldnt availability events just be emitted from the object
     //   like other events?
     available.listen(onEnter: (_) {
-      _available[id] = object;
+      _available[key] = object;
       _events.add(onAvailable());
     }, onExit: (_) {
-      _available.remove(id);
-      _events.add(Removed<O>(id));
+      _available.remove(key);
+      _events.add(onUnavailable());
     });
     object.events
         .listen((e) => _events.add(e), onError: (e) => _events.addError(e));
   }
-}
-
-class Removed<T> extends Event {
-  final Id id;
-
-  Removed(this.id);
 }
 
 class Counted<U extends Event> extends Actionable<U> {
