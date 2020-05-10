@@ -24,11 +24,7 @@ class SimpleHtmlUi {
   SimpleHtmlUi.install(Element _container, Stream<Event> events) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
 
-    // TODO: Add options and dialog already present
-
-//    events.whereType<DialogA()
-
-    dialog.onAdd.listen((speech) {
+    events.whereType<SpeechAvailable>().listen((speech) {
       var speechElement = DivElement()..classes.add('speech');
 
       _beforeNextPaint(() {
@@ -57,16 +53,20 @@ class SimpleHtmlUi {
                   : '${speech.speaker} to...');
       }
 
-      speech.onRemove.listen((_) => _beforeNextPaint(speechElement.remove));
-
       UListElement repliesElement;
 
-      speech.onReplyAvailable.listen((reply) {
+      var onReply = events
+          .whereType<ReplyAvailable>()
+          .where((r) =>
+              r.speech.speaker == speech.speaker &&
+              r.speech.markup == speech.markup)
+          .listen((reply) {
         var replyElement = LIElement()
           ..children.add(SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
-            ..onClick.listen((_) => reply.use()));
+            ..onClick.listen(
+                (_) => _actions.add(ReplyAction(reply.speech, reply.markup))));
 
         if (repliesElement == null) {
           repliesElement = UListElement()..classes.add('replies');
@@ -76,9 +76,24 @@ class SimpleHtmlUi {
           _beforeNextPaint(() => repliesElement.children.add(replyElement));
         }
 
-        // TODO consider alternate behavior vs used and removed vs just removed
-        // vs unavailable due to exclusive reply use
-        reply.onRemove.listen((_) => _beforeNextPaint(replyElement.remove));
+        events
+            .whereType<ReplyUnavailable>()
+            .firstWhere((r) =>
+                r.speech.speaker == speech.speaker &&
+                r.speech.markup == speech.markup)
+            .then(
+                // TODO consider alternate behavior vs used and removed vs just removed
+                // vs unavailable due to exclusive reply use
+                (_) => _beforeNextPaint(replyElement.remove));
+      });
+
+      events
+          .whereType<SpeechUnavailable>()
+          .firstWhere(
+              (s) => s.markup == speech.markup && s.speaker == speech.speaker)
+          .then((_) {
+        _beforeNextPaint(speechElement.remove);
+        onReply.cancel();
       });
     });
 

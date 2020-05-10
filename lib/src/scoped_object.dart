@@ -37,25 +37,8 @@ abstract class Available {
   bool get isNotAvailable => availability.isNotEntered;
 }
 
-abstract class Identifiable<T> {
+abstract class Keyed<T> {
   T get key;
-}
-
-class Key {
-  final String value;
-
-  Key(this.value);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Key && runtimeType == other.runtimeType && value == other.value;
-
-  @override
-  int get hashCode => value.hashCode;
-
-  @override
-  String toString() => value;
 }
 
 // TODO: better name
@@ -75,6 +58,9 @@ class ScopedEmitters<O extends Emitter, K> extends Emitter {
     // TODO: why shouldnt availability events just be emitted from the object
     //   like other events?
     available.listen(onEnter: (_) {
+      if (_available.containsKey(key)) {
+        throw StateError('Object already available with key "$key"');
+      }
       _available[key] = object;
       _events.add(onAvailable());
     }, onExit: (_) {

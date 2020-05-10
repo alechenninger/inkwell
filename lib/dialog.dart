@@ -12,7 +12,7 @@ import 'src/persistence.dart';
 import 'src/events.dart';
 
 class Dialog {
-  final _speech = ScopedEmitters<Speech>();
+  final _speech = ScopedEmitters<Speech, SpeechKey>();
   final GetScope _default;
   final Story _story;
 
@@ -43,26 +43,15 @@ class Dialog {
 
     var speech = Speech(markup, scope, speaker, target, _story);
 
-    scope.onEnter.listen((_) {
-      _speech.add(speech);
-      _addSpeechCtrl.add(speech);
-    });
-
-    scope.onExit.listen((_) {
-      _speech.remove(speech);
-    });
-
-    if (scope.isEntered) {
-      _speech.add(speech);
-      _addSpeechCtrl.add(speech);
-    }
+    _speech.add(speech, speech._scope,
+        key: speech._key,
+        onAvailable: () => SpeechAvailable.fromSpeech(speech),
+        onUnavailable: () => SpeechUnavailable.fromSpeech(speech));
 
     return speech;
   }
 
   Voice voice({String name}) => Voice(name, this);
-
-  Stream<Speech> get _onAddSpeech => _addSpeechCtrl.stream;
 }
 
 abstract class Speaks {
@@ -80,18 +69,36 @@ class Voice implements Speaks {
       _dialog.add(markup, speaker: name, target: target, scope: scope);
 }
 
+class SpeechKey {
+  final String markup;
+  final String speaker;
+
+  SpeechKey(this.markup, this.speaker);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SpeechKey &&
+          runtimeType == other.runtimeType &&
+          markup == other.markup &&
+          speaker == other.speaker;
+
+  @override
+  int get hashCode => markup.hashCode ^ speaker.hashCode;
+}
+
 class Speech extends Emitter {
   final String _markup;
   final Scope _scope;
   final String _speaker;
   final String _target;
   final Story _story;
+  final SpeechKey _key;
 
   final _events = Events();
   Stream<Event> get events => _events.stream;
 
-  final _replies = ScopedEmitters<Reply>();
-  final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
+  final _replies = ScopedEmitters<Reply, String>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -101,39 +108,47 @@ class Speech extends Emitter {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target, this._story);
+  Speech(this._markup, this._scope, this._speaker, this._target, this._story)
+      : _key = SpeechKey(_markup, _speaker);
 
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
     var reply = Reply(this, markup, _replyUses, available, _story);
 
-    reply.availability
-      ..onEnter.listen((_) {
-        _replies.add(reply);
-        _addReplyCtrl.add(reply);
-      })
-      ..onExit.listen((_) {
-        _replies.remove(reply);
-      });
-
-    if (reply.isAvailable) {
-      _replies.add(reply);
-      _addReplyCtrl.add(reply);
-    }
+    _replies.add(reply, reply.availability,
+        key: reply._markup,
+        onAvailable: () => ReplyAvailable(_key, markup),
+        onUnavailable: () => ReplyUnavailable(_key, markup));
 
     return reply;
   }
+}
 
-  Stream<Speech> get _onRemove => _scope.onExit.map((_) => this);
+class ReplyKey {
+  final SpeechKey speech;
+  final String markup;
 
-  Stream<Reply> get _onReplyAvailable => _addReplyCtrl.stream;
+  ReplyKey(this.speech, this.markup);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplyKey &&
+          runtimeType == other.runtimeType &&
+          speech == other.speech &&
+          markup == other.markup;
+
+  @override
+  int get hashCode => speech.hashCode ^ markup.hashCode;
 }
 
 class Reply extends Emitter {
   final Speech speech;
 
   final String _markup;
+  final ReplyKey _key;
+
   final CountScope uses;
 
   final Events<UseReplyEvent> _onUse;
@@ -149,7 +164,8 @@ class Reply extends Emitter {
 
   Reply(this.speech, this._markup, this.uses, Scope available, Story story)
       : _onUse = story.newEventStream(),
-        _available = available.and(uses);
+        _available = available.and(uses),
+        _key = ReplyKey(speech._key, _markup);
 
   Future use() async {
     var e = await _onUse.event(() {
@@ -166,115 +182,37 @@ class Reply extends Emitter {
   }
 }
 
-class DialogUi {
-  final Dialog _dialog;
-  final Sink<Action> _interactions;
+class ReplyAction implements Action<Dialog> {
+  final SpeechKey speech;
+  final String reply;
 
-  DialogUi(this._dialog, this._interactions);
-
-  Stream<UiSpeech> get onAdd =>
-      _dialog._onAddSpeech.map((d) => UiSpeech(d, _interactions));
-}
-
-class DialogInteractor extends Interactor {
-  static const _moduleName = 'Dialog';
-
-  @override
-  final moduleName = _moduleName;
-  final Dialog _dialog;
-
-  DialogInteractor(this._dialog);
-
-  @override
-  void run(String action, Map<String, dynamic> parameters) {
-    switch (action) {
-      case _UseReplyAction._name:
-        // _UseReplyAction.run(parameters, _dialog);
-        // TODO
-        break;
-      default:
-        throw UnsupportedError('Unsupported action $action');
-    }
-  }
-}
-
-class UiSpeech {
-  final Speech _speech;
-  final Sink<Action> _interactions;
-
-  UiSpeech(this._speech, this._interactions);
-
-  String get markup => _speech._markup;
-
-  String get speaker => _speech._speaker;
-
-  String get target => _speech._target;
-
-  Stream<UiSpeech> get onRemove => _speech._onRemove.map((_) => this);
-
-  Stream<UiReply> get onReplyAvailable =>
-      _speech._onReplyAvailable.map((r) => UiReply(r, _interactions));
-}
-
-class UiReply {
-  final Reply _reply;
-  final Sink<Action> _interactions;
-
-  UiReply(this._reply, this._interactions);
-
-  String get markup => _reply._markup;
-
-  Stream<UiReply> get onRemove => _reply.availability.onExit.map((_) => this);
-
-  void use() {
-    _interactions.add(_UseReplyAction(_reply));
-  }
-}
-
-class _UseReplyAction implements Action<Dialog> {
-  static const _name = 'UseReply';
-
-  final Reply _reply;
-
-  _UseReplyAction(this._reply);
+  ReplyAction(this.speech, this.reply);
 
   void run(Dialog dialog) {
-    var matchingSpeech = dialog._speech
-        .where((s) => s._markup == parameters['speech']['markup']);
+    var matchedSpeech = dialog._speech.available[speech];
 
-    if (matchingSpeech.isEmpty) {
+    if (matchedSpeech == null) {
       throw StateError('No matching available speech found for reply: '
           '$parameters');
     }
 
-    if (matchingSpeech.length > 1) {
-      throw StateError('Multiple matching available speech found for '
-          'reply: $parameters');
-    }
+    var matchedReply = matchedSpeech._replies.available[reply];
 
-    var matchingReplies = matchingSpeech.first._replies
-        .where((r) => r._markup == parameters['markup']);
-
-    if (matchingReplies.isEmpty) {
+    if (matchedReply == null) {
       throw StateError('No matching available replies found for reply: '
           '$parameters');
     }
 
-    if (matchingReplies.length > 1) {
-      throw StateError('Multiple matching available replies found for '
-          'reply: $parameters');
-    }
-
-    matchingReplies.first.use();
+    matchedReply.use();
   }
 
-  final moduleName = DialogInteractor._moduleName;
-  final name = _name;
+  final moduleName = '$Dialog';
+  final name = '$ReplyAction';
 
   Map<String, dynamic> get parameters => {
         // TODO maybe represent objects by hash instead
-        'speech': {'markup': _reply.speech._markup},
-        'markup': _reply._markup
+        'speech': {'markup': speech.markup, 'speaker': speech.speaker},
+        'markup': reply
       };
 }
 
@@ -282,6 +220,39 @@ class ReplyNotAvailableException implements Exception {
   final Reply reply;
 
   ReplyNotAvailableException(this.reply);
+}
+
+class SpeechAvailable extends Event {
+  final String speaker;
+  final String markup;
+  final String target;
+
+  SpeechAvailable.fromSpeech(Speech s) : this(s._speaker, s._markup, s._target);
+
+  SpeechAvailable(this.speaker, this.markup, this.target);
+}
+
+class SpeechUnavailable extends Event {
+  final String speaker;
+  final String markup;
+
+  SpeechUnavailable.fromSpeech(Speech s): this(s._speaker, s._markup);
+
+  SpeechUnavailable(this.speaker, this.markup);
+}
+
+class ReplyAvailable extends Event {
+  final SpeechKey speech;
+  final String markup;
+
+  ReplyAvailable(this.speech, this.markup);
+}
+
+class ReplyUnavailable extends Event {
+  final SpeechKey speech;
+  final String markup;
+
+  ReplyUnavailable(this.speech, this.markup);
 }
 
 class UseReplyEvent extends Event {
