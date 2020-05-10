@@ -184,7 +184,8 @@ class DialogInteractor extends Interactor {
   void run(String action, Map<String, dynamic> parameters) {
     switch (action) {
       case _UseReplyAction._name:
-        _UseReplyAction.run(parameters, _dialog);
+        // _UseReplyAction.run(parameters, _dialog);
+        // TODO
         break;
       default:
         throw UnsupportedError('Unsupported action $action');
@@ -225,14 +226,14 @@ class UiReply {
   }
 }
 
-class _UseReplyAction implements Action {
+class _UseReplyAction implements Action<Dialog> {
   static const _name = 'UseReply';
 
   final Reply _reply;
 
   _UseReplyAction(this._reply);
 
-  static void run(Map<String, dynamic> parameters, Dialog dialog) {
+  void run(Dialog dialog) {
     var matchingSpeech = dialog._speech
         .where((s) => s._markup == parameters['speech']['markup']);
 

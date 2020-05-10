@@ -3,13 +3,12 @@
 
 import 'august.dart';
 import 'input.dart';
-import 'ui.dart';
 import 'src/events.dart';
 import 'src/scope.dart';
 import 'src/persistence.dart';
 
 class Options {
-  final _availableOptCtrl = StreamController<Option>();
+  final _availableOptCtrl = StreamController<Option>(sync: true);
   final _options = <Option>[];
   final GetScope _default;
 
@@ -30,6 +29,8 @@ class Options {
         uses: exclusiveWith ?? CountScope(1),
         available: available ?? _default());
 
+    _options.addWhile(option, option.availability);
+
     option
       ..availability.onEnter.listen((e) {
         _options.add(option);
@@ -41,7 +42,7 @@ class Options {
 
     if (option.isAvailable) {
       _options.add(option);
-      _availableOptCtrl.add(option);
+      scheduleMicrotask(() => _availableOptCtrl.add(option));
     }
 
     return option;
@@ -62,10 +63,10 @@ class Option {
   Scope get availability => _available;
 
   // TODO: Consider simply Stream<Option>
-  Stream<UseOptionEvent> get onUse => _onUse.stream;
+  Stream<OptionUsed> get onUse => _onUse.stream;
 
   final CountScope uses;
-  final _onUse = Events<UseOptionEvent>();
+  final _onUse = Events<OptionUsed>();
 
   Option._(this.text, {CountScope uses, Scope available = always})
       : uses = uses ?? CountScope(1) {
@@ -77,14 +78,14 @@ class Option {
   /// The return future completes with success when the option is used and all
   /// listeners receive it. It completes with an error if the option is not
   /// available to be used.
-  Future<UseOptionEvent> use() async {
+  Future<OptionUsed> use() async {
     // Wait to check isAvailable until option actually about to be used
     var e = await _onUse.event(() {
       if (!isAvailable) {
         throw OptionNotAvailableException(this);
       }
 
-      return UseOptionEvent(this);
+      return OptionUsed(this);
     });
 
     // This could be left out of a core implementation, and "uses" could be
@@ -103,13 +104,12 @@ class Option {
 }
 
 class OptionsUi {
-  final Stream<UiEvent> _events;
+  final Stream<Event> _events;
   final Sink<Action> _interactions;
 
   OptionsUi(this._events, this._interactions);
 
-  Stream<UiOption> get onOptionAvailable =>
-      _events.ofType('option_availalble').map((o) => UiOption(_interactions, o));
+  Stream<UiOption> get onOptionAvailable => null; // TODO
 }
 
 
@@ -131,14 +131,14 @@ class UiOption {
       _option.availability.onExit.map((e) => this);
 }
 
-class _UseOption implements Action {
+class _UseOption implements Action<Options> {
   final String moduleName = '$Options';
   final String name = '$_UseOption';
   final Map<String, dynamic> parameters;
 
   _UseOption(Option option): parameters = {'text': option.text };
 
-  static void run(Map<String, dynamic> parameters, Options options) {
+  void run(Options options) {
     if (!parameters.containsKey('text')) {
       throw ArgumentError.value(
           parameters,
@@ -159,27 +159,10 @@ class _UseOption implements Action {
   }
 }
 
-class OptionsInteractor implements Interactor {
-  final Options _options;
-
-  OptionsInteractor(this._options);
-
-  void run(String interaction, Map<String, dynamic> parameters) {
-    if (interaction == '$_UseOption') {
-      _UseOption.run(parameters, _options);
-    } else {
-      throw UnsupportedError('Unsupported interaction: $interaction');
-    }
-  }
-
-  @override
-  String get moduleName => '$Options';
-}
-
-class UseOptionEvent extends Event {
+class OptionUsed extends Event {
   final Option option;
 
-  UseOptionEvent(this.option);
+  OptionUsed(this.option);
 }
 
 // Not sure if this should be error or exception

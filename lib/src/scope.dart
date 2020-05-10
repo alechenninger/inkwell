@@ -2,6 +2,7 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'observable.dart';
+import 'events.dart';
 
 export 'dart:async';
 
@@ -67,6 +68,21 @@ abstract class Scope<T> {
   /// Streams should emit a done event when a scope is no longer able to be
   /// exited.
   Stream<T> get onExit;
+
+  // Or return Events?
+  Stream<E> toEvents<E extends Event>({E Function() onEnter, E Function() onExit}) {
+    var events = Events<E>();
+    listen(onEnter: (_) {
+      if (onEnter != null) {
+        events.event(onEnter);
+      }
+    }, onExit: (_) {
+      if (onExit != null) {
+        events.event(onExit);
+      }
+    });
+    return events.stream;
+  }
 
   Observed<bool> get asObserved;
 
@@ -248,9 +264,6 @@ class CountScope extends Scope<int> {
   }
 }
 
-typedef GetNewValue<T> = T Function(T currentValue);
-typedef Predicate = bool Function();
-
 /// A scope that forwards another, possibly changing, scope.
 ///
 /// Normally changing a scope would require change references; listeners
@@ -282,4 +295,18 @@ class MutableScope extends Scope {
   Stream get onEnter => _observable.onChange.where((c) => c.newValue);
 
   Stream get onExit => _observable.onChange.where((c) => !c.newValue);
+}
+
+extension AddScoped<T> on List<T> {
+  void addWhile(T t, Scope scope) {
+    scope.listen(onEnter: (_) => add(t), onExit: (_) => remove(t));
+  }
+
+  void addScoped(Scope<T> scope) {
+    scope.listen(onEnter: add, onExit: remove);
+  }
+}
+
+extension ToScope on Observed<bool> {
+  Scope get toScope => ScopeFromObserved(this);
 }

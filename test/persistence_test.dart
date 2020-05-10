@@ -98,12 +98,12 @@ void main() {
 
 class InMemoryPersistence implements Persistence {
   List _saved = [];
-  List<SavedInteraction> get savedInteractions => List.from(_saved);
+  List<SavedAction> get savedInteractions => List.from(_saved);
 
   @override
   void saveInteraction(Duration offset, String moduleName, String name,
       Map<String, dynamic> parameters) {
-    _saved.add(SavedInteraction(moduleName, name, parameters, offset));
+    _saved.add(SavedAction(moduleName, name, parameters, offset));
   }
 }
 

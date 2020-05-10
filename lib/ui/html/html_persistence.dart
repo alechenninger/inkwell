@@ -8,7 +8,7 @@ import '../../src/persistence.dart';
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;
-  final _savedInteractions = <SavedInteraction>[];
+  final _savedInteractions = <SavedAction>[];
   Storage _storage;
 
   static const _json = JsonCodec();
@@ -20,7 +20,7 @@ class HtmlPersistence implements Persistence {
       var saved =
           _json.decode(_storage[_scriptHandle]) as List<Map<String, Object>>;
       _savedInteractions
-          .addAll(saved.map((o) => SavedInteraction.fromJson(o)));
+          .addAll(saved.map((o) => SavedAction.fromJson(o)));
     }
 
     window.onBeforeUnload.listen((e) {
@@ -35,10 +35,10 @@ class HtmlPersistence implements Persistence {
   void saveInteraction(Duration offset, String moduleName,
       String interactionName, Map<String, dynamic> parameters) {
     var interaction =
-        SavedInteraction(moduleName, interactionName, parameters, offset);
+        SavedAction(moduleName, interactionName, parameters, offset);
     _savedInteractions.add(interaction);
   }
 
-  List<SavedInteraction> get savedInteractions =>
-      List<SavedInteraction>.from(_savedInteractions);
+  List<SavedAction> get savedInteractions =>
+      List<SavedAction>.from(_savedInteractions);
 }

@@ -3,7 +3,7 @@ import 'dart:collection';
 
 export 'dart:async';
 
-// TODO: should use common supertype of T like `Event` or something like that?
+// TODO consider removing generic type and simply use Event
 class Events<T extends Event> {
   final EventStream<T> _stream = EventStream<T>();
 
@@ -41,6 +41,22 @@ class Events<T extends Event> {
     });
   }
 
+  void addTo(EventSink<T> sink) {
+    stream.listen((e) => sink.add(e), onError: (e) => sink.addError(e));
+  }
+
+  void includeEmitter(Emitter<T> emitter) {
+    includeStream(emitter.events);
+  }
+
+  void includeStream(Stream<T> stream) {
+    stream.listen((t) => _stream.add(t), onError: (e) => _stream.addError(e));
+  }
+
+  void includeAll(Iterable<Stream<T>> streams) {
+    streams.forEach(includeStream);
+  }
+
 //  void publishNow(T event) {
 //    _stream.add(event);
 //  }
@@ -50,9 +66,16 @@ class Events<T extends Event> {
   }
 }
 
+/// A model of something that has happened, usually named in the past tense e.g.
+/// SomethingHappened.
 abstract class Event {}
 
-class EventStream<T> extends Stream<T> {
+// TODO better name
+abstract class Emitter<T extends Event> {
+  Stream<T> get events;
+}
+
+class EventStream<T> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
   // may themselves schedule tasks, which should not become before the original
@@ -86,13 +109,15 @@ class EventStream<T> extends Stream<T> {
     _syncListeners.forEach((sub) => sub._add(event));
   }
 
-  void addError(dynamic error) {
+  void addError(Object error, [StackTrace trace]) {
     if (_asyncListeners == null) {
       throw StateError('Cannot add error to done stream');
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
   }
+
+  void close() => done();
 
   void done() {
     // TODO: not sure if done logic around here is right

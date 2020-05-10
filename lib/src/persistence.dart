@@ -9,7 +9,7 @@ abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
-  List<SavedInteraction> get savedInteractions;
+  List<SavedAction> get savedInteractions;
   void saveInteraction(Duration offset, String moduleName,
       String interactionName, Map<String, dynamic> parameters);
 }
@@ -25,26 +25,23 @@ class NoPersistence implements Persistence {
   const NoPersistence();
 }
 
-abstract class Action<C> {
+abstract class Action<M> {
   String get moduleName;
   String get name => runtimeType.toString();
   Map<String, dynamic> get parameters;
 
-  void run(C controller);
+  void run(M module);
 }
 
-class SavedInteraction implements Action {
+class SavedAction {
   final Duration offset;
-  @override
   final String moduleName;
-  @override
   final String name;
-  @override
   final Map<String, dynamic> parameters;
 
-  SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
+  SavedAction(this.moduleName, this.name, this.parameters, this.offset);
 
-  SavedInteraction.fromJson(Map<String, Object> json)
+  SavedAction.fromJson(Map<String, Object> json)
       : moduleName = json['moduleName'] as String,
         name = json['name'] as String,
         parameters = json['parameters'] as Map<String, dynamic>,

@@ -1,63 +1,79 @@
 import 'package:august/august.dart';
 import 'package:rxdart/rxdart.dart';
+import 'dart:math';
 
-import 'ui.dart';
 import 'input.dart';
 import 'src/events.dart';
 
-abstract class Module<T> {
-  dynamic ui(Stream<Event> events, StreamSink<Action<T>> actionSink);
-  T controller(Stream<Action<T>> actions, StreamSink<Event> eventSink);
-}
-
-typedef ModuleFactory = T Function<T extends Test>(Stream<Action<T>>);
-
-abstract class Test {
+abstract class Module {
   Stream<Event> get events;
 }
 
-void test() {
-  var m = ItemModule();
-  var actions = StreamController<Action<Items>>();
-  var events = StreamController<Event>();
+void server() {
+  Stream<Action<Items>> itemActions; // get from clients
+  var items = Items();
+  var clientEvents = StreamController<Event>();
 
-  var items = m.controller(actions.stream, events);
-  var itemsUi = m.ui(events.stream, actions);
+  itemActions.listen((a) => a.run(items));
+  items.events.pipe(clientEvents);
 }
 
-void initController<T>(T controller, List<Stream<Event>> eventStreams,
-    Stream<Action<T>> actions, StreamSink<Event> eventSink) {
-  actions.listen((a) => a.run(controller));
-  Rx.merge(eventStreams).pipe(eventSink);
+void client() {
+  Stream<Event> events; // get from server
+  var actions = StreamController<Action<dynamic>>(); // send to server
+  var ui; // some ui impl
+  ui.listen(events);
+  ui.actions.pipe(actions);
 }
 
-class ItemModule implements Module<Items> {
-  @override
-  ItemUi ui(Stream<Event> events, StreamSink<Action<Items>> actionSink) =>
-      ItemUi(events, actionSink);
 
-  @override
-  Items controller(
-          Stream<Action<Items>> actions, StreamSink<Event> eventSink) =>
-      Items(actions, eventSink);
+abstract class Actionable<T> {
+  //Action<M> get asAction;
+  Future<T> perform(); // Accept arg? could be void or optional
+  Scope get availability;
+//  Scope get visibility;
 }
 
-class ItemUi {
-  final Sink<Action<Items>> _actions;
-  final Stream<Event> _events;
-
-  ItemUi(this._events, this._actions);
+abstract class Inputable<T, I> {
+  Future<T> input(I input);
+  Scope get availability;
 }
 
-class Items {
-  final Stream<Action<Items>> _actions;
-  final Events _uses = Events();
+//abstract class Identifiable {
+//  Id get id;
+//}
+//
+//class Performed<T extends Actionable> extends Event {
+//  final Id id;
+//
+//  Performed(this.id);
+//}
+//
+//class Inputted<T extends Inputable<dynamic, I>, I> {
+//  final Id id;
+//  final I input;
+//
+//  Inputted(this.id, this.input);
+//}
 
-  final _items = <Item>[];
+//mixin Counted<T, M> on Actionable<T> {
+//  CountScope get uses;
+//  Scope _availability;
+//  Scope get availability =>
+//      _availability ?? (_availability = super.availability.and(uses));
+//  Future<T> perform() async {
+//    var answer = await super.perform();
+//    uses.increment();
+//    return answer;
+//  }
+//}
 
-  Items(this._actions, StreamSink<Event> eventSink) {
-    initController(this, [_uses.stream], _actions, eventSink);
-  }
+class Items extends Module {
+  final _uses = Events<ItemUsed>();
+
+  final _items = <Id, Item>{};
+
+  Stream<Event> get events => Rx.merge([uses]);
 
   Item addItem(String name, {Scope available}) {
     var it = Item(name, this);
@@ -65,20 +81,9 @@ class Items {
     return it;
   }
 
-  Stream<ItemUsed> get uses =>
-      _uses.stream.where((e) => e is ItemUsed).map((e) => e as ItemUsed);
+  Stream<ItemUsed> get uses => _uses.stream;
 
   Stream<String> onItem;
-}
-
-class UiItem {
-  final String name;
-  final Stream<Event> _events;
-
-  UiItem(this.name, this._events);
-
-  Stream<ItemUsed> get uses =>
-      _events.whereType<ItemUsed>().where((i) => i.name == name);
 }
 
 class ItemUsed extends Event {
@@ -88,6 +93,7 @@ class ItemUsed extends Event {
 }
 
 class Item {
+  final Id id = Id();
   final String name;
   final Items _items;
 
@@ -95,13 +101,17 @@ class Item {
 
   Future<ItemUsed> use() async {
     return _items._uses.event(() {
-      if (!_items._items.remove(name)) {
+      if (_items._items.remove(id) != null) {
         throw StateError('No item found named $name');
       }
 
       return ItemUsed(name);
     });
   }
+}
+
+class ItemAvailable extends Event {
+
 }
 
 class UseItem extends Action<Items> {
@@ -113,6 +123,7 @@ class UseItem extends Action<Items> {
 
   @override
   void run(Items items) {
-    items._items.firstWhere((i) => i.name == name)?.use();
+    items._items[Id.of(parameters['id'] as String)]?.use();
   }
 }
+
