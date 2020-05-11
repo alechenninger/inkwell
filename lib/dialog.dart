@@ -111,7 +111,9 @@ class Speech extends Emitter {
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target, this._story)
-      : _key = SpeechKey(_markup, _speaker);
+      : _key = SpeechKey(_markup, _speaker) {
+    _events.includeEmitter(_replies);
+  }
 
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
