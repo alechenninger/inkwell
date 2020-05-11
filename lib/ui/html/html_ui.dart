@@ -29,7 +29,9 @@ class SimpleHtmlUi {
       var speechElement = DivElement()..classes.add('speech');
 
       _beforeNextPaint(() {
-        _dialogContainer.children.add(speechElement);
+        _dialogContainer
+          ..children.add(speechElement)
+          ..scrollIntoView(ScrollAlignment.BOTTOM);
       });
 
       speechElement.children.add(DivElement()
@@ -67,14 +69,18 @@ class SimpleHtmlUi {
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
             ..onClick.listen(
-                (_) => _actions.add(ReplyAction(reply.speech, reply.markup))));
+                (_) => _actions.add(UseReply(reply.speech, reply.markup))));
 
         if (repliesElement == null) {
           repliesElement = UListElement()..classes.add('replies');
           repliesElement.children.add(replyElement);
-          _beforeNextPaint(() => speechElement.children.add(repliesElement));
+          _beforeNextPaint(() => speechElement
+            ..children.add(repliesElement)
+            ..scrollIntoView(ScrollAlignment.BOTTOM));
         } else {
-          _beforeNextPaint(() => repliesElement.children.add(replyElement));
+          _beforeNextPaint(() => repliesElement
+              ..children.add(replyElement)
+              ..scrollIntoView(ScrollAlignment.BOTTOM));
         }
 
         events

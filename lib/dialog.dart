@@ -155,10 +155,10 @@ class Reply extends Emitter {
 
   final CountScope uses;
 
-  final Events<UseReplyEvent> _onUse;
+  final Events<Replied> _onUse;
 
   Stream<Event> get events => onUse;
-  Stream<UseReplyEvent> get onUse => _onUse.stream;
+  Stream<Replied> get onUse => _onUse.stream;
 
   final Scope _available;
 
@@ -177,7 +177,7 @@ class Reply extends Emitter {
         throw ReplyNotAvailableException(this);
       }
 
-      return UseReplyEvent(this);
+      return Replied(this);
     });
 
     uses.increment();
@@ -186,11 +186,11 @@ class Reply extends Emitter {
   }
 }
 
-class ReplyAction extends Action<Dialog> {
+class UseReply extends Action<Dialog> {
   final SpeechKey speech;
   final String reply;
 
-  ReplyAction(this.speech, this.reply);
+  UseReply(this.speech, this.reply);
 
   void run(Dialog dialog) {
     var matchedSpeech = dialog._speech.available[speech];
@@ -256,8 +256,8 @@ class ReplyUnavailable extends Event {
   ReplyUnavailable(this.speech, this.markup);
 }
 
-class UseReplyEvent extends Event {
+class Replied extends Event {
   final Reply reply;
 
-  UseReplyEvent(this.reply);
+  Replied(this.reply);
 }
