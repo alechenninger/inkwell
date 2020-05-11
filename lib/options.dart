@@ -1,6 +1,8 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+import 'package:august/src/scoped_object.dart';
+
 import 'august.dart';
 import 'input.dart';
 import 'src/events.dart';
@@ -9,7 +11,7 @@ import 'src/persistence.dart';
 
 class Options {
   final _availableOptCtrl = StreamController<Option>(sync: true);
-  final _options = <Option>[];
+  final _options = ScopedEmitters<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
@@ -29,27 +31,16 @@ class Options {
         uses: exclusiveWith ?? CountScope(1),
         available: available ?? _default());
 
-    _options.addWhile(option, option.availability);
-
-    option
-      ..availability.onEnter.listen((e) {
-        _options.add(option);
-        _availableOptCtrl.add(option);
-      })
-      ..availability.onExit.listen((e) {
-        _options.remove(option);
-      });
-
-    if (option.isAvailable) {
-      _options.add(option);
-      scheduleMicrotask(() => _availableOptCtrl.add(option));
-    }
+    _options.add(option, option.availability,
+        key: option.text,
+        onAvailable: () => OptionAvailable(option.text),
+        onUnavailable: () => OptionUnavailable(option.text));
 
     return option;
   }
 }
 
-class Option {
+class Option extends Emitter {
   final String text;
 
   int get maxUses => uses.max;
@@ -68,6 +59,8 @@ class Option {
   final CountScope uses;
   final _onUse = Events<OptionUsed>();
 
+  Stream<Event> get events => _onUse.stream;
+
   Option._(this.text, {CountScope uses, Scope available = always})
       : uses = uses ?? CountScope(1) {
     _available = available.and(this.uses);
@@ -85,7 +78,7 @@ class Option {
         throw OptionNotAvailableException(this);
       }
 
-      return OptionUsed(this);
+      return OptionUsed(text);
     });
 
     // This could be left out of a core implementation, and "uses" could be
@@ -103,40 +96,12 @@ class Option {
       '}';
 }
 
-class OptionsUi {
-  final Stream<Event> _events;
-  final Sink<Action> _interactions;
-
-  OptionsUi(this._events, this._interactions);
-
-  Stream<UiOption> get onOptionAvailable => null; // TODO
-}
-
-
-class UiOption {
-  final Option _option;
-  final Sink<Action> _interactions;
-
-  String get text => _option.text;
-
-  UiOption(this._interactions, this._option);
-
-  void use() {
-    _interactions.add(_UseOption(_option));
-  }
-
-  Stream<UiOption> get onUse => _option.onUse.map((e) => this);
-
-  Stream<UiOption> get onUnavailable =>
-      _option.availability.onExit.map((e) => this);
-}
-
-class _UseOption implements Action<Options> {
+class UseOption implements Action<Options> {
   final String moduleName = '$Options';
-  final String name = '$_UseOption';
+  final String name = '$UseOption';
   final Map<String, dynamic> parameters;
 
-  _UseOption(Option option): parameters = {'text': option.text };
+  UseOption(String option) : parameters = {'text': option};
 
   void run(Options options) {
     if (!parameters.containsKey('text')) {
@@ -148,8 +113,7 @@ class _UseOption implements Action<Options> {
     }
 
     var text = parameters['text'];
-    var found =
-        options._options.firstWhere((o) => o.text == text, orElse: () => null);
+    var found = options._options.available[text];
 
     if (found == null) {
       throw StateError('No option found from text "$text".');
@@ -160,9 +124,21 @@ class _UseOption implements Action<Options> {
 }
 
 class OptionUsed extends Event {
-  final Option option;
+  final String option;
 
   OptionUsed(this.option);
+}
+
+class OptionAvailable extends Event {
+  final String option;
+
+  OptionAvailable(this.option);
+}
+
+class OptionUnavailable extends Event {
+  final String option;
+
+  OptionUnavailable(this.option);
 }
 
 // Not sure if this should be error or exception

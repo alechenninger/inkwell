@@ -97,18 +97,21 @@ class SimpleHtmlUi {
       });
     });
 
-    options.onOptionAvailable.listen((o) {
+    events.whereType<OptionAvailable>().listen((option) {
       var optionElement = LIElement()
         ..children.add(SpanElement()
           ..classes.add('option')
-          ..innerHtml = o.text
-          ..onClick.listen((_) => o.use()));
+          ..innerHtml = option.option
+          ..onClick.listen((_) => _actions.add(UseOption(option.option))));
 
       _beforeNextPaint(() {
         _optionsContainer.children.add(optionElement);
       });
 
-      o.onUnavailable.first.then((_) => _beforeNextPaint(optionElement.remove));
+      events
+          .whereType<OptionUnavailable>()
+          .firstWhere((o) => o.option == option.option)
+          .then((_) => _beforeNextPaint(optionElement.remove));
     });
   }
 

@@ -57,6 +57,7 @@ class ScopedEmitters<O extends Emitter, K> extends Emitter {
       @required Event Function() onUnavailable}) {
     // TODO: why shouldnt availability events just be emitted from the object
     //   like other events?
+    // TODO: available.putWhile(key, option, available);
     available.listen(onEnter: (_) {
       if (_available.containsKey(key)) {
         throw StateError('Object already available with key "$key"');

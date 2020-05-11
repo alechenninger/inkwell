@@ -121,6 +121,7 @@ abstract class Scope<T> {
     this.onEnter.listen(onEnter);
     this.onExit.listen(onExit);
     if (isEntered && callIfAlreadyEntered) {
+      // TODO: should be in microtask?
       onEnter(null);
     }
   }
