@@ -1,18 +1,15 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'package:august/august.dart';
-import 'package:august/options.dart';
-import 'package:august/scenes.dart';
-import 'package:august/dialog.dart';
-import 'package:august/prompts.dart';
-import 'package:august/ui/html/html_persistence.dart';
-import 'package:august/ui/html/html_ui.dart';
-import 'package:rxdart/rxdart.dart';
-
 import 'dart:html';
 
-import 'package:pedantic/pedantic.dart';
+import 'package:august/august.dart';
+import 'package:august/dialog.dart';
+import 'package:august/options.dart';
+import 'package:august/prompts.dart';
+import 'package:august/scenes.dart';
+import 'package:august/ui/html/html_ui.dart';
+import 'package:rxdart/rxdart.dart';
 
 // Instantiate modules top level for easy accessibility from script methods
 final story = Story();
@@ -35,18 +32,15 @@ void main() {
   // Need a persistence strategy
   var persistence = NoPersistence();
 
-  var modules = {
-    Options: options,
-    Dialog: dialog
-  };
+  var modules = {Options: options, Dialog: dialog};
   var events = Rx.merge([options.events, dialog.events]).asBroadcastStream();
 
   // Present the user interface(s) with HTML
   SimpleHtmlUi.install(querySelector('#example'), events)
       .actions
       .listen((action) {
-        // TODO: intercept and save actions for replay
-        action.run(modules[action.module]);
+    // TODO: intercept and save actions for replay
+    action.run(modules[action.module]);
   });
 
   // TODO run so saved actions are replayed
@@ -61,12 +55,12 @@ void dragonStandoff() async {
   var dragonStandoff = await scenes.reentrant().enter();
   var sword = Sword();
 
-  dialog.narrate('Something appears in the shadows...');
+  dialog.narrate('A dragon stands before you!');
 
   await delay(seconds: 1);
 
-  var attack = options.oneTime('Engage your curiosity and wait');
-  var runAway = options.limitedUse('Run away', exclusiveWith: attack.uses);
+  var attack = options.oneTime('Attack it!');
+  var runAway = options.limitedUse('Run away!', exclusiveWith: attack.uses);
 
   attack.onUse.when(() {
     attackDragon(dragonStandoff, sword);
@@ -81,51 +75,13 @@ void dragonStandoff() async {
 void attackDragon(Scene dragonStandoff, Sword sword) async {
   await scenes.oneTime().enter();
 
-  var beast = dialog.voice(name: '(mysterious beast)');
+  dialog.narrate('The dragon readies its flame...');
 
-  dialog.narrate('It moves closer. By its size, it appears close, '
-      'but you hear its purr, far away.');
-
-  beast.say('Prrrrrr....');
-
-  await delay(seconds: 6);
-
-  dialog.narrate("You don't just hear the purr. A second later, you feel the "
-      'walls shake at the rhythm of its rattle.');
-
-  await delay(seconds: 6);
-
-  dialog.narrate("Closer still. And louder. It's clearly massive now.");
-
-  await delay(seconds: 6);
-
-  dialog.narrate("A red and orange glow rises to the front of it: it's mouth. "
-      'Illuminated from below, you see large, snake-like eyes narrow at you. '
-      'It snorts a flame. You feel a rush of warm air towards you. A warning.');
-
-  await delay(seconds: 10);
-
-  dialog.add('(whispering to yourself) Are those whiskers?');
-
-  await delay(seconds: 4);
-
-  dialog.narrate("It's head rises. It's eyes do not leave you. "
-      'As it does this, you feel the air behind you push you towards the '
-      "creature. It's inhaling.");
-
-  await delay(seconds: 10);
-
-  dialog.narrate('The same glow begins rising again. Its eyes fill up with '
-      'madness and delight and fire. Flame spews out with explosive force, as '
-      'if its mouth were a door to a burning building, blast open.');
+  await delay(seconds: 1);
 
   var deflectWithSword = options.oneTime('Deflect the fire with your sword.');
   var deflectWithShield = options.oneTime('Deflect the fire with your shield.');
-  var dash = options.oneTime('Dash toward the creature.');
-
-  delay(seconds: 10).then((_) {
-
-  });
+  var dash = options.oneTime('Dash toward the dragon.');
 
   deflectWithSword.onUse.when(() async {
     dialog.narrate('You survive, but your sword has melted!',
