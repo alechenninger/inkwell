@@ -9,14 +9,14 @@ import 'src/events.dart';
 import 'src/scope.dart';
 import 'src/persistence.dart';
 
-class Options {
-  final _availableOptCtrl = StreamController<Option>(sync: true);
+class Options extends Emitter {
   final _options = ScopedEmitters<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
-  Stream<Option> get _onOptionAvailable => _availableOptCtrl.stream;
+  @override
+  Stream<Event> get events => _options.events;
 
   Option oneTime(String text, {Scope available, CountScope exclusiveWith}) {
     return limitedUse(text,
@@ -96,9 +96,7 @@ class Option extends Emitter {
       '}';
 }
 
-class UseOption implements Action<Options> {
-  final String moduleName = '$Options';
-  final String name = '$UseOption';
+class UseOption extends Action<Options> {
   final Map<String, dynamic> parameters;
 
   UseOption(String option) : parameters = {'text': option};

@@ -8,6 +8,7 @@ import 'package:august/dialog.dart';
 import 'package:august/prompts.dart';
 import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
+import 'package:rxdart/rxdart.dart';
 
 import 'dart:html';
 
@@ -34,24 +35,22 @@ void main() {
   // Need a persistence strategy
   var persistence = NoPersistence();
 
-  // Create interactions manager using modules, persistence, and time tracking.
-  var interactionsMngr = InteractionManager(clock, persistence, [
-    OptionsInteractor(options),
-    DialogInteractor(dialog),
-    prompts.interactor()
-  ]);
-
-  // Create user interface objects using interactions manager.
-  var optionsUi = OptionsUi(options, interactionsMngr);
-  var dialogUi = DialogUi(dialog, interactionsMngr);
+  var modules = {
+    Options: options,
+    Dialog: dialog
+  };
+  var events = Rx.merge([options.events, dialog.events]).asBroadcastStream();
 
   // Present the user interface(s) with HTML
-  SimpleHtmlUi.install(querySelector('#example'), optionsUi, dialogUi,
-      prompts.ui(interactionsMngr));
+  SimpleHtmlUi.install(querySelector('#example'), events)
+      .actions
+      .listen((action) {
+        // TODO: intercept and save actions for replay
+        action.run(modules[action.module]);
+  });
 
-  // Finally, start the story using the interaction manager so saved
-  // interactions are replayed.
-  interactionsMngr.run(example);
+  // TODO run so saved actions are replayed
+  example();
 }
 
 void example() async {

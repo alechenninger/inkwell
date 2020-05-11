@@ -3,8 +3,9 @@
 
 import 'dart:async';
 import 'dart:collection';
-import 'dart:html';
+import 'dart:html' hide Event;
 
+import 'package:august/src/events.dart'; // TODO: should expose this outside src
 import 'package:august/dialog.dart';
 import 'package:august/input.dart';
 import 'package:august/options.dart';
@@ -18,8 +19,8 @@ class SimpleHtmlUi {
 
   final _domQueue = Queue<Function>();
 
-  final _actions = StreamController();
-  Stream<Action> get actions => null;
+  final _actions = StreamController<Action>();
+  Stream<Action> get actions => _actions.stream;
 
   SimpleHtmlUi.install(Element _container, Stream<Event> events) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);

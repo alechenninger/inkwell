@@ -4,8 +4,7 @@ import 'package:quiver/time.dart';
 export 'src/persistence.dart' show Persistence, NoPersistence;
 
 abstract class Action<M> {
-  String get moduleName;
-  String get name => runtimeType.toString();
+  Type get module => M;
   Map<String, dynamic> get parameters;
 
   void run(M module);
@@ -54,7 +53,7 @@ class InteractionManager implements Sink<Action> {
         var saved = _persistence.savedInteractions;
         saved.forEach((interaction) {
           Future.delayed(interaction.offset, () {
-            _runInteraction(interaction);
+//            _runInteraction(interaction);
           });
         });
         ff.fastForward(saved.last.offset);
@@ -65,20 +64,20 @@ class InteractionManager implements Sink<Action> {
   }
 
   void _persistInteraction(Action interaction) {
-    _persistence.saveInteraction(currentOffset, interaction.moduleName,
-        interaction.name, interaction.parameters);
+//    _persistence.saveInteraction(currentOffset, interaction.moduleName,
+//        interaction.name, interaction.parameters);
   }
 
   void _runInteraction(Action interaction) {
-    var interactor = _interactorsByModule[interaction.moduleName];
-
-    if (interactor == null) {
-      throw StateError('No interactor configured for module: '
-          '${interaction.moduleName}. Include one when constructing an'
-          'InteractionManager for this module.');
-    }
-
-    interactor.run(interaction.name, interaction.parameters);
+//    var interactor = _interactorsByModule[interaction.moduleName];
+//
+//    if (interactor == null) {
+//      throw StateError('No interactor configured for module: '
+//          '${interaction.moduleName}. Include one when constructing an'
+//          'InteractionManager for this module.');
+//    }
+//
+//    interactor.run(interaction.name, interaction.parameters);
   }
 }
 

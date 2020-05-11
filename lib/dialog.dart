@@ -11,13 +11,15 @@ import 'src/scope.dart';
 import 'src/persistence.dart';
 import 'src/events.dart';
 
-class Dialog {
+class Dialog extends Emitter {
   final _speech = ScopedEmitters<Speech, SpeechKey>();
   final GetScope _default;
   final Story _story;
 
   Dialog(this._story, {GetScope defaultScope = getAlways})
       : _default = defaultScope;
+
+  Stream<Event> get events => _speech.events;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -182,7 +184,7 @@ class Reply extends Emitter {
   }
 }
 
-class ReplyAction implements Action<Dialog> {
+class ReplyAction extends Action<Dialog> {
   final SpeechKey speech;
   final String reply;
 
@@ -205,9 +207,6 @@ class ReplyAction implements Action<Dialog> {
 
     matchedReply.use();
   }
-
-  final moduleName = '$Dialog';
-  final name = '$ReplyAction';
 
   Map<String, dynamic> get parameters => {
         // TODO maybe represent objects by hash instead
