@@ -1,3 +1,5 @@
+import '../input.dart';
+
 import 'package:quiver/time.dart';
 
 import 'dart:async';
@@ -9,40 +11,31 @@ abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
-  List<SavedAction> get savedInteractions;
-  void saveInteraction(Duration offset, String moduleName,
-      String interactionName, Map<String, dynamic> parameters);
+  List<SavedAction> get actions;
+  void saveAction(Duration offset, Object action);
 }
 
 class NoPersistence implements Persistence {
   @override
-  final savedInteractions = const [];
+  List<SavedAction> get actions => [];
 
-  @override
-  void saveInteraction(Duration offset, String moduleName, String name,
-      Map<String, dynamic> parameters) {}
-
-  const NoPersistence();
+  void saveAction(Duration offset, Object action) {
+    print('$offset $action');
+  }
 }
 
 class SavedAction {
   final Duration offset;
-  final String moduleName;
-  final String name;
-  final Map<String, dynamic> parameters;
+  final Object action;
 
-  SavedAction(this.moduleName, this.name, this.parameters, this.offset);
+  SavedAction(this.offset, this.action);
 
   SavedAction.fromJson(Map<String, Object> json)
-      : moduleName = json['moduleName'] as String,
-        name = json['name'] as String,
-        parameters = json['parameters'] as Map<String, dynamic>,
+      : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
   Map<String, Object> toJson() => {
-        'moduleName': moduleName,
-        'name': name,
-        'parameters': parameters,
+        'action': action,
         'offsetMillis': offset.inMilliseconds
       };
 }

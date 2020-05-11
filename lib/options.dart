@@ -1,21 +1,30 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+library august.options;
+
 import 'package:august/src/scoped_object.dart';
+import 'package:built_value/built_value.dart';
+import 'package:built_value/serializer.dart';
 
 import 'august.dart';
 import 'input.dart';
 import 'src/events.dart';
 import 'src/scope.dart';
-import 'src/persistence.dart';
 
-class Options extends Emitter {
+part 'options.g.dart';
+
+@SerializersFor([UseOption])
+final Serializers optionsSerializers = _$optionsSerializers;
+
+class Options extends Module {
+
   final _options = ScopedEmitters<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
-  @override
+  Serializers get serializers => optionsSerializers;
   Stream<Event> get events => _options.events;
 
   Option oneTime(String text, {Scope available, CountScope exclusiveWith}) {
@@ -39,6 +48,9 @@ class Options extends Emitter {
     return option;
   }
 }
+
+@SerializersFor([UseOption])
+final Serializers serializers = _$serializers;
 
 class Option extends Emitter {
   final String text;
@@ -96,25 +108,21 @@ class Option extends Emitter {
       '}';
 }
 
-class UseOption extends Action<Options> {
-  final Map<String, dynamic> parameters;
+abstract class UseOption
+    with Action<Options>
+    implements Built<UseOption, UseOptionBuilder> {
+  static Serializer<UseOption> get serializer => _$useOptionSerializer;
 
-  UseOption(String option) : parameters = {'text': option};
+  String get option;
+
+  factory UseOption(String option) => _$UseOption._(option: option);
+  UseOption._();
 
   void run(Options options) {
-    if (!parameters.containsKey('text')) {
-      throw ArgumentError.value(
-          parameters,
-          'parameters',
-          'Expected json to contain '
-              '"text" field.');
-    }
-
-    var text = parameters['text'];
-    var found = options._options.available[text];
+    var found = options._options.available[option];
 
     if (found == null) {
-      throw StateError('No option found from text "$text".');
+      throw StateError('No option found from text "$option".');
     }
 
     found.use();

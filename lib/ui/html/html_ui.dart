@@ -68,8 +68,11 @@ class SimpleHtmlUi {
           ..children.add(SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
-            ..onClick.listen(
-                (_) => _actions.add(UseReply(reply.speech, reply.markup))));
+            ..onClick.listen((_) => _actions.add(UseReply((b) => b
+              ..reply = reply.markup
+              ..speech = (SpeechKeyBuilder()
+                ..markup = speech.markup
+                ..speaker = speech.speaker)))));
 
         if (repliesElement == null) {
           repliesElement = UListElement()..classes.add('replies');
@@ -79,8 +82,8 @@ class SimpleHtmlUi {
             ..scrollIntoView(ScrollAlignment.BOTTOM));
         } else {
           _beforeNextPaint(() => repliesElement
-              ..children.add(replyElement)
-              ..scrollIntoView(ScrollAlignment.BOTTOM));
+            ..children.add(replyElement)
+            ..scrollIntoView(ScrollAlignment.BOTTOM));
         }
 
         events

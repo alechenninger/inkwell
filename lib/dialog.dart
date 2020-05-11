@@ -2,7 +2,12 @@
 
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+library august.dialog;
+
 import 'package:august/src/scoped_object.dart';
+import 'package:built_value/built_value.dart';
+import 'package:built_value/serializer.dart';
+import 'package:meta/meta.dart';
 
 import 'august.dart';
 import 'input.dart';
@@ -11,7 +16,13 @@ import 'src/scope.dart';
 import 'src/persistence.dart';
 import 'src/events.dart';
 
-class Dialog extends Emitter {
+part 'dialog.g.dart';
+
+@SerializersFor([UseReply, SpeechKey])
+final Serializers dialogSerializers = _$dialogSerializers;
+
+class Dialog extends Module {
+
   final _speech = ScopedEmitters<Speech, SpeechKey>();
   final GetScope _default;
   final Story _story;
@@ -19,6 +30,7 @@ class Dialog extends Emitter {
   Dialog(this._story, {GetScope defaultScope = getAlways})
       : _default = defaultScope;
 
+  Serializers get serializers => dialogSerializers;
   Stream<Event> get events => _speech.events;
 
   // TODO: figure out defaults
@@ -71,22 +83,16 @@ class Voice implements Speaks {
       _dialog.add(markup, speaker: name, target: target, scope: scope);
 }
 
-class SpeechKey {
-  final String markup;
-  final String speaker;
+abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
+  static Serializer<SpeechKey> get serializer => _$speechKeySerializer;
 
-  SpeechKey(this.markup, this.speaker);
+  String get markup;
+  @nullable
+  String get speaker;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SpeechKey &&
-          runtimeType == other.runtimeType &&
-          markup == other.markup &&
-          speaker == other.speaker;
-
-  @override
-  int get hashCode => markup.hashCode ^ speaker.hashCode;
+  factory SpeechKey({@required String markup, String speaker}) =>
+      _$SpeechKey._(markup: markup, speaker: speaker);
+  SpeechKey._();
 }
 
 class Speech extends Emitter {
@@ -111,7 +117,7 @@ class Speech extends Emitter {
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target, this._story)
-      : _key = SpeechKey(_markup, _speaker) {
+      : _key = SpeechKey(speaker: _speaker, markup: _markup) {
     _events.includeEmitter(_replies);
   }
 
@@ -186,35 +192,34 @@ class Reply extends Emitter {
   }
 }
 
-class UseReply extends Action<Dialog> {
-  final SpeechKey speech;
-  final String reply;
+abstract class UseReply
+    with Action<Dialog>
+    implements Built<UseReply, UseReplyBuilder> {
+  static Serializer<UseReply> get serializer => _$useReplySerializer;
 
-  UseReply(this.speech, this.reply);
+  SpeechKey get speech;
+  String get reply;
+
+  factory UseReply([void Function(UseReplyBuilder) updates]) = _$UseReply;
+  UseReply._();
 
   void run(Dialog dialog) {
     var matchedSpeech = dialog._speech.available[speech];
 
     if (matchedSpeech == null) {
       throw StateError('No matching available speech found for reply: '
-          '$parameters');
+          '$speech');
     }
 
     var matchedReply = matchedSpeech._replies.available[reply];
 
     if (matchedReply == null) {
       throw StateError('No matching available replies found for reply: '
-          '$parameters');
+          '$reply');
     }
 
     matchedReply.use();
   }
-
-  Map<String, dynamic> get parameters => {
-        // TODO maybe represent objects by hash instead
-        'speech': {'markup': speech.markup, 'speaker': speech.speaker},
-        'markup': reply
-      };
 }
 
 class ReplyNotAvailableException implements Exception {
@@ -237,7 +242,7 @@ class SpeechUnavailable extends Event {
   final String speaker;
   final String markup;
 
-  SpeechUnavailable.fromSpeech(Speech s): this(s._speaker, s._markup);
+  SpeechUnavailable.fromSpeech(Speech s) : this(s._speaker, s._markup);
 
   SpeechUnavailable(this.speaker, this.markup);
 }

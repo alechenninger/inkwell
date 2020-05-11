@@ -1,13 +1,10 @@
-import 'package:august/august.dart';
-import 'package:rxdart/rxdart.dart';
-import 'dart:math';
+import 'package:built_value/serializer.dart';
 
-import 'input.dart';
 import 'src/events.dart';
 
-//abstract class Module {
-//  Stream<Event> get events;
-//}
+abstract class Module extends Emitter {
+  Serializers get serializers;
+}
 
 //void server() {
 //  Stream<Action<Items>> itemActions; // get from clients

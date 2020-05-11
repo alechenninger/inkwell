@@ -9,6 +9,8 @@ import 'package:august/options.dart';
 import 'package:august/prompts.dart';
 import 'package:august/scenes.dart';
 import 'package:august/ui/html/html_ui.dart';
+import 'package:august/ui/html/html_persistence.dart';
+import 'package:built_value/serializer.dart';
 import 'package:rxdart/rxdart.dart';
 
 // Instantiate modules top level for easy accessibility from script methods
@@ -28,23 +30,53 @@ void main() {
 
   // Boilerplate time tracking
   var clock = Clock();
+  var fastForward = FastForwarder(clock);
 
   // Need a persistence strategy
-  var persistence = NoPersistence();
+  var persistence = HtmlPersistence('example');
 
   var modules = {Options: options, Dialog: dialog};
   var events = Rx.merge([options.events, dialog.events]).asBroadcastStream();
+  var serializers =
+      Serializers.merge([options.serializers, dialog.serializers]);
 
   // Present the user interface(s) with HTML
-  SimpleHtmlUi.install(querySelector('#example'), events)
-      .actions
-      .listen((action) {
-    // TODO: intercept and save actions for replay
+  var ui = SimpleHtmlUi.install(querySelector('#example'), events);
+  var replayedActions = StreamController<Action>(sync: true);
+
+  var actions = Rx.concat([
+    replayedActions.stream,
+    ui.actions.doOnData((action) {
+      var serialized = serializers.serialize(action);
+      persistence.saveAction(fastForward.currentOffset, serialized);
+    })
+  ]);
+
+  actions.listen((action) {
     action.run(modules[action.module]);
   });
 
-  // TODO run so saved actions are replayed
-  example();
+  fastForward.runFastForwardable((ff) {
+    example();
+    var saved = persistence.actions;
+
+    if (saved.isEmpty) {
+      replayedActions.close();
+    } else {
+      for (var i = 0; i < saved.length; i++) {
+        var a = saved[i];
+        Future.delayed(a.offset, () {
+          var action = serializers.deserialize(a.action) as Action;
+          replayedActions.add(action);
+          if (i == saved.length - 1) {
+            replayedActions.close();
+          }
+        });
+      }
+
+      ff.fastForward(saved.last.offset);
+    }
+  });
 }
 
 void example() async {

@@ -5,14 +5,13 @@ export 'src/persistence.dart' show Persistence, NoPersistence;
 
 abstract class Action<M> {
   Type get module => M;
-  Map<String, dynamic> get parameters;
 
   void run(M module);
 }
 
 class InteractionManager implements Sink<Action> {
   final _interactorsByModule = <String, Interactor>{};
-  final Persistence _persistence;
+  final Object _persistence;
   final Clock _clock;
 
   FastForwarder _ff;
@@ -47,20 +46,20 @@ class InteractionManager implements Sink<Action> {
 
   // TODO: We need a way to pause running timers, allow UI to pause
   void run(Function script) {
-    if (_persistence.savedInteractions.isNotEmpty) {
-      _ff.runFastForwardable((ff) {
-        script();
-        var saved = _persistence.savedInteractions;
-        saved.forEach((interaction) {
-          Future.delayed(interaction.offset, () {
-//            _runInteraction(interaction);
-          });
-        });
-        ff.fastForward(saved.last.offset);
-      });
-    } else {
-      script();
-    }
+//    if (_persistence.savedInteractions.isNotEmpty) {
+//      _ff.runFastForwardable((ff) {
+//        script();
+//        var saved = _persistence.savedInteractions;
+//        saved.forEach((interaction) {
+//          Future.delayed(interaction.offset, () {
+////            _runInteraction(interaction);
+//          });
+//        });
+//        ff.fastForward(saved.last.offset);
+//      });
+//    } else {
+//      script();
+//    }
   }
 
   void _persistInteraction(Action interaction) {
