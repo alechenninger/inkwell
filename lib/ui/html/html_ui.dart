@@ -10,10 +10,11 @@ import 'package:august/dialog.dart';
 import 'package:august/input.dart';
 import 'package:august/options.dart';
 import 'package:august/prompts.dart';
+import 'package:august/ui.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Quick hacked together UI
-class SimpleHtmlUi {
+class SimpleHtmlUi implements UserInterface {
   final _dialogContainer = DivElement()..classes.add('dialog');
   final _optionsContainer = UListElement()..classes.add('options');
 
@@ -22,9 +23,11 @@ class SimpleHtmlUi {
   final _actions = StreamController<Action>();
   Stream<Action> get actions => _actions.stream;
 
-  SimpleHtmlUi.install(Element _container, Stream<Event> events) {
+  SimpleHtmlUi(Element _container) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
+  }
 
+  void play(Stream<Event> events) {
     events.whereType<SpeechAvailable>().listen((speech) {
       var speechElement = DivElement()..classes.add('speech');
 
