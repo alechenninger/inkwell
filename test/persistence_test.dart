@@ -3,15 +3,13 @@ import 'package:test/test.dart';
 import 'package:august/august.dart';
 
 void main() {
-  Persistence persistence;
+  InMemoryPersistence persistence;
   InteractionManager interactionMngr;
   TestModule testModule;
 
   setUp(() {
     testModule = TestModule();
     persistence = InMemoryPersistence();
-    interactionMngr = InteractionManager(
-        Clock(), persistence, [TestInteractor(testModule)]);
   });
 
   void run(Function script) {
@@ -96,14 +94,13 @@ void main() {
   });
 }
 
-class InMemoryPersistence implements Persistence {
+class InMemoryPersistence {
   List _saved = [];
   List<SavedAction> get savedInteractions => List.from(_saved);
 
-  @override
   void saveInteraction(Duration offset, String moduleName, String name,
       Map<String, dynamic> parameters) {
-    _saved.add(SavedAction(moduleName, name, parameters, offset));
+//    _saved.add(SavedAction(moduleName, name, parameters, offset));
   }
 }
 
