@@ -10,19 +10,18 @@ import 'package:built_value/serializer.dart';
 import 'package:quiver/time.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'input.dart';
 import 'module.dart';
 import 'src/persistence.dart';
+import 'src/events.dart';
 import 'ui.dart';
 
 export 'dart:async';
 
-export 'input.dart';
+export 'ui.dart';
 export 'module.dart';
 export 'src/observable.dart';
 export 'src/persistence.dart';
 export 'src/scope.dart';
-export 'src/story.dart';
 
 void play(
   void Function() story,
@@ -32,8 +31,8 @@ void play(
 ) {
   var modulesByType = modules.fold<Map<Type, dynamic>>(
       <Type, dynamic>{},
-      (previousValue, element) =>
-          previousValue..[element.runtimeType] = element);
+      (map, module) =>
+          map..[module.runtimeType] = module);
   var fastForwarder = FastForwarder(Clock());
   var events = Rx.merge(modules.map((m) => m.events)).asBroadcastStream();
   events.listen((event) => print('${fastForwarder.currentOffset} $event'));
@@ -57,30 +56,51 @@ void play(
 
   fastForwarder.runFastForwardable((ff) {
     actions.listen((action) {
+      print(action);
       action.run(modulesByType[action.module]);
     });
 
     story();
 
-    var saved = persistence.actions;
+    var savedActions = persistence.actions;
 
-    if (saved.isEmpty) {
+    if (savedActions.isEmpty) {
       replayedActions.close();
     } else {
       // TODO: could publish a "loading" event here so UI can react to all the
       // rapid-fire events accordingly
-      for (var i = 0; i < saved.length; i++) {
-        var a = saved[i];
-        Future.delayed(a.offset, () {
-          var action = serializers.deserialize(a.action) as Action;
+      for (var i = 0; i < savedActions.length; i++) {
+        var saved = savedActions[i];
+        Future.delayed(saved.offset, () {
+          var action = serializers.deserialize(saved.action) as Action;
           replayedActions.add(action);
-          if (i == saved.length - 1) {
+          if (i == savedActions.length - 1) {
             replayedActions.close();
           }
         });
       }
 
-      ff.fastForward(saved.last.offset);
+      ff.fastForward(savedActions.last.offset);
     }
   });
+}
+
+class RemoteUserInterface implements UserInterface {
+  final Serializers _serializers;
+
+  RemoteUserInterface(this._serializers);
+
+  @override
+  // TODO: receive over the wire, deserialize
+  Stream<Action> get actions => throw UnimplementedError();
+
+  @override
+  void play(Stream<Event> events) {
+    // Serialize and send over the wire
+  }
+
+}
+
+Future delay({int seconds}) {
+  return Future.delayed(Duration(seconds: seconds));
 }

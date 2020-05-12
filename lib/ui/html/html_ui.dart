@@ -7,7 +7,6 @@ import 'dart:html' hide Event;
 
 import 'package:august/src/events.dart'; // TODO: should expose this outside src
 import 'package:august/dialog.dart';
-import 'package:august/input.dart';
 import 'package:august/options.dart';
 import 'package:august/prompts.dart';
 import 'package:august/ui.dart';

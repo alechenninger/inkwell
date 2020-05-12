@@ -8,17 +8,14 @@ import 'package:august/dialog.dart';
 import 'package:august/options.dart';
 import 'package:august/prompts.dart';
 import 'package:august/scenes.dart';
-import 'package:august/ui/html/html_ui.dart';
 import 'package:august/ui/html/html_persistence.dart';
-import 'package:built_value/serializer.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:august/ui/html/html_ui.dart';
 
 // Instantiate modules top level for easy accessibility from script methods
-final story = Story();
 final scenes = Scenes();
 final options = Options(
     defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final dialog = Dialog(story,
+final dialog = Dialog(
     defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
 final prompts = Prompts();
 

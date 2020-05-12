@@ -10,10 +10,8 @@ import 'package:built_value/serializer.dart';
 import 'package:meta/meta.dart';
 
 import 'august.dart';
-import 'input.dart';
-import 'src/story.dart';
+import 'ui.dart';
 import 'src/scope.dart';
-import 'src/persistence.dart';
 import 'src/events.dart';
 
 part 'dialog.g.dart';
@@ -25,9 +23,8 @@ class Dialog extends Module {
 
   final _speech = ScopedEmitters<Speech, SpeechKey>();
   final GetScope _default;
-  final Story _story;
 
-  Dialog(this._story, {GetScope defaultScope = getAlways})
+  Dialog({GetScope defaultScope = getAlways})
       : _default = defaultScope;
 
   Serializers get serializers => dialogSerializers;
@@ -55,7 +52,7 @@ class Dialog extends Module {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    var speech = Speech(markup, scope, speaker, target, _story);
+    var speech = Speech(markup, scope, speaker, target);
 
     _speech.add(speech, speech._scope,
         key: speech._key,
@@ -100,7 +97,6 @@ class Speech extends Emitter {
   final Scope _scope;
   final String _speaker;
   final String _target;
-  final Story _story;
   final SpeechKey _key;
 
   final _events = Events();
@@ -116,7 +112,7 @@ class Speech extends Emitter {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target, this._story)
+  Speech(this._markup, this._scope, this._speaker, this._target)
       : _key = SpeechKey(speaker: _speaker, markup: _markup) {
     _events.includeEmitter(_replies);
   }
@@ -124,7 +120,7 @@ class Speech extends Emitter {
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, available, _story);
+    var reply = Reply(this, markup, _replyUses, available);
 
     _replies.add(reply, reply.availability,
         key: reply._markup,
@@ -161,7 +157,7 @@ class Reply extends Emitter {
 
   final CountScope uses;
 
-  final Events<Replied> _onUse;
+  final Events<Replied> _onUse = Events<Replied>();
 
   Stream<Event> get events => onUse;
   Stream<Replied> get onUse => _onUse.stream;
@@ -172,9 +168,8 @@ class Reply extends Emitter {
 
   bool get isAvailable => _available.isEntered;
 
-  Reply(this.speech, this._markup, this.uses, Scope available, Story story)
-      : _onUse = story.newEventStream(),
-        _available = available.and(uses),
+  Reply(this.speech, this._markup, this.uses, Scope available)
+      : _available = available.and(uses),
         _key = ReplyKey(speech._key, _markup);
 
   Future use() async {

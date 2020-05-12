@@ -1,7 +1,7 @@
 import 'package:august/src/scoped_object.dart';
 
 import 'august.dart';
-import 'input.dart';
+import 'ui.dart';
 import 'src/events.dart';
 import 'src/persistence.dart';
 import 'src/scope.dart';

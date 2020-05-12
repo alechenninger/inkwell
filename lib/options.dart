@@ -8,7 +8,7 @@ import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
-import 'input.dart';
+import 'ui.dart';
 import 'src/events.dart';
 import 'src/scope.dart';
 
