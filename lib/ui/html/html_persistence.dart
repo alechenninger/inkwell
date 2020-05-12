@@ -22,9 +22,9 @@ class HtmlPersistence implements Persistence {
           saved.map((o) => SavedAction.fromJson(o as Map<String, Object>)));
     }
 
-//    window.onBeforeUnload.listen((e) {
-//      this._storage[_scriptHandle] = _json.encode(_savedActions);
-//    });
+    window.onBeforeUnload.listen((e) {
+      this._storage[_scriptHandle] = _json.encode(_savedActions);
+    });
   }
 
   void clear() {
@@ -37,6 +37,5 @@ class HtmlPersistence implements Persistence {
   @override
   void saveAction(Duration offset, Object action) {
     _savedActions.add(SavedAction(offset, action));
-    _storage[_scriptHandle] = _json.encode(_savedActions);
   }
 }

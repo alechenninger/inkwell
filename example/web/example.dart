@@ -23,13 +23,60 @@ final dialog = Dialog(story,
 final prompts = Prompts();
 
 void main() {
+  // TODO: How will users know how to do this setup for all modules they want
+  // to use? How will we give feedback when not setup correctly?
+  // Probably worth trimming and refactoring this so setup is very tiny, and
+  // invalid setup fails at compile time.
+
+  // Boilerplate time tracking
+  var clock = Clock();
+  var fastForward = FastForwarder(clock);
+
   // Need a persistence strategy
   var persistence = HtmlPersistence('example');
 
-  // Present the user interface(s) with HTML
-  var ui = SimpleHtmlUi(querySelector('#example'));
+  var modules = {Options: options, Dialog: dialog};
+  var events = Rx.merge([options.events, dialog.events]).asBroadcastStream();
+  var serializers =
+      Serializers.merge([options.serializers, dialog.serializers]);
 
-  play(example, persistence, ui, {options, dialog});
+  // Present the user interface(s) with HTML
+  var ui = SimpleHtmlUi.install(querySelector('#example'), events);
+  var replayedActions = StreamController<Action>(sync: true);
+
+  var actions = Rx.concat([
+    replayedActions.stream,
+    ui.actions.doOnData((action) {
+      var serialized = serializers.serialize(action);
+      persistence.saveAction(fastForward.currentOffset, serialized);
+    })
+  ]);
+
+  actions.listen((action) {
+    action.run(modules[action.module]);
+  });
+
+  fastForward.runFastForwardable((ff) {
+    example();
+    var saved = persistence.actions;
+
+    if (saved.isEmpty) {
+      replayedActions.close();
+    } else {
+      for (var i = 0; i < saved.length; i++) {
+        var a = saved[i];
+        Future.delayed(a.offset, () {
+          var action = serializers.deserialize(a.action) as Action;
+          replayedActions.add(action);
+          if (i == saved.length - 1) {
+            replayedActions.close();
+          }
+        });
+      }
+
+      ff.fastForward(saved.last.offset);
+    }
+  });
 }
 
 void example() async {
