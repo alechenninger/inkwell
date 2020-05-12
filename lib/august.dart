@@ -53,13 +53,13 @@ void play(
     })
   ]);
 
-  actions.listen((action) {
-    action.run(modulesByType[action.module]);
-  });
-
   ui.play(events);
 
   fastForwarder.runFastForwardable((ff) {
+    actions.listen((action) {
+      action.run(modulesByType[action.module]);
+    });
+
     story();
 
     var saved = persistence.actions;
