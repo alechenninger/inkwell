@@ -1,11 +1,10 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'august.dart';
-import 'src/scope.dart';
-
 import 'package:optional/optional.dart';
 import 'package:pedantic/pedantic.dart';
+
+import 'august.dart';
 
 // TODO: Probably rethink this later
 class Scenes {

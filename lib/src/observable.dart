@@ -1,9 +1,9 @@
 // Copyright (c) 2016, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'events.dart';
-
 import 'package:rxdart/rxdart.dart';
+
+import 'event_stream.dart';
 
 export 'dart:async';
 

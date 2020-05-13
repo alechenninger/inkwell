@@ -5,10 +5,9 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:html' hide Event;
 
-import 'package:august/src/events.dart'; // TODO: should expose this outside src
+import 'package:august/august.dart';
 import 'package:august/dialog.dart';
 import 'package:august/options.dart';
-import 'package:august/prompts.dart';
 import 'package:august/ui.dart';
 import 'package:rxdart/rxdart.dart';
 

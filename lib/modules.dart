@@ -1,13 +1,44 @@
 import 'dart:collection';
-import 'dart:math';
 
-import 'package:august/august.dart';
 import 'package:meta/meta.dart';
 
-import 'events.dart';
-import 'scope.dart';
+import 'august.dart';
+import 'src/event_stream.dart';
 
-abstract class Actionable<U extends Event> with Available implements Emitter {
+export 'src/event_stream.dart' show Events;
+
+class StoryElements<O extends StoryElement, K> extends StoryElement {
+  final _available = <K, O>{};
+
+  Map<K, O> get available => UnmodifiableMapView(_available);
+
+  final _events = StreamController<Event>(sync: true);
+
+  Stream<Event> get events => _events.stream;
+
+  void add(O object, Scope available,
+      {@required K key,
+      @required Event Function() onAvailable,
+      @required Event Function() onUnavailable}) {
+    // TODO: why shouldnt availability events just be emitted from the object
+    //   like other events?
+    // TODO: available.putWhile(key, option, available);
+    available.listen(onEnter: (_) {
+      if (_available.containsKey(key)) {
+        throw StateError('Object already available with key "$key"');
+      }
+      _available[key] = object;
+      _events.add(onAvailable());
+    }, onExit: (_) {
+      _available.remove(key);
+      _events.add(onUnavailable());
+    });
+    object.events
+        .listen((e) => _events.add(e), onError: (e) => _events.addError(e));
+  }
+}
+
+abstract class Actionable<U extends Event> with Available implements StoryElement {
   final _events = Events();
 
   Stream<Event> get events => _events.stream;
@@ -39,38 +70,6 @@ abstract class Available {
 
 abstract class Keyed<T> {
   T get key;
-}
-
-// TODO: better name
-class ScopedEmitters<O extends Emitter, K> extends Emitter {
-  final _available = <K, O>{};
-
-  Map<K, O> get available => UnmodifiableMapView(_available);
-
-  final _events = StreamController<Event>(sync: true);
-
-  Stream<Event> get events => _events.stream;
-
-  void add(O object, Scope available,
-      {@required K key,
-      @required Event Function() onAvailable,
-      @required Event Function() onUnavailable}) {
-    // TODO: why shouldnt availability events just be emitted from the object
-    //   like other events?
-    // TODO: available.putWhile(key, option, available);
-    available.listen(onEnter: (_) {
-      if (_available.containsKey(key)) {
-        throw StateError('Object already available with key "$key"');
-      }
-      _available[key] = object;
-      _events.add(onAvailable());
-    }, onExit: (_) {
-      _available.remove(key);
-      _events.add(onUnavailable());
-    });
-    object.events
-        .listen((e) => _events.add(e), onError: (e) => _events.addError(e));
-  }
 }
 
 class Counted<U extends Event> extends Actionable<U> {

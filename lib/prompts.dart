@@ -1,16 +1,18 @@
-import 'package:august/src/scoped_object.dart';
+
+import 'package:built_value/serializer.dart';
 
 import 'august.dart';
-import 'ui.dart';
-import 'src/events.dart';
-import 'src/persistence.dart';
-import 'src/scope.dart';
+import 'modules.dart';
 
-class Prompts extends Emitter {
+class Prompts extends StoryModule {
   final GetScope _defaultScope;
-  final _prompts = ScopedEmitters<Prompt, String>();
+  final _prompts = StoryElements<Prompt, String>();
 
   Prompts({GetScope defaultScope = getAlways}) : _defaultScope = defaultScope;
+
+  @override
+  // TODO: implement serializers
+  Serializers get serializers => throw UnimplementedError();
 
   Stream<Event> get events => _prompts.events;
 
@@ -27,7 +29,7 @@ class Prompts extends Emitter {
   }
 }
 
-class Prompt with Available implements Emitter {
+class Prompt with Available implements StoryElement {
   Prompt(this.text, {CountScope entries, Scope available = always})
       : entries = entries ?? CountScope(1) {
     _available = available.and(this.entries);

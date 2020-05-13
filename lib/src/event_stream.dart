@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'core.dart';
+
 export 'dart:async';
+
+export 'core.dart' show Event;
 
 // TODO consider removing generic type and simply use Event
 class Events<T extends Event> {
@@ -45,7 +49,7 @@ class Events<T extends Event> {
     stream.listen((e) => sink.add(e), onError: (e) => sink.addError(e));
   }
 
-  void includeEmitter(Emitter<T> emitter) {
+  void includeEmitter(StoryElement<T> emitter) {
     includeStream(emitter.events);
   }
 
@@ -64,15 +68,6 @@ class Events<T extends Event> {
   void done() {
     _stream.done();
   }
-}
-
-/// A model of something that has happened, usually named in the past tense e.g.
-/// SomethingHappened.
-abstract class Event {}
-
-// TODO better name
-abstract class Emitter<T extends Event> {
-  Stream<T> get events;
 }
 
 class EventStream<T> extends Stream<T> implements EventSink<T> {

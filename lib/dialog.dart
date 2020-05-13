@@ -4,24 +4,21 @@
 
 library august.dialog;
 
-import 'package:august/src/scoped_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 import 'package:meta/meta.dart';
 
 import 'august.dart';
-import 'ui.dart';
-import 'src/scope.dart';
-import 'src/events.dart';
+import 'modules.dart';
 
 part 'dialog.g.dart';
 
 @SerializersFor([UseReply, SpeechKey])
 final Serializers dialogSerializers = _$dialogSerializers;
 
-class Dialog extends Module {
+class Dialog extends StoryModule {
 
-  final _speech = ScopedEmitters<Speech, SpeechKey>();
+  final _speech = StoryElements<Speech, SpeechKey>();
   final GetScope _default;
 
   Dialog({GetScope defaultScope = getAlways})
@@ -66,7 +63,7 @@ class Dialog extends Module {
 }
 
 abstract class Speaks {
-  Speech say(String markkup, {String target, Scope scope});
+  Speech say(String markup, {String target, Scope scope});
 }
 
 class Voice implements Speaks {
@@ -92,7 +89,7 @@ abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
   SpeechKey._();
 }
 
-class Speech extends Emitter {
+class Speech extends StoryElement {
   final String _markup;
   final Scope _scope;
   final String _speaker;
@@ -102,7 +99,7 @@ class Speech extends Emitter {
   final _events = Events();
   Stream<Event> get events => _events.stream;
 
-  final _replies = ScopedEmitters<Reply, String>();
+  final _replies = StoryElements<Reply, String>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -149,7 +146,7 @@ class ReplyKey {
   int get hashCode => speech.hashCode ^ markup.hashCode;
 }
 
-class Reply extends Emitter {
+class Reply extends StoryElement {
   final Speech speech;
 
   final String _markup;

@@ -3,23 +3,20 @@
 
 library august.options;
 
-import 'package:august/src/scoped_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
-import 'ui.dart';
-import 'src/events.dart';
-import 'src/scope.dart';
+import 'modules.dart';
 
 part 'options.g.dart';
 
 @SerializersFor([UseOption])
 final Serializers optionsSerializers = _$optionsSerializers;
 
-class Options extends Module {
+class Options extends StoryModule {
 
-  final _options = ScopedEmitters<Option, String>();
+  final _options = StoryElements<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
@@ -52,7 +49,7 @@ class Options extends Module {
 @SerializersFor([UseOption])
 final Serializers serializers = _$serializers;
 
-class Option extends Emitter {
+class Option extends StoryElement {
   final String text;
 
   int get maxUses => uses.max;

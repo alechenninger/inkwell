@@ -5,32 +5,31 @@ library august;
 
 import 'dart:async';
 
-import 'package:august/ui.dart';
 import 'package:built_value/serializer.dart';
 import 'package:quiver/time.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'module.dart';
+import 'src/core.dart';
+import 'src/event_stream.dart';
 import 'src/persistence.dart';
-import 'src/events.dart';
 import 'ui.dart';
 
 export 'dart:async';
 
-export 'ui.dart';
-export 'module.dart';
+export 'src/core.dart';
 export 'src/observable.dart';
 export 'src/persistence.dart';
 export 'src/scope.dart';
+export 'ui.dart';
 
 void play(
   void Function() story,
   Persistence persistence,
   UserInterface ui,
-  Set<Module> modules,
+  Set<StoryModule> modules,
 ) {
-  var modulesByType = modules.fold<Map<Type, dynamic>>(
-      <Type, dynamic>{},
+  var modulesByType = modules.fold<Map<Type, StoryModule>>(
+      <Type, StoryModule>{},
       (map, module) =>
           map..[module.runtimeType] = module);
   var fastForwarder = FastForwarder(Clock());
