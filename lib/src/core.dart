@@ -5,7 +5,7 @@ import 'package:built_value/serializer.dart';
 /// user interface.
 abstract class Event {}
 
-/// A reified action taken, that is runnable within some [StoryModule].
+/// A reified action taken that is runnable within some [StoryModule].
 abstract class Action<M extends StoryModule> {
   Type get module => M;
 

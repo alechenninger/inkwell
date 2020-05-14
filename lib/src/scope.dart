@@ -1,6 +1,8 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+import 'package:meta/meta.dart';
+
 import 'event_stream.dart';
 import 'observable.dart';
 
@@ -109,6 +111,12 @@ abstract class Scope<T> {
       // TODO: should be in microtask?
       onEnter(null);
     }
+  }
+
+  Stream<E> toStream<E>(
+      {@required E Function() onEnter, @required E Function() onExit}) {
+    return asObserved.onChange
+        .map((change) => change.newValue ? onEnter() : onExit());
   }
 }
 
@@ -265,8 +273,7 @@ class MutableScope extends Scope {
     _observable.value = next.isEntered;
     // TODO: Consider combining this file with observable in order to keep
     //  .values private
-    _current =
-        next.asObserved.values.listen((val) => _observable.value = val);
+    _current = next.asObserved.values.listen((val) => _observable.value = val);
   }
 
   MutableScope(Scope current)

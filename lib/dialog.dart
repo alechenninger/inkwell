@@ -18,6 +18,7 @@ part 'dialog.g.dart';
   ReplyKey,
   ReplyAvailable,
   ReplyUnavailable,
+  Replied,
   SpeechKey,
   SpeechAvailable,
   SpeechUnavailable
@@ -25,7 +26,7 @@ part 'dialog.g.dart';
 final Serializers dialogSerializers = _$dialogSerializers;
 
 class Dialog extends StoryModule {
-  final _speech = StoryElements<Speech, SpeechKey>();
+  final _speech = ScopedElements<Speech, SpeechKey>();
   final GetScope _default;
 
   Dialog({GetScope defaultScope = getAlways}) : _default = defaultScope;
@@ -57,10 +58,7 @@ class Dialog extends StoryModule {
 
     var speech = Speech(markup, scope, speaker, target);
 
-    _speech.add(speech, speech._scope,
-        key: speech._key,
-        onAvailable: () => SpeechAvailable.fromSpeech(speech),
-        onUnavailable: () => SpeechUnavailable.fromSpeech(speech));
+    _speech.add(speech, speech._scope, key: speech._key);
 
     return speech;
   }
@@ -105,7 +103,7 @@ class Speech extends StoryElement {
   final _events = Events();
   Stream<Event> get events => _events.stream;
 
-  final _replies = StoryElements<Reply, String>();
+  final _replies = ScopedElements<Reply, String>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -117,7 +115,10 @@ class Speech extends StoryElement {
   // 'Displayable' type of some kind?
   Speech(this._markup, this._scope, this._speaker, this._target)
       : _key = SpeechKey(speaker: _speaker, markup: _markup) {
-    _events.includeEmitter(_replies);
+    _events.includeStoryElement(_replies);
+    _events.includeStream(_scope.toStream(
+        onEnter: () => SpeechAvailable.fromSpeech(this),
+        onExit: () => SpeechUnavailable.fromSpeech(this)));
   }
 
   Reply addReply(String markup, {Scope available = const Always()}) {
@@ -125,10 +126,11 @@ class Speech extends StoryElement {
 
     var reply = Reply(this, markup, _replyUses, available);
 
-    _replies.add(reply, reply.availability,
-        key: reply._markup,
-        onAvailable: () => ReplyAvailable(_key, markup),
-        onUnavailable: () => ReplyUnavailable(reply._key));
+    _replies.add(
+      reply,
+      reply.availability,
+      key: reply._markup,
+    );
 
     return reply;
   }
@@ -144,42 +146,21 @@ abstract class ReplyKey implements Built<ReplyKey, ReplyKeyBuilder> {
   ReplyKey._();
 }
 
-class Reply extends StoryElement {
+class Reply extends LimitedUseElement<Reply, Replied> {
   final Speech speech;
 
   final String _markup;
   final ReplyKey _key;
 
-  final CountScope uses;
-
-  final Events<Replied> _onUse = Events<Replied>();
-
-  Stream<Event> get events => onUse;
-  Stream<Replied> get onUse => _onUse.stream;
-
-  final Scope _available;
-
-  Scope get availability => _available;
-
-  bool get isAvailable => _available.isEntered;
-
-  Reply(this.speech, this._markup, this.uses, Scope available)
-      : _available = available.and(uses),
-        _key = ReplyKey(speech._key, _markup);
-
-  Future use() async {
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw ReplyNotAvailableException(this);
-      }
-
-      return Replied(_key);
-    });
-
-    uses.increment();
-
-    return e;
-  }
+  Reply(this.speech, this._markup, CountScope uses, Scope available)
+      : _key = ReplyKey(speech._key, _markup),
+        super(
+            uses: uses,
+            available: available,
+            use: (r) => Replied(r._key),
+            unavailableUse: (r) => ReplyNotAvailableException(r),
+            onAvailable: (r) => ReplyAvailable(r.speech._key, r._markup),
+            onUnavailable: (r) => ReplyUnavailable(r._key));
 }
 
 abstract class UseReply

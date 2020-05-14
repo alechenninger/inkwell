@@ -1,4 +1,3 @@
-
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
@@ -6,7 +5,7 @@ import 'modules.dart';
 
 class Prompts extends StoryModule {
   final GetScope _defaultScope;
-  final _prompts = StoryElements<Prompt, String>();
+  final _prompts = ScopedElements<Prompt, String>();
 
   Prompts({GetScope defaultScope = getAlways}) : _defaultScope = defaultScope;
 
@@ -20,10 +19,7 @@ class Prompts extends StoryModule {
     var prompt = Prompt(text,
         entries: exclusiveWith, available: available ?? _defaultScope());
 
-    _prompts.add(prompt, prompt.availability,
-        key: prompt.text,
-        onAvailable: () => PromptAvailable(text),
-        onUnavailable: () => PromptUnavailable(text));
+    _prompts.add(prompt, prompt.availability, key: prompt.text);
 
     return prompt;
   }
@@ -33,7 +29,10 @@ class Prompt with Available implements StoryElement {
   Prompt(this.text, {CountScope entries, Scope available = always})
       : entries = entries ?? CountScope(1) {
     _available = available.and(this.entries);
-  }
+    _events.includeStream(availability.toStream(
+        onEnter: () => PromptAvailable(text),
+        onExit: () => PromptUnavailable(text)));
+   }
 
   final String text;
 
@@ -42,11 +41,11 @@ class Prompt with Available implements StoryElement {
   Scope _available;
   Scope get availability => _available;
 
-  final _onEntry = Events<PromptEntered>();
-  Stream<Event> get events => _onEntry.stream;
+  final _events = Events();
+  Stream<Event> get events => _events.stream;
 
   Future<PromptEntered> enter(String input) async {
-    var e = await _onEntry.event(() {
+    var e = await _events.event(() {
       if (!isAvailable) {
         throw PromptNotAvailableException(this);
       }

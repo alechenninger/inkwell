@@ -49,7 +49,7 @@ class Events<T extends Event> {
     stream.listen((e) => sink.add(e), onError: (e) => sink.addError(e));
   }
 
-  void includeEmitter(StoryElement<T> emitter) {
+  void includeStoryElement(StoryElement<T> emitter) {
     includeStream(emitter.events);
   }
 

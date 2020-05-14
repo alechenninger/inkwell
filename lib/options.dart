@@ -11,11 +11,11 @@ import 'modules.dart';
 
 part 'options.g.dart';
 
-@SerializersFor([UseOption, OptionAvailable, OptionUnavailable])
+@SerializersFor([UseOption, OptionAvailable, OptionUnavailable, OptionUsed])
 final Serializers optionsSerializers = _$optionsSerializers;
 
 class Options extends StoryModule {
-  final _options = StoryElements<Option, String>();
+  final _options = ScopedElements<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
@@ -36,66 +36,23 @@ class Options extends StoryModule {
         uses: exclusiveWith ?? CountScope(1),
         available: available ?? _default());
 
-    _options.add(option, option.availability,
-        key: option.text,
-        onAvailable: () => OptionAvailable(option.text),
-        onUnavailable: () => OptionUnavailable(option.text));
+    _options.add(option, option.availability, key: option.text);
 
     return option;
   }
 }
 
-@SerializersFor([UseOption])
-final Serializers serializers = _$serializers;
-
-class Option extends StoryElement {
+class Option extends LimitedUseElement<Option, OptionUsed> {
   final String text;
 
-  int get maxUses => uses.max;
-  int get useCount => uses.count;
-
-  Scope _available;
-
-  bool get isAvailable => _available.isEntered;
-
-  /// A scope that is entered whenever this option is available.
-  Scope get availability => _available;
-
-  // TODO: Consider simply Stream<Option>
-  Stream<OptionUsed> get onUse => _onUse.stream;
-
-  final CountScope uses;
-  final _onUse = Events<OptionUsed>();
-
-  Stream<Event> get events => _onUse.stream;
-
   Option._(this.text, {CountScope uses, Scope available = always})
-      : uses = uses ?? CountScope(1) {
-    _available = available.and(this.uses);
-  }
-
-  /// Schedules option to be used at the end of the current event queue.
-  ///
-  /// The return future completes with success when the option is used and all
-  /// listeners receive it. It completes with an error if the option is not
-  /// available to be used.
-  Future<OptionUsed> use() async {
-    // Wait to check isAvailable until option actually about to be used
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw OptionNotAvailableException(this);
-      }
-
-      return OptionUsed(text);
-    });
-
-    // This could be left out of a core implementation, and "uses" could be
-    // implemented as an extension by listening to the use() and a modified
-    // availability scope, as is done here.
-    uses.increment();
-
-    return e;
-  }
+      : super(
+            uses: uses,
+            available: available,
+            use: (o) => OptionUsed(text),
+            unavailableUse: (o) => OptionNotAvailableException(o),
+            onAvailable: (o) => OptionAvailable(o.text),
+            onUnavailable: (o) => OptionUnavailable(o.text));
 
   String toString() => 'Option{'
       "text='$text',"
