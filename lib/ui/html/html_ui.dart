@@ -61,19 +61,13 @@ class SimpleHtmlUi implements UserInterface {
 
       var onReply = events
           .whereType<ReplyAvailable>()
-          .where((r) =>
-              r.speech.speaker == speech.speaker &&
-              r.speech.markup == speech.markup)
+          .where((r) => r.speech == speech.key)
           .listen((reply) {
         var replyElement = LIElement()
           ..children.add(SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
-            ..onClick.listen((_) => _actions.add(UseReply((b) => b
-              ..reply = reply.markup
-              ..speech = (SpeechKeyBuilder()
-                ..markup = speech.markup
-                ..speaker = speech.speaker)))));
+            ..onClick.listen((_) => _actions.add(UseReply(reply.key))));
 
         if (repliesElement == null) {
           repliesElement = UListElement()..classes.add('replies');
@@ -89,9 +83,7 @@ class SimpleHtmlUi implements UserInterface {
 
         events
             .whereType<ReplyUnavailable>()
-            .firstWhere((r) =>
-                r.speech.speaker == speech.speaker &&
-                r.speech.markup == speech.markup)
+            .firstWhere((r) => r.reply == reply.key)
             .then(
                 // TODO consider alternate behavior vs used and removed vs just removed
                 // vs unavailable due to exclusive reply use
@@ -101,7 +93,7 @@ class SimpleHtmlUi implements UserInterface {
       events
           .whereType<SpeechUnavailable>()
           .firstWhere(
-              (s) => s.markup == speech.markup && s.speaker == speech.speaker)
+              (s) => s.key == speech.key)
           .then((_) {
         _beforeNextPaint(speechElement.remove);
         onReply.cancel();

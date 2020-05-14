@@ -69,21 +69,6 @@ abstract class Scope<T> {
   /// exited.
   Stream<T> get onExit;
 
-  // Or return Events?
-  Stream<E> toEvents<E extends Event>({E Function() onEnter, E Function() onExit}) {
-    var events = Events<E>();
-    listen(onEnter: (_) {
-      if (onEnter != null) {
-        events.event(onEnter);
-      }
-    }, onExit: (_) {
-      if (onExit != null) {
-        events.event(onExit);
-      }
-    });
-    return events.stream;
-  }
-
   Observed<bool> get asObserved;
 
 //  Scope<T> where(bool Function() isTrue) {

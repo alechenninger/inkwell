@@ -11,11 +11,10 @@ import 'modules.dart';
 
 part 'options.g.dart';
 
-@SerializersFor([UseOption])
+@SerializersFor([UseOption, OptionAvailable, OptionUnavailable])
 final Serializers optionsSerializers = _$optionsSerializers;
 
 class Options extends StoryModule {
-
   final _options = StoryElements<Option, String>();
   final GetScope _default;
 
@@ -126,22 +125,39 @@ abstract class UseOption
   }
 }
 
-class OptionUsed extends Event {
-  final String option;
+abstract class OptionUsed
+    with Event
+    implements Built<OptionUsed, OptionUsedBuilder> {
+  static Serializer<OptionUsed> get serializer => _$optionUsedSerializer;
 
-  OptionUsed(this.option);
+  String get option;
+
+  factory OptionUsed(String option) => _$OptionUsed._(option: option);
+  OptionUsed._();
 }
 
-class OptionAvailable extends Event {
-  final String option;
+abstract class OptionAvailable
+    with Event
+    implements Built<OptionAvailable, OptionAvailableBuilder> {
+  static Serializer<OptionAvailable> get serializer =>
+      _$optionAvailableSerializer;
 
-  OptionAvailable(this.option);
+  String get option;
+
+  factory OptionAvailable(String option) => _$OptionAvailable._(option: option);
+  OptionAvailable._();
 }
 
-class OptionUnavailable extends Event {
-  final String option;
+abstract class OptionUnavailable
+    with Event
+    implements Built<OptionUnavailable, OptionUnavailableBuilder> {
+  static Serializer<OptionUnavailable> get serializer =>
+      _$optionUnavailableSerializer;
+  String get option;
 
-  OptionUnavailable(this.option);
+  factory OptionUnavailable(String option) =>
+      _$OptionUnavailable._(option: option);
+  OptionUnavailable._();
 }
 
 // Not sure if this should be error or exception

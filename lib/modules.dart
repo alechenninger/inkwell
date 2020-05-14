@@ -38,63 +38,8 @@ class StoryElements<O extends StoryElement, K> extends StoryElement {
   }
 }
 
-abstract class Actionable<U extends Event> with Available implements StoryElement {
-  final _events = Events();
-
-  Stream<Event> get events => _events.stream;
-
-  final U Function() _perform;
-
-  Scope get availability;
-
-  Actionable(this._perform);
-
-  Future<U> perform() {
-    return _events.event(() {
-      if (isNotAvailable) {
-        throw NotAvailableException(this);
-      }
-
-      return _perform();
-    });
-  }
-}
-
-class Used<T> extends Event {}
-
 abstract class Available {
   Scope get availability;
   bool get isAvailable => availability.isEntered;
   bool get isNotAvailable => availability.isNotEntered;
-}
-
-abstract class Keyed<T> {
-  T get key;
-}
-
-class Counted<U extends Event> extends Actionable<U> {
-  final CountScope uses;
-  Scope _availability;
-  Scope get availability => _availability;
-
-  Counted(U Function() use,
-      {CountScope exclusiveWith, Scope available = always})
-      : uses = exclusiveWith ?? CountScope(1),
-        super(use) {
-    _availability = available.and(uses);
-  }
-
-  Future<U> perform() async {
-    var e = await super.perform();
-    uses.increment();
-    return e;
-  }
-}
-
-class NotAvailableException {
-  final unavailable;
-
-  NotAvailableException(this.unavailable);
-
-  String toString() => '$unavailable is not available for use';
 }

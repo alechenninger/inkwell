@@ -11,3 +11,4 @@ mockup.md
 .atom/
 *.swp
 .dart_tool
+*.g.dart

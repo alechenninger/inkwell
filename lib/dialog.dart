@@ -13,16 +13,22 @@ import 'modules.dart';
 
 part 'dialog.g.dart';
 
-@SerializersFor([UseReply, SpeechKey])
+@SerializersFor([
+  UseReply,
+  ReplyKey,
+  ReplyAvailable,
+  ReplyUnavailable,
+  SpeechKey,
+  SpeechAvailable,
+  SpeechUnavailable
+])
 final Serializers dialogSerializers = _$dialogSerializers;
 
 class Dialog extends StoryModule {
-
   final _speech = StoryElements<Speech, SpeechKey>();
   final GetScope _default;
 
-  Dialog({GetScope defaultScope = getAlways})
-      : _default = defaultScope;
+  Dialog({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
   Serializers get serializers => dialogSerializers;
   Stream<Event> get events => _speech.events;
@@ -122,28 +128,20 @@ class Speech extends StoryElement {
     _replies.add(reply, reply.availability,
         key: reply._markup,
         onAvailable: () => ReplyAvailable(_key, markup),
-        onUnavailable: () => ReplyUnavailable(_key, markup));
+        onUnavailable: () => ReplyUnavailable(reply._key));
 
     return reply;
   }
 }
 
-class ReplyKey {
-  final SpeechKey speech;
-  final String markup;
+abstract class ReplyKey implements Built<ReplyKey, ReplyKeyBuilder> {
+  static Serializer<ReplyKey> get serializer => _$replyKeySerializer;
+  SpeechKey get speech;
+  String get markup;
 
-  ReplyKey(this.speech, this.markup);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ReplyKey &&
-          runtimeType == other.runtimeType &&
-          speech == other.speech &&
-          markup == other.markup;
-
-  @override
-  int get hashCode => speech.hashCode ^ markup.hashCode;
+  factory ReplyKey(SpeechKey speech, String markup) =>
+      _$ReplyKey._(speech: speech, markup: markup);
+  ReplyKey._();
 }
 
 class Reply extends StoryElement {
@@ -175,7 +173,7 @@ class Reply extends StoryElement {
         throw ReplyNotAvailableException(this);
       }
 
-      return Replied(this);
+      return Replied(_key);
     });
 
     uses.increment();
@@ -189,18 +187,17 @@ abstract class UseReply
     implements Built<UseReply, UseReplyBuilder> {
   static Serializer<UseReply> get serializer => _$useReplySerializer;
 
-  SpeechKey get speech;
-  String get reply;
+  ReplyKey get reply;
 
-  factory UseReply([void Function(UseReplyBuilder) updates]) = _$UseReply;
+  factory UseReply(ReplyKey key) => _$UseReply._(reply: key);
   UseReply._();
 
   void run(Dialog dialog) {
-    var matchedSpeech = dialog._speech.available[speech];
+    var matchedSpeech = dialog._speech.available[reply.speech];
 
     if (matchedSpeech == null) {
       throw StateError('No matching available speech found for reply: '
-          '$speech');
+          '${reply.speech}');
     }
 
     var matchedReply = matchedSpeech._replies.available[reply];
@@ -220,41 +217,68 @@ class ReplyNotAvailableException implements Exception {
   ReplyNotAvailableException(this.reply);
 }
 
-class SpeechAvailable extends Event {
-  final String speaker;
-  final String markup;
-  final String target;
+abstract class SpeechAvailable
+    with Event
+    implements Built<SpeechAvailable, SpeechAvailableBuilder> {
+  static Serializer<SpeechAvailable> get serializer =>
+      _$speechAvailableSerializer;
+  String get speaker;
+  String get markup;
+  String get target;
+  SpeechKey get key => SpeechKey(markup: markup, speaker: speaker);
 
-  SpeechAvailable.fromSpeech(Speech s) : this(s._speaker, s._markup, s._target);
+  factory SpeechAvailable.fromSpeech(Speech s) =>
+      SpeechAvailable(s._speaker, s._markup, s._target);
 
-  SpeechAvailable(this.speaker, this.markup, this.target);
+  factory SpeechAvailable(String speaker, String markup, String target) =>
+      _$SpeechAvailable._(speaker: speaker, markup: markup, target: target);
+  SpeechAvailable._();
 }
 
-class SpeechUnavailable extends Event {
-  final String speaker;
-  final String markup;
+abstract class SpeechUnavailable
+    with Event
+    implements Built<SpeechUnavailable, SpeechUnavailableBuilder> {
+  static Serializer<SpeechUnavailable> get serializer =>
+      _$speechUnavailableSerializer;
 
-  SpeechUnavailable.fromSpeech(Speech s) : this(s._speaker, s._markup);
+  SpeechKey get key;
 
-  SpeechUnavailable(this.speaker, this.markup);
+  factory SpeechUnavailable.fromSpeech(Speech s) => SpeechUnavailable(s._key);
+  factory SpeechUnavailable(SpeechKey key) => _$SpeechUnavailable._(key: key);
+  SpeechUnavailable._();
 }
 
-class ReplyAvailable extends Event {
-  final SpeechKey speech;
-  final String markup;
+abstract class ReplyAvailable
+    with Event
+    implements Built<ReplyAvailable, ReplyAvailableBuilder> {
+  static Serializer<ReplyAvailable> get serializer =>
+      _$replyAvailableSerializer;
+  SpeechKey get speech;
+  String get markup;
+  ReplyKey get key => ReplyKey(speech, markup);
 
-  ReplyAvailable(this.speech, this.markup);
+  factory ReplyAvailable(SpeechKey speech, String markup) =>
+      _$ReplyAvailable._(speech: speech, markup: markup);
+  ReplyAvailable._();
 }
 
-class ReplyUnavailable extends Event {
-  final SpeechKey speech;
-  final String markup;
+abstract class ReplyUnavailable
+    with Event
+    implements Built<ReplyUnavailable, ReplyUnavailableBuilder> {
+  static Serializer<ReplyUnavailable> get serializer =>
+      _$replyUnavailableSerializer;
 
-  ReplyUnavailable(this.speech, this.markup);
+  ReplyKey get reply;
+
+  factory ReplyUnavailable(ReplyKey key) => _$ReplyUnavailable._(reply: key);
+  ReplyUnavailable._();
 }
 
-class Replied extends Event {
-  final Reply reply;
+abstract class Replied with Event implements Built<Replied, RepliedBuilder> {
+  static Serializer<Replied> get serializer => _$repliedSerializer;
 
-  Replied(this.reply);
+  ReplyKey get reply;
+
+  factory Replied(ReplyKey reply) => _$Replied._(reply: reply);
+  Replied._();
 }
