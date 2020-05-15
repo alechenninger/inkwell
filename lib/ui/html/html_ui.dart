@@ -1,31 +1,38 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'dart:html';
+import 'dart:async';
 import 'dart:collection';
+import 'dart:html' hide Event;
 
-import 'package:august/options.dart';
+import 'package:august/august.dart';
 import 'package:august/dialog.dart';
-import 'package:august/prompts.dart';
+import 'package:august/options.dart';
+import 'package:august/ui.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Quick hacked together UI
-class SimpleHtmlUi {
+class SimpleHtmlUi implements UserInterface {
   final _dialogContainer = DivElement()..classes.add('dialog');
   final _optionsContainer = UListElement()..classes.add('options');
 
   final _domQueue = Queue<Function>();
 
-  SimpleHtmlUi.install(Element _container, OptionsUi options, DialogUi dialog,
-      PromptsUi promptsUi) {
+  final _actions = StreamController<Action>();
+  Stream<Action> get actions => _actions.stream;
+
+  SimpleHtmlUi(Element _container) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
+  }
 
-    // TODO: Add options and dialog already present
-
-    dialog.onAdd.listen((speech) {
+  void play(Stream<Event> events) {
+    events.whereType<SpeechAvailable>().listen((speech) {
       var speechElement = DivElement()..classes.add('speech');
 
       _beforeNextPaint(() {
-        _dialogContainer.children.add(speechElement);
+        _dialogContainer
+          ..children.add(speechElement)
+          ..scrollIntoView(ScrollAlignment.BOTTOM);
       });
 
       speechElement.children.add(DivElement()
@@ -50,43 +57,64 @@ class SimpleHtmlUi {
                   : '${speech.speaker} to...');
       }
 
-      speech.onRemove.listen((_) => _beforeNextPaint(speechElement.remove));
-
       UListElement repliesElement;
 
-      speech.onReplyAvailable.listen((reply) {
+      var onReply = events
+          .whereType<ReplyAvailable>()
+          .where((r) => r.speech == speech.key)
+          .listen((reply) {
         var replyElement = LIElement()
           ..children.add(SpanElement()
             ..classes.addAll(['reply', 'reply-available'])
             ..innerHtml = reply.markup
-            ..onClick.listen((_) => reply.use()));
+            ..onClick.listen((_) => _actions.add(UseReply(reply.key))));
 
         if (repliesElement == null) {
           repliesElement = UListElement()..classes.add('replies');
           repliesElement.children.add(replyElement);
-          _beforeNextPaint(() => speechElement.children.add(repliesElement));
+          _beforeNextPaint(() => speechElement
+            ..children.add(repliesElement)
+            ..scrollIntoView(ScrollAlignment.BOTTOM));
         } else {
-          _beforeNextPaint(() => repliesElement.children.add(replyElement));
+          _beforeNextPaint(() => repliesElement
+            ..children.add(replyElement)
+            ..scrollIntoView(ScrollAlignment.BOTTOM));
         }
 
-        // TODO consider alternate behavior vs used and removed vs just removed
-        // vs unavailable due to exclusive reply use
-        reply.onRemove.listen((_) => _beforeNextPaint(replyElement.remove));
+        events
+            .whereType<ReplyUnavailable>()
+            .firstWhere((r) => r.reply == reply.key)
+            .then(
+                // TODO consider alternate behavior vs used and removed vs just removed
+                // vs unavailable due to exclusive reply use
+                (_) => _beforeNextPaint(replyElement.remove));
+      });
+
+      events
+          .whereType<SpeechUnavailable>()
+          .firstWhere(
+              (s) => s.key == speech.key)
+          .then((_) {
+        _beforeNextPaint(speechElement.remove);
+        onReply.cancel();
       });
     });
 
-    options.onOptionAvailable.listen((o) {
+    events.whereType<OptionAvailable>().listen((option) {
       var optionElement = LIElement()
         ..children.add(SpanElement()
           ..classes.add('option')
-          ..innerHtml = o.text
-          ..onClick.listen((_) => o.use()));
+          ..innerHtml = option.option
+          ..onClick.listen((_) => _actions.add(UseOption(option.option))));
 
       _beforeNextPaint(() {
         _optionsContainer.children.add(optionElement);
       });
 
-      o.onUnavailable.first.then((_) => _beforeNextPaint(optionElement.remove));
+      events
+          .whereType<OptionUnavailable>()
+          .firstWhere((o) => o.option == option.option)
+          .then((_) => _beforeNextPaint(optionElement.remove));
     });
   }
 

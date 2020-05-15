@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'core.dart';
+
 export 'dart:async';
 
-// TODO: should use common supertype of T like `Event` or something like that?
+export 'core.dart' show Event;
+
+// TODO consider removing generic type and simply use Event
 class Events<T extends Event> {
-  final _stream = EventStream<T>();
+  final EventStream<T> _stream = EventStream<T>();
 
   Stream<T> get stream => _stream;
 
@@ -20,9 +24,9 @@ class Events<T extends Event> {
   //   that isn't like regular listening mechanism.
   //   however, adds a way to add logic that fires after the event is added to
   //   the stream, without needing [post] parameter functionality.
-  Future<T> event(T Function() event) {
+  Future<U> event<U extends T>(U Function() event) {
     return Future(() {
-      T theEvent;
+      U theEvent;
       try {
         theEvent = event();
       } catch (e) {
@@ -34,15 +38,31 @@ class Events<T extends Event> {
     });
   }
 
-  Future<T> eventValue(T event) {
+  Future<U> eventValue<U extends T>(U event) {
     return Future(() {
       _stream.add(event);
       return event;
     });
   }
 
+  void addTo(EventSink<T> sink) {
+    stream.listen((e) => sink.add(e), onError: (e) => sink.addError(e));
+  }
+
+  void includeStoryElement(StoryElement<T> emitter) {
+    includeStream(emitter.events);
+  }
+
+  void includeStream(Stream<T> stream) {
+    stream.listen((t) => _stream.add(t), onError: (e) => _stream.addError(e));
+  }
+
+  void includeAll(Iterable<Stream<T>> streams) {
+    streams.forEach(includeStream);
+  }
+
 //  void publishNow(T event) {
-//    _stream._add(event);
+//    _stream.add(event);
 //  }
 
   void done() {
@@ -50,9 +70,7 @@ class Events<T extends Event> {
   }
 }
 
-abstract class Event {}
-
-class EventStream<T> extends Stream<T> {
+class EventStream<T> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
   // may themselves schedule tasks, which should not become before the original
@@ -86,13 +104,15 @@ class EventStream<T> extends Stream<T> {
     _syncListeners.forEach((sub) => sub._add(event));
   }
 
-  void addError(dynamic error) {
+  void addError(Object error, [StackTrace trace]) {
     if (_asyncListeners == null) {
       throw StateError('Cannot add error to done stream');
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
   }
+
+  void close() => done();
 
   void done() {
     // TODO: not sure if done logic around here is right

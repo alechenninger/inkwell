@@ -1,105 +1,106 @@
+import 'package:built_value/serializer.dart';
+
 import 'august.dart';
-import 'input.dart';
-import 'src/persistence.dart';
-import 'src/scope.dart';
-import 'src/events.dart';
+import 'modules.dart';
 
-class Prompts extends Module<PromptsUi> {
-  final _promptsCtrl = StreamController<Prompt>();
+class Prompts extends StoryModule {
+  final GetScope _defaultScope;
+  final _prompts = ScopedElements<Prompt, String>();
 
-  Interactor interactor() {
-    return PromptInteractor();
-  }
+  Prompts({GetScope defaultScope = getAlways}) : _defaultScope = defaultScope;
 
   @override
-  PromptsUi ui(Sink<Interaction> interactionSink) =>
-      PromptsUi(this, interactionSink);
+  // TODO: implement serializers
+  Serializers get serializers => throw UnimplementedError();
 
-  Prompt add(String text) {
-    var p = Prompt(this, text);
-    _promptsCtrl.add(p);
-    return p;
+  Stream<Event> get events => _prompts.events;
+
+  Prompt add(String text, {CountScope exclusiveWith, Scope available}) {
+    var prompt = Prompt(text,
+        entries: exclusiveWith, available: available ?? _defaultScope());
+
+    _prompts.add(prompt, prompt.availability, key: prompt.text);
+
+    return prompt;
   }
 }
 
-class Prompt {
+class Prompt with Available implements StoryElement {
+  Prompt(this.text, {CountScope entries, Scope available = always})
+      : entries = entries ?? CountScope(1) {
+    _available = available.and(this.entries);
+    _events.includeStream(availability.toStream(
+        onEnter: () => PromptAvailable(text),
+        onExit: () => PromptUnavailable(text)));
+   }
+
   final String text;
 
-  final Prompts _prompts;
-  final CountScope _count = CountScope(1);
-  final _entries = Events<EnterPromptEvent>();
+  final CountScope entries;
 
-  Stream<EnterPromptEvent> get entries => _entries.stream;
+  Scope _available;
+  Scope get availability => _available;
 
-  Prompt(this._prompts, this.text);
+  final _events = Events();
+  Stream<Event> get events => _events.stream;
 
-  Future<EnterPromptEvent> enter(String input) async {
-    var e = await _entries.event(() {
-      if (_count.isNotEntered) {
-        throw PromptAlreadyEnteredException(this);
+  Future<PromptEntered> enter(String input) async {
+    var e = await _events.event(() {
+      if (!isAvailable) {
+        throw PromptNotAvailableException(this);
       }
 
-      return EnterPromptEvent(this, input);
+      return PromptEntered(text, input);
     });
 
-    _count.increment();
+    entries.increment();
 
     return e;
   }
 }
 
-class PromptAlreadyEnteredException implements Exception {
+class PromptNotAvailableException implements Exception {
   final Prompt prompt;
 
-  PromptAlreadyEnteredException(this.prompt);
+  PromptNotAvailableException(this.prompt);
 }
 
-class PromptsUi {
-  final Prompts _prompts;
-  final Sink<Interaction> _interactions;
-
-  PromptsUi(this._prompts, this._interactions);
-}
-
-class UIPrompt {
-  final Prompt _prompt;
-  final Sink<Interaction> _interactions;
-
-  UIPrompt(this._prompt, this._interactions);
-
-  String get text => _prompt.text;
-
-  void enter(String input) {
-    _interactions.add(_EnterPrompt(input));
-  }
-}
-
-class _EnterPrompt extends Interaction {
+class EnterPrompt extends Action<Prompts> {
+  final String prompt;
   final String input;
 
-  _EnterPrompt(this.input);
+  EnterPrompt(this.prompt, this.input);
 
   String get moduleName => '$Prompts';
 
-  String get name => '$_EnterPrompt';
+  String get name => '$EnterPrompt';
 
   Map<String, dynamic> get parameters => {'input': input};
+
+  void run(Prompts controller) {
+    var it = controller._prompts.available[prompt];
+    if (it == null) {
+      throw StateError('prompt not available');
+    }
+    it.enter(input);
+  }
 }
 
-class EnterPromptEvent extends Event {
-  final Prompt prompt;
+class PromptEntered extends Event {
+  final String prompt;
   final String input;
 
-  EnterPromptEvent(this.prompt, this.input);
+  PromptEntered(this.prompt, this.input);
 }
 
-class PromptInteractor extends Interactor {
-  @override
-  String get moduleName => 'august.Prompts';
+class PromptAvailable extends Event {
+  final String prompt;
 
-  @override
-  void run(String action, Map<String, dynamic> parameters) {
-    // TODO: implement run
-  }
+  PromptAvailable(this.prompt);
+}
 
+class PromptUnavailable extends Event {
+  final String prompt;
+
+  PromptUnavailable(this.prompt);
 }

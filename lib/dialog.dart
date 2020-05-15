@@ -2,21 +2,37 @@
 
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+library august.dialog;
+
+import 'package:built_value/built_value.dart';
+import 'package:built_value/serializer.dart';
+import 'package:meta/meta.dart';
+
 import 'august.dart';
-import 'input.dart';
-import 'src/story.dart';
-import 'src/scope.dart';
-import 'src/persistence.dart';
-import 'src/events.dart';
+import 'modules.dart';
 
-class Dialog {
-  final _addSpeechCtrl = StreamController<Speech>.broadcast(sync: true);
-  final _speech = <Speech>[];
+part 'dialog.g.dart';
+
+@SerializersFor([
+  UseReply,
+  ReplyKey,
+  ReplyAvailable,
+  ReplyUnavailable,
+  Replied,
+  SpeechKey,
+  SpeechAvailable,
+  SpeechUnavailable
+])
+final Serializers dialogSerializers = _$dialogSerializers;
+
+class Dialog extends StoryModule {
+  final _speech = ScopedElements<Speech, SpeechKey>();
   final GetScope _default;
-  final Story _story;
 
-  Dialog(this._story, {GetScope defaultScope = getAlways})
-      : _default = defaultScope;
+  Dialog({GetScope defaultScope = getAlways}) : _default = defaultScope;
+
+  Serializers get serializers => dialogSerializers;
+  Stream<Event> get events => _speech.events;
 
   // TODO: figure out defaults
   // TODO: markup should probably be a first class thing?
@@ -40,32 +56,18 @@ class Dialog {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    var speech = Speech(markup, scope, speaker, target, _story);
+    var speech = Speech(markup, scope, speaker, target);
 
-    scope.onEnter.listen((_) {
-      _speech.add(speech);
-      _addSpeechCtrl.add(speech);
-    });
-
-    scope.onExit.listen((_) {
-      _speech.remove(speech);
-    });
-
-    if (scope.isEntered) {
-      _speech.add(speech);
-      _addSpeechCtrl.add(speech);
-    }
+    _speech.add(speech, speech._scope, key: speech._key);
 
     return speech;
   }
 
   Voice voice({String name}) => Voice(name, this);
-
-  Stream<Speech> get _onAddSpeech => _addSpeechCtrl.stream;
 }
 
 abstract class Speaks {
-  Speech say(String markkup, {String target, Scope scope});
+  Speech say(String markup, {String target, Scope scope});
 }
 
 class Voice implements Speaks {
@@ -79,15 +81,29 @@ class Voice implements Speaks {
       _dialog.add(markup, speaker: name, target: target, scope: scope);
 }
 
-class Speech {
+abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
+  static Serializer<SpeechKey> get serializer => _$speechKeySerializer;
+
+  String get markup;
+  @nullable
+  String get speaker;
+
+  factory SpeechKey({@required String markup, String speaker}) =>
+      _$SpeechKey._(markup: markup, speaker: speaker);
+  SpeechKey._();
+}
+
+class Speech extends StoryElement {
   final String _markup;
   final Scope _scope;
   final String _speaker;
   final String _target;
-  final Story _story;
+  final SpeechKey _key;
 
-  final _replies = <Reply>[];
-  final _addReplyCtrl = StreamController<Reply>.broadcast(sync: true);
+  final _events = Events();
+  Stream<Event> get events => _events.stream;
+
+  final _replies = ScopedElements<Reply, String>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -97,179 +113,83 @@ class Speech {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target, this._story);
+  Speech(this._markup, this._scope, this._speaker, this._target)
+      : _key = SpeechKey(speaker: _speaker, markup: _markup) {
+    _events.includeStoryElement(_replies);
+    _events.includeStream(_scope.toStream(
+        onEnter: () => SpeechAvailable.fromSpeech(this),
+        onExit: () => SpeechUnavailable.fromSpeech(this)));
+  }
 
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, available, _story);
+    var reply = Reply(this, markup, _replyUses, available);
 
-    reply.availability
-      ..onEnter.listen((_) {
-        _replies.add(reply);
-        _addReplyCtrl.add(reply);
-      })
-      ..onExit.listen((_) {
-        _replies.remove(reply);
-      });
-
-    if (reply.isAvailable) {
-      _replies.add(reply);
-      _addReplyCtrl.add(reply);
-    }
+    _replies.add(
+      reply,
+      reply.availability,
+      key: reply._markup,
+    );
 
     return reply;
   }
-
-  Stream<Speech> get _onRemove => _scope.onExit.map((_) => this);
-
-  Stream<Reply> get _onReplyAvailable => _addReplyCtrl.stream;
 }
 
-class Reply {
+abstract class ReplyKey implements Built<ReplyKey, ReplyKeyBuilder> {
+  static Serializer<ReplyKey> get serializer => _$replyKeySerializer;
+  SpeechKey get speech;
+  String get markup;
+
+  factory ReplyKey(SpeechKey speech, String markup) =>
+      _$ReplyKey._(speech: speech, markup: markup);
+  ReplyKey._();
+}
+
+class Reply extends LimitedUseElement<Reply, Replied> {
   final Speech speech;
 
   final String _markup;
-  final CountScope uses;
+  final ReplyKey _key;
 
-  final Events<UseReplyEvent> _onUse;
-
-  Stream get onUse => _onUse.stream;
-
-  final Scope _available;
-
-  Scope get availability => _available;
-
-  bool get isAvailable => _available.isEntered;
-
-  Reply(this.speech, this._markup, this.uses, Scope available, Story story)
-      : _onUse = story.newEventStream(),
-        _available = available.and(uses);
-
-  Future use() async {
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw ReplyNotAvailableException(this);
-      }
-
-      return UseReplyEvent(this);
-    });
-
-    uses.increment();
-
-    return e;
-  }
+  Reply(this.speech, this._markup, CountScope uses, Scope available)
+      : _key = ReplyKey(speech._key, _markup),
+        super(
+            uses: uses,
+            available: available,
+            use: (r) => Replied(r._key),
+            unavailableUse: (r) => ReplyNotAvailableException(r),
+            onAvailable: (r) => ReplyAvailable(r.speech._key, r._markup),
+            onUnavailable: (r) => ReplyUnavailable(r._key));
 }
 
-class DialogUi {
-  final Dialog _dialog;
-  final Sink<Interaction> _interactions;
+abstract class UseReply
+    with Action<Dialog>
+    implements Built<UseReply, UseReplyBuilder> {
+  static Serializer<UseReply> get serializer => _$useReplySerializer;
 
-  DialogUi(this._dialog, this._interactions);
+  ReplyKey get reply;
 
-  Stream<UiSpeech> get onAdd =>
-      _dialog._onAddSpeech.map((d) => UiSpeech(d, _interactions));
-}
+  factory UseReply(ReplyKey key) => _$UseReply._(reply: key);
+  UseReply._();
 
-class DialogInteractor extends Interactor {
-  static const _moduleName = 'Dialog';
+  void run(Dialog dialog) {
+    var matchedSpeech = dialog._speech.available[reply.speech];
 
-  @override
-  final moduleName = _moduleName;
-  final Dialog _dialog;
-
-  DialogInteractor(this._dialog);
-
-  @override
-  void run(String action, Map<String, dynamic> parameters) {
-    switch (action) {
-      case _UseReplyAction._name:
-        _UseReplyAction.run(parameters, _dialog);
-        break;
-      default:
-        throw UnsupportedError('Unsupported action $action');
-    }
-  }
-}
-
-class UiSpeech {
-  final Speech _speech;
-  final Sink<Interaction> _interactions;
-
-  UiSpeech(this._speech, this._interactions);
-
-  String get markup => _speech._markup;
-
-  String get speaker => _speech._speaker;
-
-  String get target => _speech._target;
-
-  Stream<UiSpeech> get onRemove => _speech._onRemove.map((_) => this);
-
-  Stream<UiReply> get onReplyAvailable =>
-      _speech._onReplyAvailable.map((r) => UiReply(r, _interactions));
-}
-
-class UiReply {
-  final Reply _reply;
-  final Sink<Interaction> _interactions;
-
-  UiReply(this._reply, this._interactions);
-
-  String get markup => _reply._markup;
-
-  Stream<UiReply> get onRemove => _reply.availability.onExit.map((_) => this);
-
-  void use() {
-    _interactions.add(_UseReplyAction(_reply));
-  }
-}
-
-class _UseReplyAction implements Interaction {
-  static const _name = 'UseReply';
-
-  final Reply _reply;
-
-  _UseReplyAction(this._reply);
-
-  static void run(Map<String, dynamic> parameters, Dialog dialog) {
-    var matchingSpeech = dialog._speech
-        .where((s) => s._markup == parameters['speech']['markup']);
-
-    if (matchingSpeech.isEmpty) {
+    if (matchedSpeech == null) {
       throw StateError('No matching available speech found for reply: '
-          '$parameters');
+          '${reply.speech}');
     }
 
-    if (matchingSpeech.length > 1) {
-      throw StateError('Multiple matching available speech found for '
-          'reply: $parameters');
-    }
+    var matchedReply = matchedSpeech._replies.available[reply];
 
-    var matchingReplies = matchingSpeech.first._replies
-        .where((r) => r._markup == parameters['markup']);
-
-    if (matchingReplies.isEmpty) {
+    if (matchedReply == null) {
       throw StateError('No matching available replies found for reply: '
-          '$parameters');
+          '$reply');
     }
 
-    if (matchingReplies.length > 1) {
-      throw StateError('Multiple matching available replies found for '
-          'reply: $parameters');
-    }
-
-    matchingReplies.first.use();
+    matchedReply.use();
   }
-
-  final moduleName = DialogInteractor._moduleName;
-  final name = _name;
-
-  Map<String, dynamic> get parameters => {
-        // TODO maybe represent objects by hash instead
-        'speech': {'markup': _reply.speech._markup},
-        'markup': _reply._markup
-      };
 }
 
 class ReplyNotAvailableException implements Exception {
@@ -278,8 +198,68 @@ class ReplyNotAvailableException implements Exception {
   ReplyNotAvailableException(this.reply);
 }
 
-class UseReplyEvent extends Event {
-  final Reply reply;
+abstract class SpeechAvailable
+    with Event
+    implements Built<SpeechAvailable, SpeechAvailableBuilder> {
+  static Serializer<SpeechAvailable> get serializer =>
+      _$speechAvailableSerializer;
+  String get speaker;
+  String get markup;
+  String get target;
+  SpeechKey get key => SpeechKey(markup: markup, speaker: speaker);
 
-  UseReplyEvent(this.reply);
+  factory SpeechAvailable.fromSpeech(Speech s) =>
+      SpeechAvailable(s._speaker, s._markup, s._target);
+
+  factory SpeechAvailable(String speaker, String markup, String target) =>
+      _$SpeechAvailable._(speaker: speaker, markup: markup, target: target);
+  SpeechAvailable._();
+}
+
+abstract class SpeechUnavailable
+    with Event
+    implements Built<SpeechUnavailable, SpeechUnavailableBuilder> {
+  static Serializer<SpeechUnavailable> get serializer =>
+      _$speechUnavailableSerializer;
+
+  SpeechKey get key;
+
+  factory SpeechUnavailable.fromSpeech(Speech s) => SpeechUnavailable(s._key);
+  factory SpeechUnavailable(SpeechKey key) => _$SpeechUnavailable._(key: key);
+  SpeechUnavailable._();
+}
+
+abstract class ReplyAvailable
+    with Event
+    implements Built<ReplyAvailable, ReplyAvailableBuilder> {
+  static Serializer<ReplyAvailable> get serializer =>
+      _$replyAvailableSerializer;
+  SpeechKey get speech;
+  String get markup;
+  ReplyKey get key => ReplyKey(speech, markup);
+
+  factory ReplyAvailable(SpeechKey speech, String markup) =>
+      _$ReplyAvailable._(speech: speech, markup: markup);
+  ReplyAvailable._();
+}
+
+abstract class ReplyUnavailable
+    with Event
+    implements Built<ReplyUnavailable, ReplyUnavailableBuilder> {
+  static Serializer<ReplyUnavailable> get serializer =>
+      _$replyUnavailableSerializer;
+
+  ReplyKey get reply;
+
+  factory ReplyUnavailable(ReplyKey key) => _$ReplyUnavailable._(reply: key);
+  ReplyUnavailable._();
+}
+
+abstract class Replied with Event implements Built<Replied, RepliedBuilder> {
+  static Serializer<Replied> get serializer => _$repliedSerializer;
+
+  ReplyKey get reply;
+
+  factory Replied(ReplyKey reply) => _$Replied._(reply: reply);
+  Replied._();
 }

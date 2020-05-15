@@ -9,49 +9,31 @@ abstract class Persistence {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
-  List<SavedInteraction> get savedInteractions;
-  void saveInteraction(Duration offset, String moduleName,
-      String interactionName, Map<String, dynamic> parameters);
+  List<SavedAction> get actions;
+  void saveAction(Duration offset, Object action);
 }
 
 class NoPersistence implements Persistence {
   @override
-  final savedInteractions = const [];
+  List<SavedAction> get actions => [];
 
-  @override
-  void saveInteraction(Duration offset, String moduleName, String name,
-      Map<String, dynamic> parameters) {}
-
-  const NoPersistence();
+  void saveAction(Duration offset, Object action) {
+    print('$offset $action');
+  }
 }
 
-abstract class Interaction {
-  String get moduleName;
-  String get name;
-  Map<String, dynamic> get parameters;
-}
-
-class SavedInteraction implements Interaction {
+class SavedAction {
   final Duration offset;
-  @override
-  final String moduleName;
-  @override
-  final String name;
-  @override
-  final Map<String, dynamic> parameters;
+  final Object action;
 
-  SavedInteraction(this.moduleName, this.name, this.parameters, this.offset);
+  SavedAction(this.offset, this.action);
 
-  SavedInteraction.fromJson(Map<String, Object> json)
-      : moduleName = json['moduleName'] as String,
-        name = json['name'] as String,
-        parameters = json['parameters'] as Map<String, dynamic>,
+  SavedAction.fromJson(Map<String, Object> json)
+      : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
   Map<String, Object> toJson() => {
-        'moduleName': moduleName,
-        'name': name,
-        'parameters': parameters,
+        'action': action,
         'offsetMillis': offset.inMilliseconds
       };
 }

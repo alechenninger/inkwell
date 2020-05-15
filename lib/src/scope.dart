@@ -1,6 +1,9 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+import 'package:meta/meta.dart';
+
+import 'event_stream.dart';
 import 'observable.dart';
 
 export 'dart:async';
@@ -105,8 +108,15 @@ abstract class Scope<T> {
     this.onEnter.listen(onEnter);
     this.onExit.listen(onExit);
     if (isEntered && callIfAlreadyEntered) {
+      // TODO: should be in microtask?
       onEnter(null);
     }
+  }
+
+  Stream<E> toStream<E>(
+      {@required E Function() onEnter, @required E Function() onExit}) {
+    return asObserved.onChange
+        .map((change) => change.newValue ? onEnter() : onExit());
   }
 }
 
@@ -248,9 +258,6 @@ class CountScope extends Scope<int> {
   }
 }
 
-typedef GetNewValue<T> = T Function(T currentValue);
-typedef Predicate = bool Function();
-
 /// A scope that forwards another, possibly changing, scope.
 ///
 /// Normally changing a scope would require change references; listeners
@@ -266,8 +273,7 @@ class MutableScope extends Scope {
     _observable.value = next.isEntered;
     // TODO: Consider combining this file with observable in order to keep
     //  .values private
-    _current =
-        next.asObserved.values.listen((val) => _observable.value = val);
+    _current = next.asObserved.values.listen((val) => _observable.value = val);
   }
 
   MutableScope(Scope current)
@@ -282,4 +288,18 @@ class MutableScope extends Scope {
   Stream get onEnter => _observable.onChange.where((c) => c.newValue);
 
   Stream get onExit => _observable.onChange.where((c) => !c.newValue);
+}
+
+extension AddScoped<T> on List<T> {
+  void addWhile(T t, Scope scope) {
+    scope.listen(onEnter: (_) => add(t), onExit: (_) => remove(t));
+  }
+
+  void addScoped(Scope<T> scope) {
+    scope.listen(onEnter: add, onExit: remove);
+  }
+}
+
+extension ToScope on Observed<bool> {
+  Scope get toScope => ScopeFromObserved(this);
 }

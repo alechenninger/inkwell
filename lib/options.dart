@@ -1,20 +1,27 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'august.dart';
-import 'input.dart';
-import 'src/events.dart';
-import 'src/scope.dart';
-import 'src/persistence.dart';
+library august.options;
 
-class Options {
-  final _availableOptCtrl = StreamController<Option>();
-  final _options = <Option>[];
+import 'package:built_value/built_value.dart';
+import 'package:built_value/serializer.dart';
+
+import 'august.dart';
+import 'modules.dart';
+
+part 'options.g.dart';
+
+@SerializersFor([UseOption, OptionAvailable, OptionUnavailable, OptionUsed])
+final Serializers optionsSerializers = _$optionsSerializers;
+
+class Options extends StoryModule {
+  final _options = ScopedElements<Option, String>();
   final GetScope _default;
 
   Options({GetScope defaultScope = getAlways}) : _default = defaultScope;
 
-  Stream<Option> get _onOptionAvailable => _availableOptCtrl.stream;
+  Serializers get serializers => optionsSerializers;
+  Stream<Event> get events => _options.events;
 
   Option oneTime(String text, {Scope available, CountScope exclusiveWith}) {
     return limitedUse(text,
@@ -29,70 +36,23 @@ class Options {
         uses: exclusiveWith ?? CountScope(1),
         available: available ?? _default());
 
-    option
-      ..availability.onEnter.listen((e) {
-        _options.add(option);
-        _availableOptCtrl.add(option);
-      })
-      ..availability.onExit.listen((e) {
-        _options.remove(option);
-      });
-
-    if (option.isAvailable) {
-      _options.add(option);
-      _availableOptCtrl.add(option);
-    }
+    _options.add(option, option.availability, key: option.text);
 
     return option;
   }
 }
 
-class Option {
+class Option extends LimitedUseElement<Option, OptionUsed> {
   final String text;
 
-  int get maxUses => uses.max;
-  int get useCount => uses.count;
-
-  Scope _available;
-
-  bool get isAvailable => _available.isEntered;
-
-  /// A scope that is entered whenever this option is available.
-  Scope get availability => _available;
-
-  // TODO: Consider simply Stream<Option>
-  Stream<UseOptionEvent> get onUse => _onUse.stream;
-
-  final CountScope uses;
-  final _onUse = Events<UseOptionEvent>();
-
   Option._(this.text, {CountScope uses, Scope available = always})
-      : uses = uses ?? CountScope(1) {
-    _available = available.and(this.uses);
-  }
-
-  /// Schedules option to be used at the end of the current event queue.
-  ///
-  /// The return future completes with success when the option is used and all
-  /// listeners receive it. It completes with an error if the option is not
-  /// available to be used.
-  Future<UseOptionEvent> use() async {
-    // Wait to check isAvailable until option actually about to be used
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw OptionNotAvailableException(this);
-      }
-
-      return UseOptionEvent(this);
-    });
-
-    // This could be left out of a core implementation, and "uses" could be
-    // implemented as an extension by listening to the use() and a modified
-    // availability scope, as is done here.
-    uses.increment();
-
-    return e;
-  }
+      : super(
+            uses: uses,
+            available: available,
+            use: (o) => OptionUsed(text),
+            unavailableUse: (o) => OptionNotAvailableException(o),
+            onAvailable: (o) => OptionAvailable(o.text),
+            onUnavailable: (o) => OptionUnavailable(o.text));
 
   String toString() => 'Option{'
       "text='$text',"
@@ -101,87 +61,60 @@ class Option {
       '}';
 }
 
-class OptionsUi {
-  final Options _options;
-  final Sink<Interaction> _interactions;
+abstract class UseOption
+    with Action<Options>
+    implements Built<UseOption, UseOptionBuilder> {
+  static Serializer<UseOption> get serializer => _$useOptionSerializer;
 
-  OptionsUi(this._options, this._interactions);
+  String get option;
 
-  Stream<UiOption> get onOptionAvailable =>
-      _options._onOptionAvailable.map((o) => UiOption(_interactions, o));
-}
+  factory UseOption(String option) => _$UseOption._(option: option);
+  UseOption._();
 
-class UiOption {
-  final Option _option;
-  final Sink<Interaction> _interactions;
-
-  String get text => _option.text;
-
-  UiOption(this._interactions, this._option);
-
-  void use() {
-    _interactions.add(_UseOption(_option));
-  }
-
-  Stream<UiOption> get onUse => _option.onUse.map((e) => this);
-
-  Stream<UiOption> get onUnavailable =>
-      _option.availability.onExit.map((e) => this);
-}
-
-class _UseOption implements Interaction {
-  final String moduleName = '$Options';
-  final String name = '$_UseOption';
-
-  Map<String, dynamic> _params;
-  Map<String, dynamic> get parameters => _params;
-
-  _UseOption(Option option) {
-    _params = {'text': option.text};
-  }
-
-  static void run(Map<String, dynamic> parameters, Options options) {
-    if (!parameters.containsKey('text')) {
-      throw ArgumentError.value(
-          parameters,
-          'parameters',
-          'Expected json to contain '
-              '"text" field.');
-    }
-
-    var text = parameters['text'];
-    var found =
-        options._options.firstWhere((o) => o.text == text, orElse: () => null);
+  void run(Options options) {
+    var found = options._options.available[option];
 
     if (found == null) {
-      throw StateError('No option found from text "$text".');
+      throw StateError('No option found from text "$option".');
     }
 
     found.use();
   }
 }
 
-class OptionsInteractor implements Interactor {
-  final Options _options;
+abstract class OptionUsed
+    with Event
+    implements Built<OptionUsed, OptionUsedBuilder> {
+  static Serializer<OptionUsed> get serializer => _$optionUsedSerializer;
 
-  OptionsInteractor(this._options);
+  String get option;
 
-  void run(String interaction, Map<String, dynamic> parameters) {
-    if (interaction == '$_UseOption') {
-      _UseOption.run(parameters, _options);
-    } else {
-      throw UnsupportedError('Unsupported interaction: $interaction');
-    }
-  }
-
-  @override
-  String get moduleName => '$Options';
+  factory OptionUsed(String option) => _$OptionUsed._(option: option);
+  OptionUsed._();
 }
 
-class UseOptionEvent extends Event {
-  final Option option;
+abstract class OptionAvailable
+    with Event
+    implements Built<OptionAvailable, OptionAvailableBuilder> {
+  static Serializer<OptionAvailable> get serializer =>
+      _$optionAvailableSerializer;
 
-  UseOptionEvent(this.option);
+  String get option;
+
+  factory OptionAvailable(String option) => _$OptionAvailable._(option: option);
+  OptionAvailable._();
+}
+
+abstract class OptionUnavailable
+    with Event
+    implements Built<OptionUnavailable, OptionUnavailableBuilder> {
+  static Serializer<OptionUnavailable> get serializer =>
+      _$optionUnavailableSerializer;
+  String get option;
+
+  factory OptionUnavailable(String option) =>
+      _$OptionUnavailable._(option: option);
+  OptionUnavailable._();
 }
 
 // Not sure if this should be error or exception

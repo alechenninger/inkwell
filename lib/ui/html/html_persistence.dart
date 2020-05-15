@@ -4,11 +4,11 @@
 import 'dart:convert';
 import 'dart:html';
 
-import '../../src/persistence.dart';
+import 'package:august/ui.dart';
 
 class HtmlPersistence implements Persistence {
   final String _scriptHandle;
-  final _savedInteractions = <SavedInteraction>[];
+  final _savedActions = <SavedAction>[];
   Storage _storage;
 
   static const _json = JsonCodec();
@@ -16,29 +16,27 @@ class HtmlPersistence implements Persistence {
   HtmlPersistence(this._scriptHandle, [Storage _storage]) {
     this._storage = _storage ?? window.localStorage;
 
-    if (_storage.containsKey(_scriptHandle)) {
-      var saved =
-          _json.decode(_storage[_scriptHandle]) as List<Map<String, Object>>;
-      _savedInteractions
-          .addAll(saved.map((o) => SavedInteraction.fromJson(o)));
+    if (this._storage.containsKey(_scriptHandle)) {
+      var saved = _json.decode(this._storage[_scriptHandle]) as List<dynamic>;
+      _savedActions.addAll(
+          saved.map((o) => SavedAction.fromJson(o as Map<String, Object>)));
     }
 
-    window.onBeforeUnload.listen((e) {
-      _storage[_scriptHandle] = _json.encode(_savedInteractions);
-    });
+//    window.onBeforeUnload.listen((e) {
+//      this._storage[_scriptHandle] = _json.encode(_savedActions);
+//    });
   }
 
   void clear() {
     _storage.remove(_scriptHandle);
   }
 
-  void saveInteraction(Duration offset, String moduleName,
-      String interactionName, Map<String, dynamic> parameters) {
-    var interaction =
-        SavedInteraction(moduleName, interactionName, parameters, offset);
-    _savedInteractions.add(interaction);
-  }
+  @override
+  List<SavedAction> get actions => List<SavedAction>.from(_savedActions);
 
-  List<SavedInteraction> get savedInteractions =>
-      List<SavedInteraction>.from(_savedInteractions);
+  @override
+  void saveAction(Duration offset, Object action) {
+    _savedActions.add(SavedAction(offset, action));
+    _storage[_scriptHandle] = _json.encode(_savedActions);
+  }
 }
