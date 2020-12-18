@@ -21,7 +21,7 @@ final prompts = Prompts();
 
 void main() {
   // Need a persistence strategy
-  var persistence = HtmlPersistence('example');
+  var persistence = NoPersistence();
 
   // Present the user interface(s) with HTML
   var ui = SimpleHtmlUi(querySelector('#example'));

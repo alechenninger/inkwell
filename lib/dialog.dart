@@ -10,6 +10,7 @@ import 'package:meta/meta.dart';
 
 import 'august.dart';
 import 'modules.dart';
+import 'src/event_stream.dart';
 
 part 'dialog.g.dart';
 
@@ -56,9 +57,13 @@ class Dialog extends StoryModule {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
+    // var micro = SettableScope.notEntered();
+    // scheduleMicrotask(() {
+    //   micro.enter();
+    // });
     var speech = Speech(markup, scope, speaker, target);
 
-    _speech.add(speech, speech._scope, key: speech._key);
+    _speech.add(speech, speech.availability, key: speech._key);
 
     return speech;
   }
@@ -93,15 +98,17 @@ abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
   SpeechKey._();
 }
 
-class Speech extends StoryElement {
+class Speech extends StoryElement with Available {
   final String _markup;
   final Scope _scope;
   final String _speaker;
   final String _target;
   final SpeechKey _key;
 
-  final _events = Events();
-  Stream<Event> get events => _events.stream;
+  final _events = EventStream<Event>();
+  Stream<Event> get events => _events;
+
+  Scope get availability => _scope;
 
   final _replies = ScopedElements<Reply, String>();
 
@@ -116,9 +123,9 @@ class Speech extends StoryElement {
   Speech(this._markup, this._scope, this._speaker, this._target)
       : _key = SpeechKey(speaker: _speaker, markup: _markup) {
     _events.includeStoryElement(_replies);
-    _events.includeStream(_scope.toStream(
+    publishAvailability(_events,
         onEnter: () => SpeechAvailable.fromSpeech(this),
-        onExit: () => SpeechUnavailable.fromSpeech(this)));
+        onExit: () => SpeechUnavailable.fromSpeech(this));
   }
 
   Reply addReply(String markup, {Scope available = const Always()}) {
@@ -203,8 +210,10 @@ abstract class SpeechAvailable
     implements Built<SpeechAvailable, SpeechAvailableBuilder> {
   static Serializer<SpeechAvailable> get serializer =>
       _$speechAvailableSerializer;
+  @nullable
   String get speaker;
   String get markup;
+  @nullable
   String get target;
   SpeechKey get key => SpeechKey(markup: markup, speaker: speaker);
 

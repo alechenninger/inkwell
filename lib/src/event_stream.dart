@@ -54,6 +54,7 @@ class Events<T extends Event> {
   }
 
   void includeStream(Stream<T> stream) {
+    // TODO subscriptions leaked
     stream.listen((t) => _stream.add(t), onError: (e) => _stream.addError(e));
   }
 
@@ -70,12 +71,12 @@ class Events<T extends Event> {
   }
 }
 
-class EventStream<T> extends Stream<T> implements EventSink<T> {
+class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
   // may themselves schedule tasks, which should not become before the original
   // scheduled tasks. Think of this stream itself as the first of the
-  // synchronous "reactions" – the listeners to this shouldn't skip ahead.
+  // synchronous "reactions" – the listeners to this shouldn't skip ahead.
   var _asyncListeners = <_AsyncEventSubscription>[];
   var _syncListeners = <_SyncEventSubscription>[];
 
@@ -110,6 +111,19 @@ class EventStream<T> extends Stream<T> implements EventSink<T> {
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
+  }
+
+  void includeStoryElement(StoryElement<T> emitter) {
+    includeStream(emitter.events);
+  }
+
+  void includeAll(Iterable<Stream<T>> streams) {
+    streams.forEach(includeStream);
+  }
+
+  void includeStream(Stream<T> stream) {
+    // TODO subscriptions leaked
+    stream.listen((t) => add(t), onError: (e) => addError(e));
   }
 
   void close() => done();

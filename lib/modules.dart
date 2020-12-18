@@ -16,9 +16,9 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
 
   Map<K, O> get available => UnmodifiableMapView(_available);
 
-  final _events = StreamController<Event>.broadcast(sync: true);
+  final _events = EventStream<Event>();
 
-  Stream<Event> get events => _events.stream;
+  Stream<Event> get events => _events;
 
   void add(O object, Scope available, {@required K key}) {
     if (available.isEntered) {
@@ -49,6 +49,14 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
 
 abstract class Available {
   Scope get availability;
+
+  void publishAvailability(EventStream events,
+      {@required Event Function() onEnter, @required Event Function() onExit}) {
+    events
+        .includeStream(availability.toStream(onEnter: onEnter, onExit: onExit));
+    if (isAvailable) events.add(onEnter());
+  }
+
   bool get isAvailable => availability.isEntered;
   bool get isNotAvailable => availability.isNotEntered;
 }
@@ -60,16 +68,14 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
 
   Scope _available;
 
-  bool get isAvailable => _available.isEntered;
-
   /// A scope that is entered whenever this option is available.
   Scope get availability => _available;
 
   // TODO: Consider simply Stream<Option>
-  Stream<U> get onUse => _onUse.stream;
+  Stream<U> get onUse => _onUse;
 
   final CountScope uses;
-  final _onUse = Events<U>();
+  final _onUse = EventStream<U>();
 
   Stream<Event> _events;
   Stream<Event> get events => _events;
@@ -92,7 +98,7 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
       _available.toStream(
           onEnter: () => onAvailable(this as E),
           onExit: () => onUnavailable(this as E)),
-      _onUse.stream
+      _onUse
     ]).asBroadcastStream();
   }
 
@@ -101,21 +107,32 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   /// The return future completes with success when the option is used and all
   /// listeners receive it. It completes with an error if the option is not
   /// available to be used.
-  Future<U> use() async {
+  Future<U> use() {
+    var event = _use(this as E);
+    if (isAvailable) {
+      _onUse.add(event);
+      uses.increment();
+    } else {
+      throw _notAvailableException(this as E);
+    }
+    // or just don't return a future at all
+    return _onUse.firstWhere((e) => e == event);
+
+
     // Wait to check isAvailable until option actually about to be used
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw _notAvailableException(this as E);
-      }
-
-      return _use(this as E);
-    });
-
-    // This could be left out of a core implementation, and "uses" could be
-    // implemented as an extension by listening to the use() and a modified
-    // availability scope, as is done here.
-    uses.increment();
-
-    return e;
+    // var e = await _onUse.event(() {
+    //   if (!isAvailable) {
+    //     throw _notAvailableException(this as E);
+    //   }
+    //
+    //   return _use(this as E);
+    // });
+    //
+    // // This could be left out of a core implementation, and "uses" could be
+    // // implemented as an extension by listening to the use() and a modified
+    // // availability scope, as is done here.
+    // uses.increment();
+    //
+    // return e;
   }
 }
