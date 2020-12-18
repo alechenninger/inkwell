@@ -33,12 +33,13 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
     return sub;
   }
 
-  /// Returns an [EventStream] which is a _child_ of this event stream.
+  /// Creates and returns a new [EventStream] which is a _child_ of this event
+  /// stream.
   ///
-  /// The parent stream will include all events from the child. The child is
-  /// otherwise an independent stream which does not include events from the
-  /// parent and has its own type parameter (though it must be covariant with
-  /// the parent type parameter).
+  /// This stream (the parent) will include all events added to the child. The
+  /// child is otherwise an independent stream which does not include events
+  /// from the parent and has its own type parameter (though it must be
+  /// covariant with the parent type parameter).
   EventStream<E> childStream<E extends T>() {
     var child = EventStream<E>();
     includeStream(child);

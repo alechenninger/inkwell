@@ -107,7 +107,7 @@ class Speech extends StoryElement with Available {
 
   Scope get availability => _scope;
 
-  final _replies = ScopedElements<Reply, ReplyKey>();
+  ScopedElements<Reply, ReplyKey> _replies;
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -117,9 +117,12 @@ class Speech extends StoryElement with Available {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._events, this._markup, this._scope, this._speaker, this._target)
-      : _key = SpeechKey(speaker: _speaker, markup: _markup) {
-    _events.includeStoryElement(_replies);
+  Speech(EventStream<Event> events, this._markup, this._scope, this._speaker,
+      this._target)
+      : _key = SpeechKey(speaker: _speaker, markup: _markup),
+        _events = events.childStream() {
+    _replies = ScopedElements<Reply, ReplyKey>(_events.childStream());
+
     publishAvailability(_events,
         onEnter: () => SpeechAvailable.fromSpeech(this),
         onExit: () => SpeechUnavailable.fromSpeech(this));

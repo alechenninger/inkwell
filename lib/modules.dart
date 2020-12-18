@@ -10,6 +10,9 @@ import 'src/event_stream.dart';
 
 export 'src/event_stream.dart' show EventStream;
 
+/// [ScopedElements] assists in the construction of a collection of story
+/// elements synchronized with the elements' availability [Scope], as well as
+/// aggregating all elements' events into a single stream.
 class ScopedElements<O extends StoryElement, K> extends StoryElement {
   final _available = <K, O>{};
 
@@ -24,9 +27,16 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
   // TODO: use type which has all of these things already?
   //   Or is this more flexible because it doesn't require a subtype
   //   relationship?
+  /// Creates and watches an instance created by [newO]. When it is available,
+  /// based on [availability], it is included in [available] collection,
+  /// referencable by the key returned by [keyOf].
+  ///
+  /// [newO] is a function which accepts an [EventStream] and creates an
+  /// instance of [O]. The instance must publish its events to this
+  /// `EventStream`.
   O add(O Function(EventStream<Event>) newO, Scope Function(O) availability,
       K Function(O) keyOf) {
-    var object = newO(_events.childStream());
+    var object = newO(_events);
     var available = availability(object);
     var key = keyOf(object);
 
@@ -55,11 +65,13 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
   }
 }
 
+// TODO: fill this out. maybe?
 abstract class ScopedElement extends StoryElement with Available {}
 
 abstract class Available {
   Scope get availability;
 
+  // TODO: consider moving out into ScopedElement or top-level function
   void publishAvailability(EventStream events,
       {@required Event Function() onEnter, @required Event Function() onExit}) {
     events
@@ -78,12 +90,12 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
 
   Scope _available;
 
-  /// A scope that is entered whenever this option is available.
+  /// A scope that is entered whenever this element is available for use.
   Scope get availability => _available;
 
   final CountScope uses;
 
-  final EventStream<U> _onUse;
+  EventStream<U> _onUse;
   Stream<U> get onUse => _onUse;
 
   final EventStream<Event> _events;
@@ -103,8 +115,8 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   })  : uses = uses ?? CountScope(1),
         _use = use,
         _notAvailableException = unavailableUse,
-        _events = events,
-        _onUse = events.childStream<U>() {
+        _events = events.childStream() {
+    _onUse = _events.childStream<U>();
     _available = available.and(this.uses);
 
     publishAvailability(_events,

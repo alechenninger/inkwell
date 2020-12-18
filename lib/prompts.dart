@@ -28,24 +28,26 @@ class Prompts extends StoryModule {
 }
 
 class Prompt with Available implements StoryElement {
-  Prompt(this._events, this.text,
-      {CountScope entries, Scope available = always})
-      : entries = entries ?? CountScope(1) {
-    _available = available.and(this.entries);
-    _events.includeStream(availability.toStream(
-        onEnter: () => PromptAvailable(text),
-        onExit: () => PromptUnavailable(text)));
-  }
-
   final String text;
 
   final CountScope entries;
 
   Scope _available;
-  Scope get availability => _available;
 
+  Scope get availability => _available;
   final EventStream<Event> _events;
+
   Stream<Event> get events => _events;
+
+  Prompt(EventStream<Event> events, this.text,
+      {CountScope entries, Scope available = always})
+      : entries = entries ?? CountScope(1),
+        _events = events.childStream() {
+    _available = available.and(this.entries);
+    _events.includeStream(availability.toStream(
+        onEnter: () => PromptAvailable(text),
+        onExit: () => PromptUnavailable(text)));
+  }
 
   void enter(String input) {
     if (isNotAvailable) {
