@@ -9,7 +9,7 @@ import 'package:rxdart/rxdart.dart';
 import 'august.dart';
 import 'src/event_stream.dart';
 
-export 'src/event_stream.dart' show Events;
+export 'src/event_stream.dart' show EventStream;
 
 class ScopedElements<O extends StoryElement, K> extends StoryElement {
   final _available = <K, O>{};
