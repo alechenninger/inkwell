@@ -30,11 +30,11 @@ void play(
 ) {
   var modulesByType = modules.fold<Map<Type, StoryModule>>(
       <Type, StoryModule>{},
-      (map, module) =>
-          map..[module.runtimeType] = module);
+      (map, module) => map..[module.runtimeType] = module);
   var fastForwarder = FastForwarder(Clock());
   var events = Rx.merge(modules.map((m) => m.events)).asBroadcastStream();
-  events.listen((event) => print('event: ${fastForwarder.currentOffset} $event'));
+  events
+      .listen((event) => print('event: ${fastForwarder.currentOffset} $event'));
   var serializers = Serializers.merge(modules.map((m) => m.serializers));
 
   var replayedActions = StreamController<Action>(sync: true);
@@ -97,7 +97,6 @@ class RemoteUserInterface implements UserInterface {
   void play(Stream<Event> events) {
     // Serialize and send over the wire
   }
-
 }
 
 Future delay({int seconds}) {

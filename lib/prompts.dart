@@ -28,7 +28,8 @@ class Prompts extends StoryModule {
 }
 
 class Prompt with Available implements StoryElement {
-  Prompt(this._events, this.text, {CountScope entries, Scope available = always})
+  Prompt(this._events, this.text,
+      {CountScope entries, Scope available = always})
       : entries = entries ?? CountScope(1) {
     _available = available.and(this.entries);
     _events.includeStream(availability.toStream(

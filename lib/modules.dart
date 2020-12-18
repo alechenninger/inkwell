@@ -4,7 +4,6 @@ library august.modules;
 import 'dart:collection';
 
 import 'package:meta/meta.dart';
-import 'package:rxdart/rxdart.dart';
 
 import 'august.dart';
 import 'src/event_stream.dart';
@@ -82,11 +81,10 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   /// A scope that is entered whenever this option is available.
   Scope get availability => _available;
 
-  // TODO: Consider simply Stream<Option>
-  Stream<U> get onUse => _onUse;
-
   final CountScope uses;
+
   final EventStream<U> _onUse;
+  Stream<U> get onUse => _onUse;
 
   final EventStream<Event> _events;
   Stream<Event> get events => _events;

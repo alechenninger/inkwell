@@ -92,8 +92,7 @@ class SimpleHtmlUi implements UserInterface {
 
       events
           .whereType<SpeechUnavailable>()
-          .firstWhere(
-              (s) => s.key == speech.key)
+          .firstWhere((s) => s.key == speech.key)
           .then((_) {
         _beforeNextPaint(speechElement.remove);
         onReply.cancel();

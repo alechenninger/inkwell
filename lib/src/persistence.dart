@@ -32,10 +32,8 @@ class SavedAction {
       : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
-  Map<String, Object> toJson() => {
-        'action': action,
-        'offsetMillis': offset.inMilliseconds
-      };
+  Map<String, Object> toJson() =>
+      {'action': action, 'offsetMillis': offset.inMilliseconds};
 }
 
 // Adapted from quiver's FakeAsync
