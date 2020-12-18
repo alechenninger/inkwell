@@ -4,23 +4,42 @@ library august.modules;
 import 'dart:collection';
 
 import 'package:meta/meta.dart';
-import 'package:rxdart/rxdart.dart';
 
 import 'august.dart';
 import 'src/event_stream.dart';
 
-export 'src/event_stream.dart' show Events;
+export 'src/event_stream.dart' show EventStream;
 
+/// [ScopedElements] assists in the construction of a collection of story
+/// elements synchronized with the elements' availability [Scope], as well as
+/// aggregating all elements' events into a single stream.
 class ScopedElements<O extends StoryElement, K> extends StoryElement {
   final _available = <K, O>{};
 
   Map<K, O> get available => UnmodifiableMapView(_available);
 
-  final _events = StreamController<Event>.broadcast(sync: true);
+  final EventStream<Event> _events;
+  Stream<Event> get events => _events;
 
-  Stream<Event> get events => _events.stream;
+  ScopedElements([EventStream<Event> events])
+      : _events = events ?? EventStream<Event>();
 
-  void add(O object, Scope available, {@required K key}) {
+  // TODO: use type which has all of these things already?
+  //   Or is this more flexible because it doesn't require a subtype
+  //   relationship?
+  /// Creates and watches an instance created by [newO]. When it is available,
+  /// based on [availability], it is included in [available] collection,
+  /// referencable by the key returned by [keyOf].
+  ///
+  /// [newO] is a function which accepts an [EventStream] and creates an
+  /// instance of [O]. The instance must publish its events to this
+  /// `EventStream`.
+  O add(O Function(EventStream<Event>) newO, Scope Function(O) availability,
+      K Function(O) keyOf) {
+    var object = newO(_events);
+    var available = availability(object);
+    var key = keyOf(object);
+
     if (available.isEntered) {
       _add(key, object);
     }
@@ -35,8 +54,7 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
       }
     });
 
-    object.events.listen((e) => _events.add(e),
-        onError: (e) => _events.addError(e), onDone: () => _events.close());
+    return object;
   }
 
   void _add(K key, O object) {
@@ -47,8 +65,20 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
   }
 }
 
+// TODO: fill this out. maybe?
+abstract class ScopedElement extends StoryElement with Available {}
+
 abstract class Available {
   Scope get availability;
+
+  // TODO: consider moving out into ScopedElement or top-level function
+  void publishAvailability(EventStream events,
+      {@required Event Function() onEnter, @required Event Function() onExit}) {
+    events
+        .includeStream(availability.toStream(onEnter: onEnter, onExit: onExit));
+    if (isAvailable) events.add(onEnter());
+  }
+
   bool get isAvailable => availability.isEntered;
   bool get isNotAvailable => availability.isNotEntered;
 }
@@ -60,18 +90,15 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
 
   Scope _available;
 
-  bool get isAvailable => _available.isEntered;
-
-  /// A scope that is entered whenever this option is available.
+  /// A scope that is entered whenever this element is available for use.
   Scope get availability => _available;
 
-  // TODO: Consider simply Stream<Option>
-  Stream<U> get onUse => _onUse.stream;
-
   final CountScope uses;
-  final _onUse = Events<U>();
 
-  Stream<Event> _events;
+  EventStream<U> _onUse;
+  Stream<U> get onUse => _onUse;
+
+  final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
   final U Function(E) _use;
@@ -80,42 +107,32 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   LimitedUseElement({
     CountScope uses,
     Scope available = always,
+    @required EventStream<Event> events,
     @required U Function(E) use,
     @required Object Function(E) unavailableUse,
     @required Event Function(E) onAvailable,
     @required Event Function(E) onUnavailable,
   })  : uses = uses ?? CountScope(1),
         _use = use,
-        _notAvailableException = unavailableUse {
+        _notAvailableException = unavailableUse,
+        _events = events.childStream() {
+    _onUse = _events.childStream<U>();
     _available = available.and(this.uses);
-    _events = Rx.merge([
-      _available.toStream(
-          onEnter: () => onAvailable(this as E),
-          onExit: () => onUnavailable(this as E)),
-      _onUse.stream
-    ]).asBroadcastStream();
+
+    publishAvailability(_events,
+        onEnter: () => onAvailable(this as E),
+        onExit: () => onUnavailable(this as E));
   }
 
-  /// Schedules option to be used at the end of the current event queue.
+  /// Triggers the on use event for the element.
   ///
-  /// The return future completes with success when the option is used and all
-  /// listeners receive it. It completes with an error if the option is not
-  /// available to be used.
-  Future<U> use() async {
-    // Wait to check isAvailable until option actually about to be used
-    var e = await _onUse.event(() {
-      if (!isAvailable) {
-        throw _notAvailableException(this as E);
-      }
+  /// Throws an exception if the element is not available.
+  void use() {
+    if (!isAvailable) {
+      throw _notAvailableException(this as E);
+    }
 
-      return _use(this as E);
-    });
-
-    // This could be left out of a core implementation, and "uses" could be
-    // implemented as an extension by listening to the use() and a modified
-    // availability scope, as is done here.
+    _onUse.add(_use(this as E));
     uses.increment();
-
-    return e;
   }
 }

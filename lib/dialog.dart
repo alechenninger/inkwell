@@ -10,6 +10,7 @@ import 'package:meta/meta.dart';
 
 import 'august.dart';
 import 'modules.dart';
+import 'src/event_stream.dart';
 
 part 'dialog.g.dart';
 
@@ -56,9 +57,10 @@ class Dialog extends StoryModule {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    var speech = Speech(markup, scope, speaker, target);
-
-    _speech.add(speech, speech._scope, key: speech._key);
+    var speech = _speech.add(
+        (events) => Speech(events, markup, scope, speaker, target),
+        (s) => s.availability,
+        (s) => s._key);
 
     return speech;
   }
@@ -93,17 +95,19 @@ abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
   SpeechKey._();
 }
 
-class Speech extends StoryElement {
+class Speech extends StoryElement with Available {
   final String _markup;
   final Scope _scope;
   final String _speaker;
   final String _target;
   final SpeechKey _key;
 
-  final _events = Events();
-  Stream<Event> get events => _events.stream;
+  final EventStream<Event> _events;
+  Stream<Event> get events => _events;
 
-  final _replies = ScopedElements<Reply, String>();
+  Scope get availability => _scope;
+
+  ScopedElements<Reply, ReplyKey> _replies;
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -113,23 +117,24 @@ class Speech extends StoryElement {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target)
-      : _key = SpeechKey(speaker: _speaker, markup: _markup) {
-    _events.includeStoryElement(_replies);
-    _events.includeStream(_scope.toStream(
+  Speech(EventStream<Event> events, this._markup, this._scope, this._speaker,
+      this._target)
+      : _key = SpeechKey(speaker: _speaker, markup: _markup),
+        _events = events.childStream() {
+    _replies = ScopedElements<Reply, ReplyKey>(_events.childStream());
+
+    publishAvailability(_events,
         onEnter: () => SpeechAvailable.fromSpeech(this),
-        onExit: () => SpeechUnavailable.fromSpeech(this)));
+        onExit: () => SpeechUnavailable.fromSpeech(this));
   }
 
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, available);
-
-    _replies.add(
-      reply,
-      reply.availability,
-      key: reply._markup,
+    var reply = _replies.add(
+      (events) => Reply(events, this, markup, _replyUses, available),
+      (r) => r.availability,
+      (r) => r._key,
     );
 
     return reply;
@@ -152,11 +157,13 @@ class Reply extends LimitedUseElement<Reply, Replied> {
   final String _markup;
   final ReplyKey _key;
 
-  Reply(this.speech, this._markup, CountScope uses, Scope available)
+  Reply(EventStream<Event> events, this.speech, this._markup, CountScope uses,
+      Scope available)
       : _key = ReplyKey(speech._key, _markup),
         super(
             uses: uses,
             available: available,
+            events: events,
             use: (r) => Replied(r._key),
             unavailableUse: (r) => ReplyNotAvailableException(r),
             onAvailable: (r) => ReplyAvailable(r.speech._key, r._markup),
@@ -203,8 +210,10 @@ abstract class SpeechAvailable
     implements Built<SpeechAvailable, SpeechAvailableBuilder> {
   static Serializer<SpeechAvailable> get serializer =>
       _$speechAvailableSerializer;
+  @nullable
   String get speaker;
   String get markup;
+  @nullable
   String get target;
   SpeechKey get key => SpeechKey(markup: markup, speaker: speaker);
 

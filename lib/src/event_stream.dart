@@ -7,82 +7,19 @@ export 'dart:async';
 
 export 'core.dart' show Event;
 
-// TODO consider removing generic type and simply use Event
-class Events<T extends Event> {
-  final EventStream<T> _stream = EventStream<T>();
-
-  Stream<T> get stream => _stream;
-
-  /// Schedules the function to run as the next event in the event loop. At that
-  /// time, listeners will be scheduled in microtasks to receive the [event]
-  /// functions return value.
-  ///
-  /// Listeners to this future, therefore, are fired before listeners of the
-  /// event, because those event listeners are not scheduled until the future
-  /// itself runs. Listeners to this future will be scheduled immediately.
-  // TODO: should this return a future? It creates a way to listen to the event
-  //   that isn't like regular listening mechanism.
-  //   however, adds a way to add logic that fires after the event is added to
-  //   the stream, without needing [post] parameter functionality.
-  Future<U> event<U extends T>(U Function() event) {
-    return Future(() {
-      U theEvent;
-      try {
-        theEvent = event();
-      } catch (e) {
-        _stream.addError(e);
-        rethrow;
-      }
-      _stream.add(theEvent);
-      return theEvent;
-    });
-  }
-
-  Future<U> eventValue<U extends T>(U event) {
-    return Future(() {
-      _stream.add(event);
-      return event;
-    });
-  }
-
-  void addTo(EventSink<T> sink) {
-    stream.listen((e) => sink.add(e), onError: (e) => sink.addError(e));
-  }
-
-  void includeStoryElement(StoryElement<T> emitter) {
-    includeStream(emitter.events);
-  }
-
-  void includeStream(Stream<T> stream) {
-    stream.listen((t) => _stream.add(t), onError: (e) => _stream.addError(e));
-  }
-
-  void includeAll(Iterable<Stream<T>> streams) {
-    streams.forEach(includeStream);
-  }
-
-//  void publishNow(T event) {
-//    _stream.add(event);
-//  }
-
-  void done() {
-    _stream.done();
-  }
-}
-
-class EventStream<T> extends Stream<T> implements EventSink<T> {
+// TODO: do we really care that T extends Event?
+class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
   // may themselves schedule tasks, which should not become before the original
   // scheduled tasks. Think of this stream itself as the first of the
-  // synchronous "reactions" – the listeners to this shouldn't skip ahead.
+  // synchronous "reactions" – the listeners to this shouldn't skip ahead.
   var _asyncListeners = <_AsyncEventSubscription>[];
   var _syncListeners = <_SyncEventSubscription>[];
 
   final bool isBroadcast = true;
 
-  _SynchronousEventStream<T> get asSynchronousStream =>
-      _SynchronousEventStream<T>(this);
+  Stream<T> get asSynchronousStream => _SynchronousEventStream<T>(this);
 
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
@@ -94,6 +31,19 @@ class EventStream<T> extends Stream<T> implements EventSink<T> {
       _asyncListeners.add(sub);
     }
     return sub;
+  }
+
+  /// Creates and returns a new [EventStream] which is a _child_ of this event
+  /// stream.
+  ///
+  /// This stream (the parent) will include all events added to the child. The
+  /// child is otherwise an independent stream which does not include events
+  /// from the parent and has its own type parameter (though it must be
+  /// covariant with the parent type parameter).
+  EventStream<E> childStream<E extends T>() {
+    var child = EventStream<E>();
+    includeStream(child);
+    return child;
   }
 
   void add(T event) {
@@ -110,6 +60,19 @@ class EventStream<T> extends Stream<T> implements EventSink<T> {
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
+  }
+
+  void includeStoryElement(StoryElement<T> emitter) {
+    includeStream(emitter.events);
+  }
+
+  void includeAll(Iterable<Stream<T>> streams) {
+    streams.forEach(includeStream);
+  }
+
+  void includeStream(Stream<T> stream) {
+    // TODO subscriptions leaked
+    stream.listen((t) => add(t), onError: (e) => addError(e));
   }
 
   void close() => done();
@@ -138,9 +101,7 @@ class _SynchronousEventStream<T> extends Stream<T> {
     var sub = _SyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_backing._syncListeners != null) {
-      _backing._syncListeners.add(sub);
-    }
+    _backing._syncListeners?.add(sub);
     return sub;
   }
 }

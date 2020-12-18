@@ -1,3 +1,4 @@
+import 'package:august/src/event_stream.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
@@ -16,46 +17,45 @@ class Prompts extends StoryModule {
   Stream<Event> get events => _prompts.events;
 
   Prompt add(String text, {CountScope exclusiveWith, Scope available}) {
-    var prompt = Prompt(text,
-        entries: exclusiveWith, available: available ?? _defaultScope());
-
-    _prompts.add(prompt, prompt.availability, key: prompt.text);
+    var prompt = _prompts.add(
+        (events) => Prompt(events, text,
+            entries: exclusiveWith, available: available ?? _defaultScope()),
+        (p) => p.availability,
+        (p) => p.text);
 
     return prompt;
   }
 }
 
 class Prompt with Available implements StoryElement {
-  Prompt(this.text, {CountScope entries, Scope available = always})
-      : entries = entries ?? CountScope(1) {
-    _available = available.and(this.entries);
-    _events.includeStream(availability.toStream(
-        onEnter: () => PromptAvailable(text),
-        onExit: () => PromptUnavailable(text)));
-   }
-
   final String text;
 
   final CountScope entries;
 
   Scope _available;
+
   Scope get availability => _available;
+  final EventStream<Event> _events;
 
-  final _events = Events();
-  Stream<Event> get events => _events.stream;
+  Stream<Event> get events => _events;
 
-  Future<PromptEntered> enter(String input) async {
-    var e = await _events.event(() {
-      if (!isAvailable) {
-        throw PromptNotAvailableException(this);
-      }
+  Prompt(EventStream<Event> events, this.text,
+      {CountScope entries, Scope available = always})
+      : entries = entries ?? CountScope(1),
+        _events = events.childStream() {
+    _available = available.and(this.entries);
+    _events.includeStream(availability.toStream(
+        onEnter: () => PromptAvailable(text),
+        onExit: () => PromptUnavailable(text)));
+  }
 
-      return PromptEntered(text, input);
-    });
+  void enter(String input) {
+    if (isNotAvailable) {
+      throw PromptNotAvailableException(this);
+    }
 
+    _events.add(PromptEntered(text, input));
     entries.increment();
-
-    return e;
   }
 }
 

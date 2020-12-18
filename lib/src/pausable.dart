@@ -7,7 +7,7 @@ export 'dart:async' show Zone;
 //   another one that would be useful might be scaling times e.g 1 second is actually 2
 abstract class PausableZone {
   factory PausableZone(Duration Function() parentOffset, {Zone parent}) =
-  _CallbackQueueZone;
+      _CallbackQueueZone;
 
   void pause();
   void resume();
@@ -82,10 +82,10 @@ class _OrderedTimerZone implements PausableZone {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
-          createPeriodicTimer: _pausablePeriodicTimer,
-          createTimer: _pausableTimer,
-          scheduleMicrotask: _pausableMicrotask,
-        ));
+      createPeriodicTimer: _pausablePeriodicTimer,
+      createTimer: _pausableTimer,
+      scheduleMicrotask: _pausableMicrotask,
+    ));
   }
 
   R run<R>(R Function(Controller) action) {
@@ -153,15 +153,15 @@ class _OrderedTimerZone implements PausableZone {
     var timer = _PausableNonPeriodicTimer.forPeriodic(
         this,
         scheduled.sequence,
-            (t, d) => _zone.parent.createTimer(d, () {
-          _running.remove(t._scheduled);
+        (t, d) => _zone.parent.createTimer(d, () {
+              _running.remove(t._scheduled);
 
-          if (periodic.isActive) {
-            periodic.start(runNow: true, until: nextPeriodic);
-          }
+              if (periodic.isActive) {
+                periodic.start(runNow: true, until: nextPeriodic);
+              }
 
-          _resumeUntilNextPeriodic(nextPeriodic: nextPeriodic);
-        }),
+              _resumeUntilNextPeriodic(nextPeriodic: nextPeriodic);
+            }),
         scheduled.nextCall);
 
     return timer;
@@ -172,10 +172,10 @@ class _OrderedTimerZone implements PausableZone {
     var answer = _PausableNonPeriodicTimer(
         this,
         _nextSequence(),
-            (t, d) => parent.createTimer(self, d, () {
-          _running.remove(t._scheduled);
-          f();
-        }),
+        (t, d) => parent.createTimer(self, d, () {
+              _running.remove(t._scheduled);
+              f();
+            }),
         offset + duration);
 
     if (!isPaused && _paused.length == 1) {
@@ -190,7 +190,7 @@ class _OrderedTimerZone implements PausableZone {
     var answer = _PausablePeriodicTimer(
         this,
         _nextSequence(),
-            (f) => parent.createPeriodicTimer(self, duration, (_) => f()),
+        (f) => parent.createPeriodicTimer(self, duration, (_) => f()),
         duration,
         f);
 
@@ -223,11 +223,11 @@ class _Scheduled implements Comparable<_Scheduled> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is _Scheduled &&
-              runtimeType == other.runtimeType &&
-              nextCall == other.nextCall &&
-              sequence == other.sequence &&
-              timer == other.timer;
+      other is _Scheduled &&
+          runtimeType == other.runtimeType &&
+          nextCall == other.nextCall &&
+          sequence == other.sequence &&
+          timer == other.timer;
 
   @override
   int get hashCode => nextCall.hashCode ^ sequence.hashCode ^ timer.hashCode;
@@ -296,11 +296,11 @@ class _PausableNonPeriodicTimer implements _PausableTimer {
   @override
   bool get isActive =>
       !_cancelled &&
-          // TODO: consider tracking done in this class... it would make this easier
-          //   and it is onen of the few places we still have add/remove logic in
-          //   the zone
-          (_zone._running.contains(_scheduled) ||
-              _zone._paused.contains(_scheduled));
+      // TODO: consider tracking done in this class... it would make this easier
+      //   and it is onen of the few places we still have add/remove logic in
+      //   the zone
+      (_zone._running.contains(_scheduled) ||
+          _zone._paused.contains(_scheduled));
 
   @override
   int get tick => _delegate?.tick ?? 0;
@@ -439,10 +439,10 @@ class _CallbackQueueZone implements PausableZone {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
-          createPeriodicTimer: _pausablePeriodicTimer,
-          createTimer: _pausableTimer,
-          scheduleMicrotask: _pausableMicrotask,
-        ));
+      createPeriodicTimer: _pausablePeriodicTimer,
+      createTimer: _pausableTimer,
+      scheduleMicrotask: _pausableMicrotask,
+    ));
   }
 
   void pause() {
@@ -510,9 +510,7 @@ class _CallbackQueueZone implements PausableZone {
 
     if (next.isPeriodic) {
       next.callback(_CallbackTimer(next.sequence, this));
-      if (_isActive(next.sequence)) {
-        _callbacks.add(next.next());
-      }
+      _callbacks.add(next.next());
     } else {
       next.callback();
     }
@@ -540,7 +538,7 @@ class _CallbackQueueZone implements PausableZone {
 
     if (!isPaused) {
       var timer =
-      parent.createPeriodicTimer(self, duration, (_) => _runNextCallback());
+          parent.createPeriodicTimer(self, duration, (_) => _runNextCallback());
       scheduled._timer = timer;
     }
 
@@ -589,10 +587,10 @@ class _ScheduledCallback implements Comparable<_ScheduledCallback> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is _ScheduledCallback &&
-              runtimeType == other.runtimeType &&
-              sequence == other.sequence &&
-              started == other.started;
+      other is _ScheduledCallback &&
+          runtimeType == other.runtimeType &&
+          sequence == other.sequence &&
+          started == other.started;
 
   @override
   int get hashCode => sequence.hashCode ^ started.hashCode;
@@ -624,10 +622,10 @@ class _CallbackTimer implements Timer {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is _CallbackTimer &&
-              runtimeType == other.runtimeType &&
-              _id == other._id &&
-              _zone == other._zone;
+      other is _CallbackTimer &&
+          runtimeType == other.runtimeType &&
+          _id == other._id &&
+          _zone == other._zone;
 
   @override
   int get hashCode => _id.hashCode ^ _zone.hashCode;

@@ -182,7 +182,7 @@ might accidentally.
 
 Is there a downside to this?
 
-Not really. If you need to "see the future" – schedule an event in the future, or listen to a future
+Not really. If you need to "see the future" – schedule an event in the future, or listen to a future
 or stream. Catching errors can help (e.g. in the option.use() case when it is already used. Instead
 of checking for it to be used first, just use it and catch the error. If you want to just know if 
 it was used, schedule an event or listen to onUse). 

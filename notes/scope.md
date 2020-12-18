@@ -1,3 +1,5 @@
+# scope
+
 `Scope` is a simple abstraction for something that has a defined start and end that can be listened 
 to.
 

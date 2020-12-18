@@ -3,12 +3,13 @@ import 'package:august/options.dart';
 import 'package:test/test.dart';
 
 void main() {
-  var options = Options();
+  Options options;
 
   group('An available Option', () {
     Option opt;
 
     setUp(() {
+      options = Options();
       opt = options.oneTime('');
     });
 
@@ -17,13 +18,8 @@ void main() {
     });
 
     group('when used', () {
-      test('is not immediately made unavailable', () {
+      test('is immediately made unavailable', () {
         opt.use();
-        expect(opt.isAvailable, isTrue);
-      });
-
-      test('is unavailable after use future completes', () async {
-        await opt.use();
         expect(opt.isAvailable, isFalse);
       });
 
@@ -31,20 +27,13 @@ void main() {
         var log = [];
         opt.onUse.listen((_) => log.add(opt.isAvailable));
         opt.use();
-        await Future(() {});
+        await Future.microtask(() {});
         expect(log, equals([false]));
       });
 
-      test('future completes before listeners fired', () async {
-        var log = [];
-        opt.onUse.listen((_) => log.add('listener'));
-        await opt.use();
-        expect(log, equals([]));
-      });
-
       test('cannot be used again', () {
-        opt.use().catchError((_) {});
-        expect(opt.use(), throwsA(isA<OptionNotAvailableException>()));
+        opt.use();
+        expect(opt.use, throwsA(isA<OptionNotAvailableException>()));
       });
 
       test('fires use listeners', () {
@@ -60,6 +49,7 @@ void main() {
     SettableScope customScope;
 
     setUp(() {
+      options = Options();
       customScope = SettableScope.notEntered();
       opt = options.oneTime('', available: customScope);
     });

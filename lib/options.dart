@@ -3,6 +3,7 @@
 
 library august.options;
 
+import 'package:august/src/event_stream.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -32,11 +33,12 @@ class Options extends StoryModule {
   /// Creates a new limited use option that can be used while [available] and
   /// has remaining uses determined by [exclusiveWith].
   Option limitedUse(String text, {Scope available, CountScope exclusiveWith}) {
-    var option = Option._(text,
-        uses: exclusiveWith ?? CountScope(1),
-        available: available ?? _default());
-
-    _options.add(option, option.availability, key: option.text);
+    var option = _options.add(
+        (events) => Option._(events, text,
+            uses: exclusiveWith ?? CountScope(1),
+            available: available ?? _default()),
+        (o) => o.availability,
+        (o) => o.text);
 
     return option;
   }
@@ -45,10 +47,12 @@ class Options extends StoryModule {
 class Option extends LimitedUseElement<Option, OptionUsed> {
   final String text;
 
-  Option._(this.text, {CountScope uses, Scope available = always})
+  Option._(EventStream<Event> events, this.text,
+      {CountScope uses, Scope available = always})
       : super(
             uses: uses,
             available: available,
+            events: events,
             use: (o) => OptionUsed(text),
             unavailableUse: (o) => OptionNotAvailableException(o),
             onAvailable: (o) => OptionAvailable(o.text),
