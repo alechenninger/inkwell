@@ -18,7 +18,7 @@ class NoPersistence implements Persistence {
   List<SavedAction> get actions => [];
 
   void saveAction(Duration offset, Object action) {
-    print('$offset $action');
+    print('persist: $offset $action');
   }
 }
 
