@@ -71,6 +71,7 @@ class Events<T extends Event> {
   }
 }
 
+// TODO: do we really care that T extends Event?
 class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
@@ -82,8 +83,7 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
 
   final bool isBroadcast = true;
 
-  _SynchronousEventStream<T> get asSynchronousStream =>
-      _SynchronousEventStream<T>(this);
+  Stream<T> get asSynchronousStream => _SynchronousEventStream<T>(this);
 
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
@@ -95,6 +95,18 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
       _asyncListeners.add(sub);
     }
     return sub;
+  }
+
+  /// Returns an [EventStream] which is a _child_ of this event stream.
+  ///
+  /// The parent stream will include all events from the child. The child is
+  /// otherwise an independent stream which does not include events from the
+  /// parent and has its own type parameter (though it must be covariant with
+  /// the parent type parameter).
+  EventStream<E> childStream<E extends T>() {
+    var child = EventStream<E>();
+    includeStream(child);
+    return child;
   }
 
   void add(T event) {
@@ -152,9 +164,7 @@ class _SynchronousEventStream<T> extends Stream<T> {
     var sub = _SyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_backing._syncListeners != null) {
-      _backing._syncListeners.add(sub);
-    }
+    _backing._syncListeners?.add(sub);
     return sub;
   }
 }

@@ -16,11 +16,21 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
 
   Map<K, O> get available => UnmodifiableMapView(_available);
 
-  final _events = EventStream<Event>();
-
+  final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
-  void add(O object, Scope available, {@required K key}) {
+  ScopedElements([EventStream<Event> events])
+      : _events = events ?? EventStream<Event>();
+
+  // TODO: use type which has all of these things already?
+  //   Or is this more flexible because it doesn't require a subtype
+  //   relationship?
+  O add(O Function(EventStream<Event>) newO, Scope Function(O) availability,
+      K Function(O) keyOf) {
+    var object = newO(_events.childStream());
+    var available = availability(object);
+    var key = keyOf(object);
+
     if (available.isEntered) {
       _add(key, object);
     }
@@ -35,8 +45,7 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
       }
     });
 
-    object.events.listen((e) => _events.add(e),
-        onError: (e) => _events.addError(e), onDone: () => _events.close());
+    return object;
   }
 
   void _add(K key, O object) {
@@ -46,6 +55,8 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
     _available[key] = object;
   }
 }
+
+abstract class ScopedElement extends StoryElement with Available {}
 
 abstract class Available {
   Scope get availability;
@@ -75,9 +86,9 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   Stream<U> get onUse => _onUse;
 
   final CountScope uses;
-  final _onUse = EventStream<U>();
+  final EventStream<U> _onUse;
 
-  Stream<Event> _events;
+  final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
   final U Function(E) _use;
@@ -86,20 +97,22 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   LimitedUseElement({
     CountScope uses,
     Scope available = always,
+    @required EventStream<Event> events,
     @required U Function(E) use,
     @required Object Function(E) unavailableUse,
     @required Event Function(E) onAvailable,
     @required Event Function(E) onUnavailable,
   })  : uses = uses ?? CountScope(1),
         _use = use,
-        _notAvailableException = unavailableUse {
+        _notAvailableException = unavailableUse,
+      _events = events,
+      _onUse = events.childStream<U>()
+  {
     _available = available.and(this.uses);
-    _events = Rx.merge([
-      _available.toStream(
+
+    publishAvailability(_events,
           onEnter: () => onAvailable(this as E),
-          onExit: () => onUnavailable(this as E)),
-      _onUse
-    ]).asBroadcastStream();
+          onExit: () => onUnavailable(this as E));
   }
 
   /// Schedules option to be used at the end of the current event queue.
@@ -117,7 +130,6 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
     }
     // or just don't return a future at all
     return _onUse.firstWhere((e) => e == event);
-
 
     // Wait to check isAvailable until option actually about to be used
     // var e = await _onUse.event(() {

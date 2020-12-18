@@ -57,13 +57,10 @@ class Dialog extends StoryModule {
       {String speaker, String target, Scope<dynamic> scope}) {
     scope = scope ?? _default();
 
-    // var micro = SettableScope.notEntered();
-    // scheduleMicrotask(() {
-    //   micro.enter();
-    // });
-    var speech = Speech(markup, scope, speaker, target);
-
-    _speech.add(speech, speech.availability, key: speech._key);
+    var speech = _speech.add(
+        (events) => Speech(events, markup, scope, speaker, target),
+        (s) => s.availability,
+        (s) => s._key);
 
     return speech;
   }
@@ -105,12 +102,12 @@ class Speech extends StoryElement with Available {
   final String _target;
   final SpeechKey _key;
 
-  final _events = EventStream<Event>();
+  final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
   Scope get availability => _scope;
 
-  final _replies = ScopedElements<Reply, String>();
+  final _replies = ScopedElements<Reply, ReplyKey>();
 
   /// Lazily initialized scope which all replies share, making them mutually
   /// exclusive by default.
@@ -120,7 +117,7 @@ class Speech extends StoryElement with Available {
   // TODO: Support target / speaker of types other than String
   // Imagine thumbnails, for example
   // 'Displayable' type of some kind?
-  Speech(this._markup, this._scope, this._speaker, this._target)
+  Speech(this._events, this._markup, this._scope, this._speaker, this._target)
       : _key = SpeechKey(speaker: _speaker, markup: _markup) {
     _events.includeStoryElement(_replies);
     publishAvailability(_events,
@@ -131,12 +128,10 @@ class Speech extends StoryElement with Available {
   Reply addReply(String markup, {Scope available = const Always()}) {
     _replyUses ??= CountScope(1);
 
-    var reply = Reply(this, markup, _replyUses, available);
-
-    _replies.add(
-      reply,
-      reply.availability,
-      key: reply._markup,
+    var reply = _replies.add(
+      (events) => Reply(events, this, markup, _replyUses, available),
+      (r) => r.availability,
+      (r) => r._key,
     );
 
     return reply;
@@ -159,11 +154,13 @@ class Reply extends LimitedUseElement<Reply, Replied> {
   final String _markup;
   final ReplyKey _key;
 
-  Reply(this.speech, this._markup, CountScope uses, Scope available)
+  Reply(EventStream<Event> events, this.speech, this._markup, CountScope uses,
+      Scope available)
       : _key = ReplyKey(speech._key, _markup),
         super(
             uses: uses,
             available: available,
+            events: events,
             use: (r) => Replied(r._key),
             unavailableUse: (r) => ReplyNotAvailableException(r),
             onAvailable: (r) => ReplyAvailable(r.speech._key, r._markup),

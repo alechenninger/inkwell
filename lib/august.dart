@@ -34,7 +34,7 @@ void play(
           map..[module.runtimeType] = module);
   var fastForwarder = FastForwarder(Clock());
   var events = Rx.merge(modules.map((m) => m.events)).asBroadcastStream();
-  events.listen((event) => print('${fastForwarder.currentOffset} $event'));
+  events.listen((event) => print('event: ${fastForwarder.currentOffset} $event'));
   var serializers = Serializers.merge(modules.map((m) => m.serializers));
 
   var replayedActions = StreamController<Action>(sync: true);
@@ -55,7 +55,7 @@ void play(
 
   fastForwarder.runFastForwardable((ff) {
     actions.listen((action) {
-      print(action);
+      print('action: $action');
       action.run(modulesByType[action.module]);
     });
 

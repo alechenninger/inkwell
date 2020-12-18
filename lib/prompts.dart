@@ -1,3 +1,4 @@
+import 'package:august/src/event_stream.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
@@ -16,23 +17,24 @@ class Prompts extends StoryModule {
   Stream<Event> get events => _prompts.events;
 
   Prompt add(String text, {CountScope exclusiveWith, Scope available}) {
-    var prompt = Prompt(text,
-        entries: exclusiveWith, available: available ?? _defaultScope());
-
-    _prompts.add(prompt, prompt.availability, key: prompt.text);
+    var prompt = _prompts.add(
+        (events) => Prompt(events, text,
+            entries: exclusiveWith, available: available ?? _defaultScope()),
+        (p) => p.availability,
+        (p) => p.text);
 
     return prompt;
   }
 }
 
 class Prompt with Available implements StoryElement {
-  Prompt(this.text, {CountScope entries, Scope available = always})
+  Prompt(this._events, this.text, {CountScope entries, Scope available = always})
       : entries = entries ?? CountScope(1) {
     _available = available.and(this.entries);
     _events.includeStream(availability.toStream(
         onEnter: () => PromptAvailable(text),
         onExit: () => PromptUnavailable(text)));
-   }
+  }
 
   final String text;
 
@@ -41,21 +43,23 @@ class Prompt with Available implements StoryElement {
   Scope _available;
   Scope get availability => _available;
 
-  final _events = Events();
-  Stream<Event> get events => _events.stream;
+  final EventStream<Event> _events;
+  Stream<Event> get events => _events;
 
-  Future<PromptEntered> enter(String input) async {
-    var e = await _events.event(() {
-      if (!isAvailable) {
-        throw PromptNotAvailableException(this);
-      }
+  Future<PromptEntered> enter(String input) {
+    // TODO
 
-      return PromptEntered(text, input);
-    });
-
-    entries.increment();
-
-    return e;
+    // var e = await _events.event(() {
+    //   if (!isAvailable) {
+    //     throw PromptNotAvailableException(this);
+    //   }
+    //
+    //   return PromptEntered(text, input);
+    // });
+    //
+    // entries.increment();
+    //
+    // return e;
   }
 }
 
