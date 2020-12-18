@@ -46,20 +46,13 @@ class Prompt with Available implements StoryElement {
   final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
-  Future<PromptEntered> enter(String input) {
-    // TODO
+  void enter(String input) {
+    if (isNotAvailable) {
+      throw PromptNotAvailableException(this);
+    }
 
-    // var e = await _events.event(() {
-    //   if (!isAvailable) {
-    //     throw PromptNotAvailableException(this);
-    //   }
-    //
-    //   return PromptEntered(text, input);
-    // });
-    //
-    // entries.increment();
-    //
-    // return e;
+    _events.add(PromptEntered(text, input));
+    entries.increment();
   }
 }
 

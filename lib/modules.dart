@@ -105,46 +105,24 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   })  : uses = uses ?? CountScope(1),
         _use = use,
         _notAvailableException = unavailableUse,
-      _events = events,
-      _onUse = events.childStream<U>()
-  {
+        _events = events,
+        _onUse = events.childStream<U>() {
     _available = available.and(this.uses);
 
     publishAvailability(_events,
-          onEnter: () => onAvailable(this as E),
-          onExit: () => onUnavailable(this as E));
+        onEnter: () => onAvailable(this as E),
+        onExit: () => onUnavailable(this as E));
   }
 
-  /// Schedules option to be used at the end of the current event queue.
+  /// Triggers the on use event for the element.
   ///
-  /// The return future completes with success when the option is used and all
-  /// listeners receive it. It completes with an error if the option is not
-  /// available to be used.
-  Future<U> use() {
-    var event = _use(this as E);
-    if (isAvailable) {
-      _onUse.add(event);
-      uses.increment();
-    } else {
+  /// Throws an exception if the element is not available.
+  void use() {
+    if (!isAvailable) {
       throw _notAvailableException(this as E);
     }
-    // or just don't return a future at all
-    return _onUse.firstWhere((e) => e == event);
 
-    // Wait to check isAvailable until option actually about to be used
-    // var e = await _onUse.event(() {
-    //   if (!isAvailable) {
-    //     throw _notAvailableException(this as E);
-    //   }
-    //
-    //   return _use(this as E);
-    // });
-    //
-    // // This could be left out of a core implementation, and "uses" could be
-    // // implemented as an extension by listening to the use() and a modified
-    // // availability scope, as is done here.
-    // uses.increment();
-    //
-    // return e;
+    _onUse.add(_use(this as E));
+    uses.increment();
   }
 }

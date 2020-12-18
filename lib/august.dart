@@ -55,7 +55,7 @@ void play(
 
   fastForwarder.runFastForwardable((ff) {
     actions.listen((action) {
-      print('action: $action');
+      print('action: ${fastForwarder.currentOffset} $action');
       action.run(modulesByType[action.module]);
     });
 
