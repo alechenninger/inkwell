@@ -120,7 +120,9 @@ class StoryTeller {
 
   StoryTeller(this._script, this._saver, this._stopwatch, this._random,
       this._newModuleSet, this._ui) {
-    // TODO: listen to meta actions
+    _ui.metaActions.listen((event) {
+      event.run(this);
+    });
   }
 
   Story start() {

@@ -35,9 +35,7 @@ void main() {
           Random(),
           // TODO: instantiate new
           () => ModuleSet({scenes, options, dialog}),
-          ui)
-      // TODO: Leave up to UI to start
-      .start();
+          ui);
 }
 
 void example(ModuleSet m) async {

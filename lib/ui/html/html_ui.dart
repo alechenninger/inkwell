@@ -15,21 +15,30 @@ import 'package:rxdart/rxdart.dart';
 class SimpleHtmlUi implements UserInterface {
   final _dialogContainer = DivElement()..classes.add('dialog');
   final _optionsContainer = UListElement()..classes.add('options');
+  final _start = ButtonElement()
+    ..id = 'start'
+    ..classes.add('material-icons')
+    ..text = 'play_arrow';
 
   final _domQueue = Queue<Function>();
 
   final _actions = StreamController<Action>();
   Stream<Action> get actions => _actions.stream;
 
+  final _metaActions = StreamController<MetaAction>();
+
   Stream<Event> _events;
 
   SimpleHtmlUi(Element _container) {
-    _container.children.addAll([_optionsContainer, _dialogContainer]);
+    _container.children.addAll([_start, _optionsContainer, _dialogContainer]);
+
+    _start.onClick.listen((event) {
+      _metaActions.add(StartStory());
+    });
   }
 
   @override
-  // TODO: implement metaActions
-  Stream<MetaAction> get metaActions => Stream.empty();
+  Stream<MetaAction> get metaActions => _metaActions.stream;
 
   void play(Stream<Event> events) {
     if (_events != null) {
@@ -89,17 +98,13 @@ class SimpleHtmlUi implements UserInterface {
           0,
           DivElement()
             ..classes.add('speaker')
-            ..innerHtml = speech.target == null
-                ? speech.speaker
-                : '${speech.speaker} to...');
+            ..innerHtml = speech.target == null ? speech.speaker : '${speech.speaker} to...');
     }
 
     UListElement repliesElement;
 
-    var onReply = _events
-        .whereType<ReplyAvailable>()
-        .where((r) => r.speech == speech.key)
-        .listen((reply) {
+    var onReply =
+        _events.whereType<ReplyAvailable>().where((r) => r.speech == speech.key).listen((reply) {
       var replyElement = LIElement()
         ..children.add(SpanElement()
           ..classes.addAll(['reply', 'reply-available'])
@@ -118,19 +123,13 @@ class SimpleHtmlUi implements UserInterface {
           ..scrollIntoView(ScrollAlignment.BOTTOM));
       }
 
-      _events
-          .whereType<ReplyUnavailable>()
-          .firstWhere((r) => r.reply == reply.key)
-          .then(
-              // TODO consider alternate behavior vs used and removed vs just removed
-              // vs unavailable due to exclusive reply use
-              (_) => _beforeNextPaint(replyElement.remove));
+      _events.whereType<ReplyUnavailable>().firstWhere((r) => r.reply == reply.key).then(
+          // TODO consider alternate behavior vs used and removed vs just removed
+          // vs unavailable due to exclusive reply use
+          (_) => _beforeNextPaint(replyElement.remove));
     });
 
-    _events
-        .whereType<SpeechUnavailable>()
-        .firstWhere((s) => s.key == speech.key)
-        .then((_) {
+    _events.whereType<SpeechUnavailable>().firstWhere((s) => s.key == speech.key).then((_) {
       _beforeNextPaint(speechElement.remove);
       onReply.cancel();
     });
