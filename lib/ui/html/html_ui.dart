@@ -21,6 +21,8 @@ class SimpleHtmlUi implements UserInterface {
   final _actions = StreamController<Action>();
   Stream<Action> get actions => _actions.stream;
 
+  Stream<Event> _events;
+
   SimpleHtmlUi(Element _container) {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
   }
@@ -30,97 +32,23 @@ class SimpleHtmlUi implements UserInterface {
   Stream<MetaAction> get metaActions => Stream.empty();
 
   void play(Stream<Event> events) {
-    // TODO: clear container?
+    if (_events != null) {
+      throw StateError('Cannot listen to multiple event streams '
+          'simultaneously. Ensure prior event stream is closed first.');
+    }
 
-    events.whereType<SpeechAvailable>().listen((speech) {
-      var speechElement = DivElement()..classes.add('speech');
+    _events = events;
 
+    events = events.doOnDone(() {
       _beforeNextPaint(() {
-        _dialogContainer
-          ..children.add(speechElement)
-          ..scrollIntoView(ScrollAlignment.BOTTOM);
+        _optionsContainer.children.clear();
+        _dialogContainer.children.clear();
       });
-
-      speechElement.children.add(DivElement()
-        ..classes.add('what')
-        ..innerHtml = '${speech.markup}');
-
-      if (speech.target != null) {
-        speechElement.children.insert(
-            0,
-            DivElement()
-              ..classes.add('target')
-              ..innerHtml = '${speech.target}');
-      }
-
-      if (speech.speaker != null) {
-        speechElement.children.insert(
-            0,
-            DivElement()
-              ..classes.add('speaker')
-              ..innerHtml = speech.target == null
-                  ? speech.speaker
-                  : '${speech.speaker} to...');
-      }
-
-      UListElement repliesElement;
-
-      var onReply = events
-          .whereType<ReplyAvailable>()
-          .where((r) => r.speech == speech.key)
-          .listen((reply) {
-        var replyElement = LIElement()
-          ..children.add(SpanElement()
-            ..classes.addAll(['reply', 'reply-available'])
-            ..innerHtml = reply.markup
-            ..onClick.listen((_) => _actions.add(UseReply(reply.key))));
-
-        if (repliesElement == null) {
-          repliesElement = UListElement()..classes.add('replies');
-          repliesElement.children.add(replyElement);
-          _beforeNextPaint(() => speechElement
-            ..children.add(repliesElement)
-            ..scrollIntoView(ScrollAlignment.BOTTOM));
-        } else {
-          _beforeNextPaint(() => repliesElement
-            ..children.add(replyElement)
-            ..scrollIntoView(ScrollAlignment.BOTTOM));
-        }
-
-        events
-            .whereType<ReplyUnavailable>()
-            .firstWhere((r) => r.reply == reply.key)
-            .then(
-                // TODO consider alternate behavior vs used and removed vs just removed
-                // vs unavailable due to exclusive reply use
-                (_) => _beforeNextPaint(replyElement.remove));
-      });
-
-      events
-          .whereType<SpeechUnavailable>()
-          .firstWhere((s) => s.key == speech.key)
-          .then((_) {
-        _beforeNextPaint(speechElement.remove);
-        onReply.cancel();
-      });
+      _events = null;
     });
 
-    events.whereType<OptionAvailable>().listen((option) {
-      var optionElement = LIElement()
-        ..children.add(SpanElement()
-          ..classes.add('option')
-          ..innerHtml = option.option
-          ..onClick.listen((_) => _actions.add(UseOption(option.option))));
-
-      _beforeNextPaint(() {
-        _optionsContainer.children.add(optionElement);
-      });
-
-      events
-          .whereType<OptionUnavailable>()
-          .firstWhere((o) => o.option == option.option)
-          .then((_) => _beforeNextPaint(optionElement.remove));
-    });
+    events.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
+    events.whereType<OptionAvailable>().listen(_onOptionAvailable);
   }
 
   // TODO: not sure if this is really helping anything
@@ -133,5 +61,95 @@ class SimpleHtmlUi implements UserInterface {
       });
     }
     _domQueue.add(domUpdate);
+  }
+
+  void _onSpeechAvailable(SpeechAvailable speech) {
+    var speechElement = DivElement()..classes.add('speech');
+
+    _beforeNextPaint(() {
+      _dialogContainer
+        ..children.add(speechElement)
+        ..scrollIntoView(ScrollAlignment.BOTTOM);
+    });
+
+    speechElement.children.add(DivElement()
+      ..classes.add('what')
+      ..innerHtml = '${speech.markup}');
+
+    if (speech.target != null) {
+      speechElement.children.insert(
+          0,
+          DivElement()
+            ..classes.add('target')
+            ..innerHtml = '${speech.target}');
+    }
+
+    if (speech.speaker != null) {
+      speechElement.children.insert(
+          0,
+          DivElement()
+            ..classes.add('speaker')
+            ..innerHtml = speech.target == null
+                ? speech.speaker
+                : '${speech.speaker} to...');
+    }
+
+    UListElement repliesElement;
+
+    var onReply = _events
+        .whereType<ReplyAvailable>()
+        .where((r) => r.speech == speech.key)
+        .listen((reply) {
+      var replyElement = LIElement()
+        ..children.add(SpanElement()
+          ..classes.addAll(['reply', 'reply-available'])
+          ..innerHtml = reply.markup
+          ..onClick.listen((_) => _actions.add(UseReply(reply.key))));
+
+      if (repliesElement == null) {
+        repliesElement = UListElement()..classes.add('replies');
+        repliesElement.children.add(replyElement);
+        _beforeNextPaint(() => speechElement
+          ..children.add(repliesElement)
+          ..scrollIntoView(ScrollAlignment.BOTTOM));
+      } else {
+        _beforeNextPaint(() => repliesElement
+          ..children.add(replyElement)
+          ..scrollIntoView(ScrollAlignment.BOTTOM));
+      }
+
+      _events
+          .whereType<ReplyUnavailable>()
+          .firstWhere((r) => r.reply == reply.key)
+          .then(
+              // TODO consider alternate behavior vs used and removed vs just removed
+              // vs unavailable due to exclusive reply use
+              (_) => _beforeNextPaint(replyElement.remove));
+    });
+
+    _events
+        .whereType<SpeechUnavailable>()
+        .firstWhere((s) => s.key == speech.key)
+        .then((_) {
+      _beforeNextPaint(speechElement.remove);
+      onReply.cancel();
+    });
+  }
+
+  void _onOptionAvailable(OptionAvailable option) {
+    var optionElement = LIElement()
+      ..children.add(SpanElement()
+        ..classes.add('option')
+        ..innerHtml = option.option
+        ..onClick.listen((_) => _actions.add(UseOption(option.option))));
+
+    _beforeNextPaint(() {
+      _optionsContainer.children.add(optionElement);
+    });
+
+    _events
+        .whereType<OptionUnavailable>()
+        .firstWhere((o) => o.option == option.option)
+        .then((_) => _beforeNextPaint(optionElement.remove));
   }
 }

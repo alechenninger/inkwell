@@ -8,10 +8,11 @@ export 'dart:async';
 export 'core.dart' show Event;
 
 // TODO: do we really care that T extends Event?
-/// A [Stream] which
+/// A broadcast [Stream] which
 ///
-/// * Guarantees ordered delivery
 /// * May have both standard async or sync listeners simultaneously
+/// * Guarantees ordered delivery to all listeners (unless some listeners are
+/// paused) of like type (sync or async)
 class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
@@ -21,7 +22,8 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   var _asyncListeners = <_AsyncEventSubscription>[];
   var _syncListeners = <_SyncEventSubscription>[];
   var _subscriptions = <StreamSubscription>[];
-  final _done = Completer();
+  // Sync should be safe due to completion from other futures (see [close])
+  final _done = Completer.sync();
 
   final bool isBroadcast = true;
 
@@ -81,24 +83,28 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
     _subscriptions.add(sub);
   }
 
-  void close() {
-    // TODO: not sure if logic around here is right
-    var cancellations = <Future>[];
-    _subscriptions.forEach(((sub) => cancellations.add(sub.cancel())));
-    _asyncListeners.forEach((sub) => sub._close());
-    _syncListeners.forEach((sub) => sub._close());
+  Future close() {
+    if (!isClosed) {
+      // TODO: not sure if logic around here is right
+      var cancellations = <Future>[];
+      _subscriptions.forEach(((sub) => cancellations.add(sub.cancel())));
+      _asyncListeners.forEach((sub) => sub._close());
+      _syncListeners.forEach((sub) => sub._close());
 
-    // Does setting to null have any value?
-    _asyncListeners = null;
-    _syncListeners = null;
-    _subscriptions = null;
+      // Does setting to null have any value?
+      _asyncListeners = null;
+      _syncListeners = null;
+      _subscriptions = null;
 
-    Future.wait(cancellations).then((_) => _done.complete());
+      Future.wait(cancellations).then((_) => _done.complete());
+    }
+
+    return done;
   }
 
   Future get done => _done.future;
 
-  bool get isDone => _done.isCompleted;
+  bool get isClosed => _asyncListeners == null;
 }
 
 class _SynchronousEventStream<T> extends Stream<T> {

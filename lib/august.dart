@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:built_value/serializer.dart';
-import 'package:quiver/time.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'src/core.dart';
@@ -99,9 +98,7 @@ class RemoteUserInterface implements UserInterface {
   Stream<Action> get actions => throw UnimplementedError();
 
   @override
-  void play(Stream<Event> events) {
-    // Serialize and send over the wire
-  }
+  void play(Stream<Event> events) {}
 
   @override
   // TODO: implement metaActions
@@ -224,12 +221,14 @@ class Story {
   void resume() {
     _pausableZone.resume();
   }
+
+  Future close() {}
 }
 
 typedef Script = void Function(ModuleSet);
 
 // Inkwell ? Quill?
-class ModuleSet extends StoryModule {
+class ModuleSet {
   Map<Type, StoryModule> _byType;
   Stream<Event> _events;
   Serializers _serializers;
@@ -248,10 +247,8 @@ class ModuleSet extends StoryModule {
 
   Iterable<StoryModule> get values => _byType.values;
 
-  @override
   Stream<Event> get events => _events;
 
-  @override
   Serializers get serializers => _serializers;
 }
 
@@ -265,5 +262,4 @@ class StartStory extends MetaAction {
   void run(StoryTeller t) {
     t.start();
   }
-
 }

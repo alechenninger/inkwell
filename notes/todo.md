@@ -5,4 +5,4 @@ TODO:
 - [ ] Flutter-based UI ... or use react/patternfly? (would that be weird?)
 - [ ] Module development (finish prompt, inventory, locations, ...)
 - [ ] Remote UI (client-server)
-- [ ] 
+- [ ] null safety
