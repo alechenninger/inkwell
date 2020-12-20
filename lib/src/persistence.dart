@@ -5,7 +5,14 @@ import 'dart:collection';
 
 // TODO: maybe combine this lib with input.dart?
 
-abstract class Persistence {
+// Scribe?
+abstract class Saver {
+  SaveSlot operator [](String slot);
+  List<SaveSlot> get slots;
+}
+
+// Book? Tome? Log?
+abstract class SaveSlot {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
@@ -13,7 +20,7 @@ abstract class Persistence {
   void saveAction(Duration offset, Object action);
 }
 
-class NoPersistence implements Persistence {
+class NoPersistence implements SaveSlot {
   @override
   List<SavedAction> get actions => [];
 
@@ -44,16 +51,15 @@ class FastForwarder {
   final Queue<Function> _microtasks = Queue();
   final Set<_FastForwarderTimer> _timers = <_FastForwarderTimer>{};
   bool _useParentZone = true;
-  DateTime _switchedToParent;
-  final Clock _realClock;
+  Duration _switchedToParent;
+  final Duration Function() _parentOffset;
 
-  FastForwarder(this._realClock) {
-    _switchedToParent = _realClock.now();
+  FastForwarder(this._parentOffset) {
+    _switchedToParent = _parentOffset();
   }
 
-  // FIXME: non-monotonic offset
   Duration get currentOffset => _useParentZone
-      ? _elapsed + _realClock.now().difference(_switchedToParent)
+      ? _elapsed + _parentOffset() - _switchedToParent
       : _elapsed;
 
   void runFastForwardable(Function(FastForwarder) callback) {
@@ -82,7 +88,7 @@ class FastForwarder {
 
   void switchToParentZone() {
     _useParentZone = true;
-    _switchedToParent = _realClock.now();
+    _switchedToParent = _parentOffset();
 
     while (_microtasks.isNotEmpty) {
       _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);

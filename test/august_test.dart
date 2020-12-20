@@ -17,12 +17,16 @@ void main() {
 
     void story() {
       dialog.narrate('test');
+      options.oneTime('test it').onUse.listen((event) {
+        dialog.add('tested');
+      });
     }
 
     test('emits events to UI', () async {
       play(story, NoPersistence(), testUi, {dialog, options});
-      await delay(seconds: 1);
-      expect(testUi.eventLog, contains(SpeechAvailable(null, 'test', null)));
+      testUi.perform(UseOption('test it'));
+      await Future(() => {});
+      expect(testUi.eventLog, contains(SpeechAvailable(null, 'tested', null)));
     });
   });
 }

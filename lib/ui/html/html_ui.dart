@@ -25,7 +25,13 @@ class SimpleHtmlUi implements UserInterface {
     _container.children.addAll([_optionsContainer, _dialogContainer]);
   }
 
+  @override
+  // TODO: implement metaActions
+  Stream<MetaAction> get metaActions => Stream.empty();
+
   void play(Stream<Event> events) {
+    // TODO: clear container?
+
     events.whereType<SpeechAvailable>().listen((speech) {
       var speechElement = DivElement()..classes.add('speech');
 

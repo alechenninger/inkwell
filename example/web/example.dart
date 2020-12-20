@@ -26,18 +26,18 @@ void main() {
   // Present the user interface(s) with HTML
   var ui = SimpleHtmlUi(querySelector('#example'));
 
-  play(example, persistence, ui, {options, dialog});
+  play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
 }
 
-void example() async {
-  dragonStandoff();
+void example(ModuleSet m) async {
+  dragonStandoff(m);
 }
 
-void dragonStandoff() async {
-  var dragonStandoff = await scenes.reentrant().enter();
+void dragonStandoff(ModuleSet m) async {
+  var dragonStandoff = await m<Scenes>().reentrant().enter();
   var sword = Sword();
 
-  dialog.narrate('A dragon stands before you!');
+  m<Dialog>().narrate('A dragon stands before you!');
 
   await delay(seconds: 1);
 

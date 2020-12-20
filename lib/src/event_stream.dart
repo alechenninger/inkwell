@@ -8,6 +8,10 @@ export 'dart:async';
 export 'core.dart' show Event;
 
 // TODO: do we really care that T extends Event?
+/// A [Stream] which
+///
+/// * Guarantees ordered delivery
+/// * May have both standard async or sync listeners simultaneously
 class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
@@ -16,6 +20,8 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // synchronous "reactions" – the listeners to this shouldn't skip ahead.
   var _asyncListeners = <_AsyncEventSubscription>[];
   var _syncListeners = <_SyncEventSubscription>[];
+  var _subscriptions = <StreamSubscription>[];
+  final _done = Completer();
 
   final bool isBroadcast = true;
 
@@ -71,21 +77,28 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   }
 
   void includeStream(Stream<T> stream) {
-    // TODO subscriptions leaked
-    stream.listen((t) => add(t), onError: (e) => addError(e));
+    var sub = stream.listen((t) => add(t), onError: (e) => addError(e));
+    _subscriptions.add(sub);
   }
 
-  void close() => done();
+  void close() {
+    // TODO: not sure if logic around here is right
+    var cancellations = <Future>[];
+    _subscriptions.forEach(((sub) => cancellations.add(sub.cancel())));
+    _asyncListeners.forEach((sub) => sub._close());
+    _syncListeners.forEach((sub) => sub._close());
 
-  void done() {
-    // TODO: not sure if done logic around here is right
-    _asyncListeners.forEach((sub) => sub._done());
-    _syncListeners.forEach((sub) => sub._done());
+    // Does setting to null have any value?
     _asyncListeners = null;
     _syncListeners = null;
+    _subscriptions = null;
+
+    Future.wait(cancellations).then((_) => _done.complete());
   }
 
-  bool get isDone => _asyncListeners == null;
+  Future get done => _done.future;
+
+  bool get isDone => _done.isCompleted;
 }
 
 class _SynchronousEventStream<T> extends Stream<T> {
@@ -151,7 +164,7 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   void pause([Future resumeSignal]) {
-    if (_isCanceled) return;
+    if (_isCanceled || _isDone) return;
     _pauses++;
   }
 
@@ -182,12 +195,19 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
     }
   }
 
-  void _done() {
+  void _close() {
     // TODO: is this logic right?
     if (_isDone) return;
+
+    _onData = null;
+    _buffer = null;
+    _pauses = 0;
     _isDone = true;
+
     if (_onDone == null) return;
+
     _dispatch(_onDone);
+    _onDone = null;
   }
 
   void _dispatch(void Function() fn);
