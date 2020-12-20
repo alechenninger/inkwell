@@ -11,6 +11,17 @@ abstract class Saver {
   List<SaveSlot> get slots;
 }
 
+class NoopSaver extends Saver {
+  @override
+  SaveSlot operator [](String slot) {
+    return NoPersistence();
+  }
+
+  @override
+  List<SaveSlot> get slots => [];
+
+}
+
 // Book? Tome? Log?
 abstract class SaveSlot {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)

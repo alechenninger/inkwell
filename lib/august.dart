@@ -118,7 +118,7 @@ class StoryTeller {
   final UserInterface _ui;
   final ModuleSet Function() _newModuleSet;
 
-  StoryTeller._(this._script, this._saver, this._stopwatch, this._random,
+  StoryTeller(this._script, this._saver, this._stopwatch, this._random,
       this._newModuleSet, this._ui) {
     // TODO: listen to meta actions
   }

@@ -2,6 +2,7 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'dart:html';
+import 'dart:math';
 
 import 'package:august/august.dart';
 import 'package:august/dialog.dart';
@@ -26,7 +27,17 @@ void main() {
   // Present the user interface(s) with HTML
   var ui = SimpleHtmlUi(querySelector('#example'));
 
-  play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
+  // play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
+  StoryTeller(
+          example,
+          NoopSaver(),
+          Stopwatch(),
+          Random(),
+          // TODO: instantiate new
+          () => ModuleSet({scenes, options, dialog}),
+          ui)
+      // TODO: Leave up to UI to start
+      .start();
 }
 
 void example(ModuleSet m) async {
