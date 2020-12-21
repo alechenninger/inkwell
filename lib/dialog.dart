@@ -66,6 +66,8 @@ class Dialog extends StoryModule {
   }
 
   Voice voice({String name}) => Voice(name, this);
+
+  Future close() => _speech.close();
 }
 
 abstract class Speaks {

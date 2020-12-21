@@ -25,6 +25,9 @@ class Prompts extends StoryModule {
 
     return prompt;
   }
+
+  @override
+  Future close() => _prompts.close();
 }
 
 class Prompt with Available implements StoryElement {

@@ -32,12 +32,17 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
+    // TODO: implement another args
     var sub = _AsyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_asyncListeners != null) {
+
+    if (isClosed) {
+      sub._close();
+    } else {
       _asyncListeners.add(sub);
     }
+
     return sub;
   }
 
@@ -55,16 +60,16 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   }
 
   void add(T event) {
-    if (_asyncListeners == null) {
-      throw StateError('Cannot add event to done stream');
+    if (isClosed) {
+      throw StateError('Cannot add event to closed stream');
     }
     _asyncListeners.forEach((sub) => sub._add(event));
     _syncListeners.forEach((sub) => sub._add(event));
   }
 
   void addError(Object error, [StackTrace trace]) {
-    if (_asyncListeners == null) {
-      throw StateError('Cannot add error to done stream');
+    if (isClosed) {
+      throw StateError('Cannot add error to closed stream');
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
@@ -79,6 +84,9 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   }
 
   void includeStream(Stream<T> stream) {
+    // if (isClosed) {
+    //   throw StateError('Cannot include stream in closed stream');
+    // }
     var sub = stream.listen((t) => add(t), onError: (e) => addError(e));
     _subscriptions.add(sub);
   }

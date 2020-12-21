@@ -72,6 +72,8 @@ class SimpleHtmlUi implements UserInterface {
         _dialogContainer.children.clear();
       });
       _events = null;
+      _paused = false;
+      _start.text = 'play_arrow';
     }).handleError((Object err) {
       print(err);
     }).asBroadcastStream();
@@ -146,13 +148,13 @@ class SimpleHtmlUi implements UserInterface {
       _events.whereType<ReplyUnavailable>().firstWhere((r) => r.reply == reply.key).then(
           // TODO consider alternate behavior vs used and removed vs just removed
           // vs unavailable due to exclusive reply use
-          (_) => _beforeNextPaint(replyElement.remove));
+          (_) => _beforeNextPaint(replyElement.remove), onError: (e) {});
     });
 
     _events.whereType<SpeechUnavailable>().firstWhere((s) => s.key == speech.key).then((_) {
       _beforeNextPaint(speechElement.remove);
       onReply.cancel();
-    });
+    }, onError: (e) {});
   }
 
   void _onOptionAvailable(OptionAvailable option) {
@@ -169,6 +171,6 @@ class SimpleHtmlUi implements UserInterface {
     _events
         .whereType<OptionUnavailable>()
         .firstWhere((o) => o.option == option.option)
-        .then((_) => _beforeNextPaint(optionElement.remove));
+        .then((_) => _beforeNextPaint(optionElement.remove), onError: (e) {});
   }
 }

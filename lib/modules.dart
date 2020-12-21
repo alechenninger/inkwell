@@ -57,6 +57,9 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
     return object;
   }
 
+  // TODO: i think we need to close all elements listened to, too. but maybe not?
+  Future close() => Future.wait([_events.close()]);
+
   void _add(K key, O object) {
     if (_available.containsKey(key)) {
       throw StateError('Element already available with key "$key"');
@@ -135,4 +138,7 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
     _onUse.add(_use(this as E));
     uses.increment();
   }
+
+  // TOOD: do we need this?
+  // Future close() => Future.wait([_events.close(), _onUse.close()]);
 }

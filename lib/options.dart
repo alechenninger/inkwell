@@ -42,6 +42,9 @@ class Options extends StoryModule {
 
     return option;
   }
+
+  @override
+  Future close() => _options.close();
 }
 
 class Option extends LimitedUseElement<Option, OptionUsed> {

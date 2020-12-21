@@ -45,6 +45,9 @@ class Scenes extends StoryModule {
 
   @override
   Serializers get serializers => Serializers();
+
+  @override
+  Future close() => Future.value();
 }
 
 abstract class Scene<T extends Scene<T>> extends Scope<T> {

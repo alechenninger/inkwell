@@ -17,7 +17,6 @@ abstract class Action<M extends StoryModule> {
 /// interface.
 abstract class StoryElement<T extends Event> {
   Stream<T> get events;
-  // TODO: close?
 }
 
 /// An entry-point for story-telling functionality.
@@ -28,4 +27,5 @@ abstract class StoryElement<T extends Event> {
 /// whose events are aggregated.
 abstract class StoryModule<T extends Event> extends StoryElement<T> {
   Serializers get serializers;
+  Future close();
 }

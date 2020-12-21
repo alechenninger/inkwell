@@ -119,7 +119,6 @@ class StoryTeller {
   final Random _random;
   final UserInterface _ui;
   final ModuleSet Function() _newModuleSet;
-  final _tellerEvents = StreamController<Event>();
 
   // TODO: Could have server support multiple?
   // Would this require separate isolates for each?
@@ -127,6 +126,8 @@ class StoryTeller {
   // I don't believe it should, technically, since each story itself would still
   // be ordered.
   Story _story;
+  // This is handled a bit ugly. Maybe it makes sense a part of Story?
+  var _tellerEvents = StreamController<Event>();
 
   StoryTeller(this._script, this._saver, this._stopwatch, this._random,
       this._newModuleSet, this._ui) {
@@ -135,15 +136,13 @@ class StoryTeller {
     });
   }
 
-  void start() {
+  void start() async {
+    if (_story != null) {
+      await Future.wait([_story.close(), _tellerEvents.close()]);
+      _tellerEvents = StreamController<Event>();
+    }
+
     var modules = _newModuleSet();
-    // TODO: UI can only handle one story. needs to also have a "reset"
-    /*
-    Order:
-    3. then add start new – will require closing out current story / resetting
-    4. then add save to/load from save slots – will require notion of different
-    save slots as well as resets from 3.
-     */
     _ui.play(Rx.merge([_tellerEvents.stream, modules.events]));
     _story = Story._('1', _script, modules, _stopwatch, _ui.actions);
   }
@@ -165,7 +164,7 @@ class Story {
       : _pausableZone = PausableZone(() => stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
     stopwatch.start();
-    _start(HtmlPersistence('example'));
+    _start(NoPersistence());
   }
 
   void _start(SaveSlot save) {
@@ -248,7 +247,7 @@ class Story {
     print('resumed');
   }
 
-  Future close() {}
+  Future close() => _modules.close();
 }
 
 typedef Script = void Function(ModuleSet);
@@ -276,6 +275,8 @@ class ModuleSet {
   Stream<Event> get events => _events;
 
   Serializers get serializers => _serializers;
+
+  Future close() => Future.wait(values.map((m) => m.close()));
 }
 
 // TODO: better name
