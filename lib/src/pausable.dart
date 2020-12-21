@@ -203,6 +203,7 @@ class _OrderedTimerZone implements PausableZone {
 
   void _pausableMicrotask(
       Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    // TODO: microtasks!
     parent.scheduleMicrotask(zone, f);
   }
 
@@ -455,6 +456,8 @@ class _CallbackQueueZone implements PausableZone {
   }
 
   void resume() {
+    if (!isPaused) return;
+
     _pausedFor += parentOffset - _pausedAt;
     _pausedAt = null;
 
@@ -547,6 +550,7 @@ class _CallbackQueueZone implements PausableZone {
 
   void _pausableMicrotask(
       Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    // TODO: microtasks!
     parent.scheduleMicrotask(zone, f);
   }
 }

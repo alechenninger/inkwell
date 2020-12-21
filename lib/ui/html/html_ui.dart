@@ -23,17 +23,26 @@ class SimpleHtmlUi implements UserInterface {
   final _domQueue = Queue<Function>();
 
   final _actions = StreamController<Action>();
-  Stream<Action> get actions => _actions.stream;
+  Stream<Action> get actions => _actions.stream.where((event) => !_paused);
 
   final _metaActions = StreamController<MetaAction>();
 
   Stream<Event> _events;
+  bool _paused = false;
 
   SimpleHtmlUi(Element _container) {
     _container.children.addAll([_start, _optionsContainer, _dialogContainer]);
 
     _start.onClick.listen((event) {
-      _metaActions.add(StartStory());
+      if (_events == null) {
+        _metaActions.add(StartStory());
+      } else if (!_paused) {
+        _metaActions.add(PauseStory());
+        _paused = true;
+      } else {
+        _metaActions.add(ResumeStory());
+        _paused = false;
+      }
     });
   }
 
@@ -46,18 +55,18 @@ class SimpleHtmlUi implements UserInterface {
           'simultaneously. Ensure prior event stream is closed first.');
     }
 
-    _events = events;
-
-    events = events.doOnDone(() {
+    _events = events.doOnDone(() {
       _beforeNextPaint(() {
         _optionsContainer.children.clear();
         _dialogContainer.children.clear();
       });
       _events = null;
-    });
+    }).handleError((Object err) {
+      print(err);
+    }).asBroadcastStream();
 
-    events.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
-    events.whereType<OptionAvailable>().listen(_onOptionAvailable);
+    _events.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
+    _events.whereType<OptionAvailable>().listen(_onOptionAvailable);
   }
 
   // TODO: not sure if this is really helping anything

@@ -113,10 +113,19 @@ Future delay({int seconds}) {
 class StoryTeller {
   final Script _script;
   final Saver _saver;
+  // TODO: need to be Stopwatch f() if we want to manage multiple stories
   final Stopwatch _stopwatch;
   final Random _random;
   final UserInterface _ui;
   final ModuleSet Function() _newModuleSet;
+  final _tellerEvents = StreamController<Event>();
+
+  // TODO: Could have server support multiple?
+  // Would this require separate isolates for each?
+  // Or does it matter that microtasks and events would interleave?
+  // I don't believe it should, technically, since each story itself would still
+  // be ordered.
+  Story _story;
 
   StoryTeller(this._script, this._saver, this._stopwatch, this._random,
       this._newModuleSet, this._ui) {
@@ -125,7 +134,7 @@ class StoryTeller {
     });
   }
 
-  Story start() {
+  void start() {
     var modules = _newModuleSet();
     // TODO: UI can only handle one story. needs to also have a "reset"
     /*
@@ -136,11 +145,11 @@ class StoryTeller {
     4. then add save to/load from save slots – will require notion of different
     save slots as well as resets from 3.
      */
-    _ui.play(modules.events);
-    return Story._('1', _script, modules, _stopwatch, _ui.actions);
+    _ui.play(Rx.merge([_tellerEvents.stream, modules.events]));
+    _story = Story._('1', _script, modules, _stopwatch, _ui.actions);
   }
 
-  Story load(String save) {}
+  void load(String save) {}
 
   List<String> saves() {}
 }
@@ -156,6 +165,7 @@ class Story {
       this._actions)
       : _pausableZone = PausableZone(() => stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
+    stopwatch.start();
     _start(NoPersistence());
   }
 
@@ -163,9 +173,20 @@ class Story {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
     var replayedActions = StreamController<Action>(sync: true);
 
+    // TODO: move this?
+    _modules.events.listen(
+        (event) => print('event: ${fastForwarder.currentOffset} $event'));
+
     var actions = Rx.concat([
       replayedActions.stream,
-      _actions.doOnData((action) {
+      _actions.where((action) {
+        if (_pausableZone.isPaused) {
+          // TODO: emit error somehow?
+          print('caught action while paused, ignoring. action=$action');
+          return false;
+        }
+        return true;
+      }).doOnData((action) {
         var serialized = _modules.serializers.serialize(action);
         // TODO: are there race conditions here?
         // At this offset this may persist, but not actually succeed to run by the
@@ -218,10 +239,12 @@ class Story {
 
   void pause() {
     _pausableZone.pause();
+    print('paused');
   }
 
   void resume() {
     _pausableZone.resume();
+    print('resumed');
   }
 
   Future close() {}
@@ -259,9 +282,35 @@ abstract class MetaAction {
   void run(StoryTeller t);
 }
 
+// TODO: serializable
+
 class StartStory extends MetaAction {
   @override
   void run(StoryTeller t) {
     t.start();
+  }
+}
+
+class PauseStory extends MetaAction {
+  @override
+  void run(StoryTeller t) {
+    if (t._story == null) {
+      t._tellerEvents.addError(
+          StateError("can't pause story; no story is currently being told."));
+      return;
+    }
+    t._story.pause();
+  }
+}
+
+class ResumeStory extends MetaAction {
+  @override
+  void run(StoryTeller t) {
+    if (t._story == null) {
+      t._tellerEvents.addError(
+          StateError("can't resume story; no story is currently being told."));
+      return;
+    }
+    t._story.resume();
   }
 }

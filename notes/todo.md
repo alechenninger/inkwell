@@ -6,3 +6,4 @@ TODO:
 - [ ] Module development (finish prompt, inventory, locations, ...)
 - [ ] Remote UI (client-server)
 - [ ] null safety
+- [ ] proper logging

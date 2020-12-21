@@ -17,6 +17,7 @@ abstract class Action<M extends StoryModule> {
 /// interface.
 abstract class StoryElement<T extends Event> {
   Stream<T> get events;
+  // TODO: close?
 }
 
 /// An entry-point for story-telling functionality.

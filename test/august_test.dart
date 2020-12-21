@@ -47,4 +47,8 @@ class TestUi extends UserInterface {
     events.listen((e) => eventLog.add(e));
   }
 
+  @override
+  // TODO: implement metaActions
+  Stream<MetaAction> get metaActions => Stream.empty();
+
 }
