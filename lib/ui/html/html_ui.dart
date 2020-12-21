@@ -19,6 +19,10 @@ class SimpleHtmlUi implements UserInterface {
     ..id = 'start'
     ..classes.add('material-icons')
     ..text = 'play_arrow';
+  final _restart = ButtonElement()
+    ..id = 'restart'
+    ..classes.add('material-icons')
+    ..text = 'replay';
 
   final _domQueue = Queue<Function>();
 
@@ -31,18 +35,25 @@ class SimpleHtmlUi implements UserInterface {
   bool _paused = false;
 
   SimpleHtmlUi(Element _container) {
-    _container.children.addAll([_start, _optionsContainer, _dialogContainer]);
+    _container.children.addAll([_start, _restart, _optionsContainer, _dialogContainer]);
 
     _start.onClick.listen((event) {
       if (_events == null) {
         _metaActions.add(StartStory());
+        _start.text = 'pause';
       } else if (!_paused) {
         _metaActions.add(PauseStory());
         _paused = true;
+        _start.text = 'play_arrow';
       } else {
         _metaActions.add(ResumeStory());
         _paused = false;
+        _start.text = 'pause';
       }
+    });
+
+    _restart.onClick.listen((event) {
+      _metaActions.add(StartStory());
     });
   }
 

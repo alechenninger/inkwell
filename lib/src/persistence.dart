@@ -9,6 +9,7 @@ import 'dart:collection';
 abstract class Saver {
   SaveSlot operator [](String slot);
   List<SaveSlot> get slots;
+  // bool remove(String slot);
 }
 
 class NoopSaver extends Saver {
@@ -27,6 +28,7 @@ abstract class SaveSlot {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
+  // String get name;
   List<SavedAction> get actions;
   void saveAction(Duration offset, Object action);
 }

@@ -6,6 +6,7 @@ library august;
 import 'dart:async';
 import 'dart:math';
 
+import 'package:august/ui/html/html_persistence.dart';
 import 'package:built_value/serializer.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -139,8 +140,6 @@ class StoryTeller {
     // TODO: UI can only handle one story. needs to also have a "reset"
     /*
     Order:
-    1. start/continue
-    2. then add pause/resume
     3. then add start new – will require closing out current story / resetting
     4. then add save to/load from save slots – will require notion of different
     save slots as well as resets from 3.
@@ -166,7 +165,7 @@ class Story {
       : _pausableZone = PausableZone(() => stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
     stopwatch.start();
-    _start(NoPersistence());
+    _start(HtmlPersistence('example'));
   }
 
   void _start(SaveSlot save) {
@@ -200,6 +199,8 @@ class Story {
       fastForwarder.runFastForwardable((ff) {
         actions.listen((action) {
           print('action: ${fastForwarder.currentOffset} $action');
+          // TODO: move saving here; detect if ff-ing and don't save in that
+          //  case?
           action.run(_modules[action.module]);
         });
 
