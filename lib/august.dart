@@ -164,14 +164,15 @@ class Story {
   final PausableZone _pausableZone;
   final ModuleSet _modules;
   final Stream<Action> _actions;
+  final Stopwatch _stopwatch;
 
   StreamSubscription _actionsSubscription;
 
-  Story._(this.storyId, this._script, this._modules, Stopwatch stopwatch,
+  Story._(this.storyId, this._script, this._modules, this._stopwatch,
       this._actions)
-      : _pausableZone = PausableZone(() => stopwatch.elapsed) {
+      : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
-    stopwatch.start();
+    _stopwatch.start();
     _start(NoPersistence());
   }
 
@@ -255,8 +256,11 @@ class Story {
     print('resumed');
   }
 
-  Future close() =>
-      Future.wait([_modules.close(), _actionsSubscription.cancel()]);
+  Future close() {
+    _stopwatch.stop();
+    _stopwatch.reset();
+    return Future.wait([_modules.close(), _actionsSubscription.cancel()]);
+  }
 }
 
 typedef Script = void Function(ModuleSet);
