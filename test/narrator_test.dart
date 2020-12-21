@@ -18,17 +18,14 @@ void main() {
     test('emits events to UI', () async {
       void story() {
         dialog.narrate('test');
-        options.oneTime('test it').onUse.listen((event) {
-          dialog.add('tested');
-        });
       }
 
       play(story, NoPersistence(), testUi, {dialog, options});
-      await Future(() => {});
-      expect(testUi.eventLog, contains(SpeechAvailable(null, 'tested', null)));
+      await eventLoop;
+      expect(testUi.eventLog, contains(SpeechAvailable(null, 'test', null)));
     });
 
-    test('emits events to UI', () async {
+    test('performs actions from UI', () async {
       void story() {
         dialog.narrate('test');
         options.oneTime('test it').onUse.listen((event) {
@@ -37,18 +34,20 @@ void main() {
       }
 
       play(story, NoPersistence(), testUi, {dialog, options});
-      testUi.perform(UseOption('test it'));
-      await Future(() => {});
+      testUi.attempt(UseOption('test it'));
+      await eventLoop;
       expect(testUi.eventLog, contains(SpeechAvailable(null, 'tested', null)));
     });
   });
 }
 
+Future get eventLoop => Future(() => {});
+
 class TestUi extends UserInterface {
   final _actions = StreamController<Action<Ink<Event>>>();
   final eventLog = [];
 
-  void perform(Action<Ink<Event>> action) {
+  void attempt(Action<Ink<Event>> action) {
     _actions.add(action);
   }
 

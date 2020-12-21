@@ -1,4 +1,5 @@
 import 'package:built_value/serializer.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// A model of something that has happened, usually named in the past tense e.g.
 /// ItemBought or PersonMoved, used primarily to notify players via a
@@ -30,4 +31,39 @@ abstract class StoryElement<T extends Event> {
 abstract class Ink<T extends Event> extends StoryElement<T> {
   Serializers get serializers;
   Future close();
+}
+
+typedef Script = void Function(Palette);
+
+/// A complete and useful aggregate of [Ink]s used for writing scripts.
+///
+/// Various [Ink]s (and their functionality) can be accessed by type by calling
+/// the Palette as a generic function, e.g. `palette<Dialog>()`
+///
+/// The events produced by [Ink]s are accessible from the [events] broadcast
+/// stream.
+class Palette {
+  Map<Type, Ink> _inks;
+  Stream<Event> _events;
+  Serializers _serializers;
+
+  Palette(Iterable<Ink> m) {
+    // TODO: validate that no two inks share the same type
+    _inks = m.fold<Map<Type, Ink>>(<Type, Ink>{},
+            (map, ink) => map..[ink.runtimeType] = ink);
+    _events = Rx.merge(inks.map((m) => m.events)).asBroadcastStream();
+    _serializers = Serializers.merge(inks.map((m) => m.serializers));
+  }
+
+  T call<T>() => _inks[T] as T;
+
+  Ink operator [](Type t) => _inks[t];
+
+  Iterable<Ink> get inks => _inks.values;
+
+  Stream<Event> get events => _events;
+
+  Serializers get serializers => _serializers;
+
+  Future close() => Future.wait(inks.map((m) => m.close()));
 }

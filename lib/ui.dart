@@ -1,5 +1,6 @@
-import 'package:august/august.dart';
+import 'package:built_value/serializer.dart';
 
+import 'august.dart';
 import 'src/core.dart';
 
 export 'src/persistence.dart' hide FastForwarder;
@@ -20,4 +21,25 @@ abstract class UserInterface {
   Future play(Stream<Event> events);
 
   Future get stopped;
+}
+
+class RemoteUserInterface implements UserInterface {
+  final Serializers _serializers;
+
+  RemoteUserInterface(this._serializers);
+
+  @override
+  // TODO: receive over the wire, deserialize
+  Stream<Action> get actions => throw UnimplementedError();
+
+  @override
+  Future play(Stream<Event> events) {}
+
+  @override
+  // TODO: implement metaActions
+  Stream<Interrupt> get interrupts => throw UnimplementedError();
+
+  @override
+  // TODO: implement stopped
+  Future get stopped => throw UnimplementedError();
 }

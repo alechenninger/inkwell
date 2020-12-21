@@ -27,7 +27,7 @@ class SimpleHtmlUi implements UserInterface {
   final _domQueue = Queue<Function>();
   Stream<Action> get actions => _actions.stream.where((event) => !_paused);
 
-  final _metaActions = StreamController<Interrupt>();
+  final _interrupts = StreamController<Interrupt>();
 
   // TODO: bundle this related state up?
 
@@ -42,26 +42,26 @@ class SimpleHtmlUi implements UserInterface {
     _start.onClick.listen((event) {
       // TODO: manage state change based on events?
       if (_events == null) {
-        _metaActions.add(StartStory());
+        _interrupts.add(StartStory());
         _start.text = 'pause';
       } else if (!_paused) {
-        _metaActions.add(PauseStory());
+        _interrupts.add(PauseStory());
         _paused = true;
         _start.text = 'play_arrow';
       } else {
-        _metaActions.add(ResumeStory());
+        _interrupts.add(ResumeStory());
         _paused = false;
         _start.text = 'pause';
       }
     });
 
     _restart.onClick.listen((event) {
-      _metaActions.add(StartStory());
+      _interrupts.add(StartStory());
     });
   }
 
   @override
-  Stream<Interrupt> get interrupts => _metaActions.stream;
+  Stream<Interrupt> get interrupts => _interrupts.stream;
 
   @override
   Future play(Stream<Event> events) {
