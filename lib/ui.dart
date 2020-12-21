@@ -16,5 +16,6 @@ abstract class UserInterface {
   ///
   /// [play] must not be called while listening to an event stream that is not
   /// yet done.
-  void play(Stream<Event> events);
+  Future play(Stream<Event> events);
+  Future get stopped;
 }

@@ -25,19 +25,22 @@ class SimpleHtmlUi implements UserInterface {
     ..text = 'replay';
 
   final _domQueue = Queue<Function>();
-
-  final _actions = StreamController<Action>();
   Stream<Action> get actions => _actions.stream.where((event) => !_paused);
 
   final _metaActions = StreamController<MetaAction>();
 
+  // TODO: bundle this related state up?
+
   Stream<Event> _events;
+  var _actions = StreamController<Action>();
   bool _paused = false;
+  Completer _stopped;
 
   SimpleHtmlUi(Element _container) {
     _container.children.addAll([_start, _restart, _optionsContainer, _dialogContainer]);
 
     _start.onClick.listen((event) {
+      // TODO: manage state change based on events?
       if (_events == null) {
         _metaActions.add(StartStory());
         _start.text = 'pause';
@@ -60,26 +63,36 @@ class SimpleHtmlUi implements UserInterface {
   @override
   Stream<MetaAction> get metaActions => _metaActions.stream;
 
-  void play(Stream<Event> events) {
+  @override
+  Future play(Stream<Event> events) {
     if (_events != null) {
       throw StateError('Cannot listen to multiple event streams '
           'simultaneously. Ensure prior event stream is closed first.');
     }
 
-    _events = events.doOnDone(() {
+    _paused = false;
+    _start.text = 'pause';
+    _stopped = Completer.sync();
+
+    _events = events.doOnDone(() async {
       _beforeNextPaint(() {
         _optionsContainer.children.clear();
         _dialogContainer.children.clear();
       });
+      await _actions.close();
       _events = null;
       _paused = false;
       _start.text = 'play_arrow';
+      _actions = StreamController<Action>();
+      _stopped.complete();
     }).handleError((Object err) {
       print(err);
     }).asBroadcastStream();
 
     _events.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
     _events.whereType<OptionAvailable>().listen(_onOptionAvailable);
+
+    return _stopped.future;
   }
 
   // TODO: not sure if this is really helping anything
@@ -173,4 +186,7 @@ class SimpleHtmlUi implements UserInterface {
         .firstWhere((o) => o.option == option.option)
         .then((_) => _beforeNextPaint(optionElement.remove), onError: (e) {});
   }
+
+  @override
+  Future get stopped => _stopped?.future ?? Future.value();
 }

@@ -99,11 +99,15 @@ class RemoteUserInterface implements UserInterface {
   Stream<Action> get actions => throw UnimplementedError();
 
   @override
-  void play(Stream<Event> events) {}
+  Future play(Stream<Event> events) {}
 
   @override
   // TODO: implement metaActions
   Stream<MetaAction> get metaActions => throw UnimplementedError();
+
+  @override
+  // TODO: implement stopped
+  Future get stopped => throw UnimplementedError();
 }
 
 Future delay({int seconds}) {
@@ -138,7 +142,9 @@ class StoryTeller {
 
   void start() async {
     if (_story != null) {
-      await Future.wait([_story.close(), _tellerEvents.close()]);
+      _story.close();
+      _tellerEvents.close();
+      await _ui.stopped;
       _tellerEvents = StreamController<Event>();
     }
 
@@ -158,6 +164,8 @@ class Story {
   final PausableZone _pausableZone;
   final ModuleSet _modules;
   final Stream<Action> _actions;
+
+  StreamSubscription _actionsSubscription;
 
   Story._(this.storyId, this._script, this._modules, Stopwatch stopwatch,
       this._actions)
@@ -196,7 +204,7 @@ class Story {
 
     _pausableZone.run((c) {
       fastForwarder.runFastForwardable((ff) {
-        actions.listen((action) {
+        _actionsSubscription = actions.listen((action) {
           print('action: ${fastForwarder.currentOffset} $action');
           // TODO: move saving here; detect if ff-ing and don't save in that
           //  case?
@@ -247,7 +255,8 @@ class Story {
     print('resumed');
   }
 
-  Future close() => _modules.close();
+  Future close() =>
+      Future.wait([_modules.close(), _actionsSubscription.cancel()]);
 }
 
 typedef Script = void Function(ModuleSet);

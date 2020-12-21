@@ -43,12 +43,16 @@ class TestUi extends UserInterface {
   Stream<Action<StoryModule<Event>>> get actions => _actions.stream;
 
   @override
-  void play(Stream<Event> events) {
+  Future play(Stream<Event> events) {
     events.listen((e) => eventLog.add(e));
   }
 
   @override
   // TODO: implement metaActions
   Stream<MetaAction> get metaActions => Stream.empty();
+
+  @override
+  // TODO: implement stopped
+  Future get stopped => throw UnimplementedError();
 
 }

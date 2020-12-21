@@ -13,12 +13,6 @@ import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
 
 // Instantiate modules top level for easy accessibility from script methods
-final scenes = Scenes();
-final options = Options(
-    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final dialog = Dialog(
-    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final prompts = Prompts();
 
 void main() {
   // Need a persistence strategy
@@ -28,14 +22,17 @@ void main() {
   var ui = SimpleHtmlUi(querySelector('#example'));
 
   // play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
-  StoryTeller(
-          example,
-          NoopSaver(),
-          Stopwatch(),
-          Random(),
-          // TODO: instantiate new
-          () => ModuleSet({scenes, options, dialog}),
-          ui);
+  StoryTeller(example, NoopSaver(), Stopwatch(), Random(),
+      // TODO: instantiate new
+      () {
+    var scenes = Scenes();
+    var options = Options(
+        defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+    var dialog = Dialog(
+        defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+    var prompts = Prompts();
+    return ModuleSet({scenes, options, dialog});
+  }, ui);
 }
 
 void example(ModuleSet m) async {
@@ -43,6 +40,8 @@ void example(ModuleSet m) async {
 }
 
 void dragonStandoff(ModuleSet m) async {
+  var options = m<Options>();
+
   var dragonStandoff = await m<Scenes>().reentrant().enter();
   var sword = Sword();
 
@@ -54,16 +53,20 @@ void dragonStandoff(ModuleSet m) async {
   var runAway = options.limitedUse('Run away!', exclusiveWith: attack.uses);
 
   attack.onUse.when(() {
-    attackDragon(dragonStandoff, sword);
+    attackDragon(m, dragonStandoff, sword);
   });
 
   runAway.onUse.when(() async {
     dragonStandoff.done();
-    runAwayFromDragon(sword);
+    runAwayFromDragon(m, sword);
   });
 }
 
-void attackDragon(Scene dragonStandoff, Sword sword) async {
+void attackDragon(ModuleSet m, Scene dragonStandoff, Sword sword) async {
+  var scenes = m<Scenes>();
+  var options = m<Options>();
+  var dialog = m<Dialog>();
+
   await scenes.oneTime().enter();
 
   dialog.narrate('The dragon readies its flame...');
@@ -94,7 +97,11 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   });
 }
 
-void runAwayFromDragon(Sword sword) async {
+void runAwayFromDragon(ModuleSet m, Sword sword) async {
+  var scenes = m<Scenes>();
+  var options = m<Options>();
+  var dialog = m<Dialog>();
+
   await scenes.oneTime().enter();
 
   dialog.narrate('Running away.');
