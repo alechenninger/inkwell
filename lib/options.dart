@@ -8,14 +8,14 @@ import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
-import 'modules.dart';
+import 'inks.dart';
 
 part 'options.g.dart';
 
 @SerializersFor([UseOption, OptionAvailable, OptionUnavailable, OptionUsed])
 final Serializers optionsSerializers = _$optionsSerializers;
 
-class Options extends StoryModule {
+class Options extends Ink {
   final _options = ScopedElements<Option, String>();
   final GetScope _default;
 
@@ -78,7 +78,7 @@ abstract class UseOption
   factory UseOption(String option) => _$UseOption._(option: option);
   UseOption._();
 
-  void run(Options options) {
+  void perform(Options options) {
     var found = options._options.available[option];
 
     if (found == null) {

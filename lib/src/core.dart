@@ -5,16 +5,18 @@ import 'package:built_value/serializer.dart';
 /// user interface.
 abstract class Event {}
 
-/// A reified action taken that is runnable within some [StoryModule].
-abstract class Action<M extends StoryModule> {
-  Type get module => M;
+/// A reified action taken that is performed by some [Ink].
+abstract class Action<I extends Ink> {
+  Type get ink => I;
 
-  void run(M module);
+  void perform(I ink);
 }
 
 /// An object interesting to the story which produces [Event]s, usually created
-/// and maintained by a [StoryModule], which publishes these events to a user
+/// and maintained by a [Ink], which publishes these events to a user
 /// interface.
+// TODO: may not really need this abstraction? it may be simpler to always
+//  aggregate an elements events through its Ink.
 abstract class StoryElement<T extends Event> {
   Stream<T> get events;
 }
@@ -25,7 +27,7 @@ abstract class StoryElement<T extends Event> {
 /// characters, etc., that is intended to be surfaced in some user interface
 /// via [Event]s. This is usually done through one or more [StoryElement]s,
 /// whose events are aggregated.
-abstract class StoryModule<T extends Event> extends StoryElement<T> {
+abstract class Ink<T extends Event> extends StoryElement<T> {
   Serializers get serializers;
   Future close();
 }

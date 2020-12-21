@@ -24,15 +24,15 @@ export 'src/persistence.dart';
 export 'src/scope.dart';
 export 'ui.dart';
 
-void play(void Function() story, SaveSlot persistence, UserInterface ui,
-    Set<StoryModule> modules,
+void play(void Function() story, Chronicle persistence, UserInterface ui,
+    Set<Ink> modules,
     {Stopwatch stopwatch}) {
   stopwatch ??= Stopwatch();
   var fastForwardZone = FastForwarder(() => stopwatch.elapsed);
   var pausableZone = PausableZone(() => stopwatch.elapsed);
 
-  var modulesByType = modules.fold<Map<Type, StoryModule>>(
-      <Type, StoryModule>{},
+  var modulesByType = modules.fold<Map<Type, Ink>>(
+      <Type, Ink>{},
       (map, module) => map..[module.runtimeType] = module);
 
   var events = Rx.merge(modules.map((m) => m.events)).asBroadcastStream();
@@ -60,7 +60,7 @@ void play(void Function() story, SaveSlot persistence, UserInterface ui,
     fastForwardZone.runFastForwardable((ff) {
       actions.listen((action) {
         print('action: ${fastForwardZone.currentOffset} $action');
-        action.run(modulesByType[action.module]);
+        action.perform(modulesByType[action.ink]);
       });
 
       story();
@@ -103,7 +103,7 @@ class RemoteUserInterface implements UserInterface {
 
   @override
   // TODO: implement metaActions
-  Stream<MetaAction> get metaActions => throw UnimplementedError();
+  Stream<Interrupt> get interrupts => throw UnimplementedError();
 
   @override
   // TODO: implement stopped
@@ -115,14 +115,14 @@ Future delay({int seconds}) {
 }
 
 // Narrator?
-class StoryTeller {
+class Narrator {
   final Script _script;
-  final Saver _saver;
+  final Scribe _saver;
   // TODO: need to be Stopwatch f() if we want to manage multiple stories
   final Stopwatch _stopwatch;
   final Random _random;
   final UserInterface _ui;
-  final ModuleSet Function() _newModuleSet;
+  final Palette Function() _clearPalette;
 
   // TODO: Could have server support multiple?
   // Would this require separate isolates for each?
@@ -131,11 +131,11 @@ class StoryTeller {
   // be ordered.
   Story _story;
   // This is handled a bit ugly. Maybe it makes sense a part of Story?
-  var _tellerEvents = StreamController<Event>();
+  var _directorEvents = StreamController<Event>();
 
-  StoryTeller(this._script, this._saver, this._stopwatch, this._random,
-      this._newModuleSet, this._ui) {
-    _ui.metaActions.listen((event) {
+  Narrator(this._script, this._saver, this._stopwatch, this._random,
+      this._clearPalette, this._ui) {
+    _ui.interrupts.listen((event) {
       event.run(this);
     });
   }
@@ -143,14 +143,14 @@ class StoryTeller {
   void start() async {
     if (_story != null) {
       _story.close();
-      _tellerEvents.close();
+      _directorEvents.close();
       await _ui.stopped;
-      _tellerEvents = StreamController<Event>();
+      _directorEvents = StreamController<Event>();
     }
 
-    var modules = _newModuleSet();
-    _ui.play(Rx.merge([_tellerEvents.stream, modules.events]));
-    _story = Story._('1', _script, modules, _stopwatch, _ui.actions);
+    var palette = _clearPalette();
+    _ui.play(Rx.merge([_directorEvents.stream, palette.events]));
+    _story = Story._('1', _script, palette, _stopwatch, _ui.actions);
   }
 
   void load(String save) {}
@@ -162,13 +162,13 @@ class Story {
   final String storyId;
   final Script _script;
   final PausableZone _pausableZone;
-  final ModuleSet _modules;
+  final Palette _palette;
   final Stream<Action> _actions;
   final Stopwatch _stopwatch;
 
   StreamSubscription _actionsSubscription;
 
-  Story._(this.storyId, this._script, this._modules, this._stopwatch,
+  Story._(this.storyId, this._script, this._palette, this._stopwatch,
       this._actions)
       : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
@@ -176,12 +176,12 @@ class Story {
     _start(NoPersistence());
   }
 
-  void _start(SaveSlot save) {
+  void _start(Chronicle save) {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
     var replayedActions = StreamController<Action>(sync: true);
 
     // TODO: move this?
-    _modules.events.listen(
+    _palette.events.listen(
         (event) => print('event: ${fastForwarder.currentOffset} $event'));
 
     var actions = Rx.concat([
@@ -194,7 +194,7 @@ class Story {
         }
         return true;
       }).doOnData((action) {
-        var serialized = _modules.serializers.serialize(action);
+        var serialized = _palette.serializers.serialize(action);
         // TODO: are there race conditions here?
         // At this offset this may persist, but not actually succeed to run by the
         // time it's run (is this possible?)
@@ -209,10 +209,10 @@ class Story {
           print('action: ${fastForwarder.currentOffset} $action');
           // TODO: move saving here; detect if ff-ing and don't save in that
           //  case?
-          action.run(_modules[action.module]);
+          action.perform(_palette[action.ink]);
         });
 
-        _script(_modules);
+        _script(_palette);
 
         var savedActions = save.actions;
 
@@ -225,7 +225,7 @@ class Story {
             var saved = savedActions[i];
             Future.delayed(saved.offset, () {
               var action =
-                  _modules.serializers.deserialize(saved.action) as Action;
+                  _palette.serializers.deserialize(saved.action) as Action;
               replayedActions.add(action);
               if (i == savedActions.length - 1) {
                 replayedActions.close();
@@ -259,58 +259,68 @@ class Story {
   Future close() {
     _stopwatch.stop();
     _stopwatch.reset();
-    return Future.wait([_modules.close(), _actionsSubscription.cancel()]);
+    return Future.wait([_palette.close(), _actionsSubscription.cancel()]);
   }
 }
 
-typedef Script = void Function(ModuleSet);
+typedef Script = void Function(Palette);
 
-// Inkwell ? Quill?
-class ModuleSet {
-  Map<Type, StoryModule> _byType;
+/// A complete and useful aggregate of [Ink]s used for writing scripts.
+///
+/// Various [Ink]s (and their functionality) can be accessed by type by calling
+/// the Palette as a generic function, e.g. `palette<Dialog>()`
+///
+/// The events produced by [Ink]s are accessible from the [events] broadcast
+/// stream.
+class Palette {
+  Map<Type, Ink> _inks;
   Stream<Event> _events;
   Serializers _serializers;
 
-  ModuleSet(Iterable<StoryModule> m) {
-    // TODO: validate that no two modules share the same type
-    _byType = m.fold<Map<Type, StoryModule>>(<Type, StoryModule>{},
+  Palette(Iterable<Ink> m) {
+    // TODO: validate that no two inks share the same type
+    _inks = m.fold<Map<Type, Ink>>(<Type, Ink>{},
         (map, module) => map..[module.runtimeType] = module);
-    _events = Rx.merge(values.map((m) => m.events)).asBroadcastStream();
-    _serializers = Serializers.merge(values.map((m) => m.serializers));
+    _events = Rx.merge(inks.map((m) => m.events)).asBroadcastStream();
+    _serializers = Serializers.merge(inks.map((m) => m.serializers));
   }
 
-  T call<T>() => _byType[T] as T;
+  T call<T>() => _inks[T] as T;
 
-  StoryModule operator [](Type t) => _byType[t];
+  Ink operator [](Type t) => _inks[t];
 
-  Iterable<StoryModule> get values => _byType.values;
+  Iterable<Ink> get inks => _inks.values;
 
   Stream<Event> get events => _events;
 
   Serializers get serializers => _serializers;
 
-  Future close() => Future.wait(values.map((m) => m.close()));
+  Future close() => Future.wait(inks.map((m) => m.close()));
 }
 
-// TODO: better name
-abstract class MetaAction {
-  void run(StoryTeller t);
+/// A request to alter the flow or lifecycle of the narration (e.g. to start or
+/// stop).
+///
+/// As opposed to an [Action], it is not a user interaction that is part of the
+/// story; it is about the telling or playing of the story itself.
+abstract class Interrupt {
+  void run(Narrator t);
 }
 
 // TODO: serializable
 
-class StartStory extends MetaAction {
+class StartStory extends Interrupt {
   @override
-  void run(StoryTeller t) {
+  void run(Narrator t) {
     t.start();
   }
 }
 
-class PauseStory extends MetaAction {
+class PauseStory extends Interrupt {
   @override
-  void run(StoryTeller t) {
+  void run(Narrator t) {
     if (t._story == null) {
-      t._tellerEvents.addError(
+      t._directorEvents.addError(
           StateError("can't pause story; no story is currently being told."));
       return;
     }
@@ -318,11 +328,11 @@ class PauseStory extends MetaAction {
   }
 }
 
-class ResumeStory extends MetaAction {
+class ResumeStory extends Interrupt {
   @override
-  void run(StoryTeller t) {
+  void run(Narrator t) {
     if (t._story == null) {
-      t._tellerEvents.addError(
+      t._directorEvents.addError(
           StateError("can't resume story; no story is currently being told."));
       return;
     }

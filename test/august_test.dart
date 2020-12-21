@@ -15,14 +15,27 @@ void main() {
       testUi = TestUi();
     });
 
-    void story() {
-      dialog.narrate('test');
-      options.oneTime('test it').onUse.listen((event) {
-        dialog.add('tested');
-      });
-    }
+    test('emits events to UI', () async {
+      void story() {
+        dialog.narrate('test');
+        options.oneTime('test it').onUse.listen((event) {
+          dialog.add('tested');
+        });
+      }
+
+      play(story, NoPersistence(), testUi, {dialog, options});
+      await Future(() => {});
+      expect(testUi.eventLog, contains(SpeechAvailable(null, 'tested', null)));
+    });
 
     test('emits events to UI', () async {
+      void story() {
+        dialog.narrate('test');
+        options.oneTime('test it').onUse.listen((event) {
+          dialog.add('tested');
+        });
+      }
+
       play(story, NoPersistence(), testUi, {dialog, options});
       testUi.perform(UseOption('test it'));
       await Future(() => {});
@@ -32,15 +45,15 @@ void main() {
 }
 
 class TestUi extends UserInterface {
-  final _actions = StreamController<Action<StoryModule<Event>>>();
+  final _actions = StreamController<Action<Ink<Event>>>();
   final eventLog = [];
 
-  void perform(Action<StoryModule<Event>> action) {
+  void perform(Action<Ink<Event>> action) {
     _actions.add(action);
   }
 
   @override
-  Stream<Action<StoryModule<Event>>> get actions => _actions.stream;
+  Stream<Action<Ink<Event>>> get actions => _actions.stream;
 
   @override
   Future play(Stream<Event> events) {
@@ -48,8 +61,7 @@ class TestUi extends UserInterface {
   }
 
   @override
-  // TODO: implement metaActions
-  Stream<MetaAction> get metaActions => Stream.empty();
+  Stream<Interrupt> get interrupts => Stream.empty();
 
   @override
   // TODO: implement stopped

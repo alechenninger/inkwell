@@ -8,7 +8,7 @@ import 'package:pedantic/pedantic.dart';
 import 'august.dart';
 
 // TODO: Probably rethink this later
-class Scenes extends StoryModule {
+class Scenes extends Ink {
   /// Internally used to keep track of scene changes, to prevent multiple scenes
   /// from being in scope at once. These effects must be immediate–that is, it
   /// can never be observed that two scenes are active at once–so this is why

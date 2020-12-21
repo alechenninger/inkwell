@@ -27,7 +27,7 @@ class SimpleHtmlUi implements UserInterface {
   final _domQueue = Queue<Function>();
   Stream<Action> get actions => _actions.stream.where((event) => !_paused);
 
-  final _metaActions = StreamController<MetaAction>();
+  final _metaActions = StreamController<Interrupt>();
 
   // TODO: bundle this related state up?
 
@@ -61,7 +61,7 @@ class SimpleHtmlUi implements UserInterface {
   }
 
   @override
-  Stream<MetaAction> get metaActions => _metaActions.stream;
+  Stream<Interrupt> get interrupts => _metaActions.stream;
 
   @override
   Future play(Stream<Event> events) {

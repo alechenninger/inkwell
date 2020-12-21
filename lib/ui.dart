@@ -5,7 +5,8 @@ import 'src/core.dart';
 export 'src/persistence.dart' hide FastForwarder;
 
 abstract class UserInterface {
-  Stream<MetaAction> get metaActions;
+  Stream<Interrupt> get interrupts;
+
   Stream<Action> get actions;
 
   /// Instruct the UI to play back these events and present them to the user (in
@@ -17,5 +18,6 @@ abstract class UserInterface {
   /// [play] must not be called while listening to an event stream that is not
   /// yet done.
   Future play(Stream<Event> events);
+
   Future get stopped;
 }

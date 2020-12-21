@@ -1,5 +1,5 @@
-/// Abstractions for assisting in the development of [StoryModules].
-library august.modules;
+/// Abstractions for assisting in the development of [Ink]s.
+library august.inks;
 
 import 'dart:collection';
 

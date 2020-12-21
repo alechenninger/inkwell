@@ -5,26 +5,24 @@ import 'dart:collection';
 
 // TODO: maybe combine this lib with input.dart?
 
-// Scribe?
-abstract class Saver {
-  SaveSlot operator [](String slot);
-  List<SaveSlot> get slots;
+abstract class Scribe {
+  Chronicle operator [](String slot);
+  List<Chronicle> get slots;
   // bool remove(String slot);
 }
 
-class NoopSaver extends Saver {
+class NoopSaver extends Scribe {
   @override
-  SaveSlot operator [](String slot) {
+  Chronicle operator [](String slot) {
     return NoPersistence();
   }
 
   @override
-  List<SaveSlot> get slots => [];
+  List<Chronicle> get slots => [];
 
 }
 
-// Book? Tome? Log?
-abstract class SaveSlot {
+abstract class Chronicle {
   // TODO maybe should be getSavedInteractions(String scriptName, int version)
   // Today persistence must be instantiated to know how to read persisted events
   // for a particular script
@@ -33,7 +31,7 @@ abstract class SaveSlot {
   void saveAction(Duration offset, Object action);
 }
 
-class NoPersistence implements SaveSlot {
+class NoPersistence implements Chronicle {
   @override
   List<SavedAction> get actions => [];
 

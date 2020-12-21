@@ -6,7 +6,7 @@ import 'dart:html';
 
 import 'package:august/ui.dart';
 
-class HtmlPersistence implements SaveSlot {
+class HtmlPersistence implements Chronicle {
   final String _scriptHandle;
   final _savedActions = <SavedAction>[];
   Storage _storage;
