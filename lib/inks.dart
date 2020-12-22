@@ -139,6 +139,6 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
     uses.increment();
   }
 
-  // TOOD: do we need this?
+  // TODO: do we need this?
   // Future close() => Future.wait([_events.close(), _onUse.close()]);
 }

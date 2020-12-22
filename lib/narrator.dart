@@ -29,7 +29,7 @@ class Narrator {
   Story _story;
 
   // This is handled a bit ugly. Maybe it makes sense a part of Story?
-  var _directorEvents = StreamController<Event>();
+  StreamController<Event> _directorEvents;
 
   Narrator(this._script, this._scribe, this._stopwatch, this._random,
       this._clearPalette, this._ui) {
@@ -38,25 +38,25 @@ class Narrator {
     });
   }
 
-  void start() async {
+  Future start() async {
     await stop();
 
     var palette = _clearPalette();
+    _directorEvents = StreamController<Event>();
     _ui.play(Rx.merge([_directorEvents.stream, palette.events]));
-    _story = Story._('1', _script, palette, _stopwatch, _ui.actions);
+    _story = Story('1', _script, palette, _stopwatch, _ui.actions);
   }
 
-  void load(String save) {}
+  Future load(String save) {}
 
   Future stop() async {
     if (_story == null) {
       return Future.sync(() {});
     }
 
-    _story.close();
-    _directorEvents.close();
+    await _story.close();
+    await _directorEvents?.close();
     await _ui.stopped;
-    _directorEvents = StreamController<Event>();
   }
 
   List<String> saves() {}
@@ -72,7 +72,7 @@ class Story {
 
   StreamSubscription _actionsSubscription;
 
-  Story._(
+  Story(
       this.storyId, this._script, this._palette, this._stopwatch, this._actions)
       : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more

@@ -64,7 +64,7 @@ class SimpleHtmlUi implements UserInterface {
   Stream<Interrupt> get interrupts => _interrupts.stream;
 
   @override
-  Future play(Stream<Event> events) {
+  void play(Stream<Event> events) {
     if (_events != null) {
       throw StateError('Cannot listen to multiple event streams '
           'simultaneously. Ensure prior event stream is closed first.');
@@ -91,8 +91,6 @@ class SimpleHtmlUi implements UserInterface {
 
     _events.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
     _events.whereType<OptionAvailable>().listen(_onOptionAvailable);
-
-    return _stopped.future;
   }
 
   // TODO: not sure if this is really helping anything
