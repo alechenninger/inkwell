@@ -1,52 +1,77 @@
-import 'package:quiver/time.dart';
-
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math';
 
-// TODO: maybe combine this lib with input.dart?
+import 'package:meta/meta.dart';
 
-abstract class Scribe {
-  Chronicle operator [](String slot);
-  List<Chronicle> get slots;
-  // bool remove(String slot);
+abstract class Archive {
+  Version newVersion();
+
+  Version operator [](String version);
+
+  // void save(Version version);
+
+  List<Version> get versions;
+
+  bool remove(String version);
 }
 
-class NoopSaver extends Scribe {
+class InMemoryArchive extends Archive {
+  final _versions = <String, InMemoryVersion>{};
+
   @override
-  Chronicle operator [](String slot) {
-    return NoPersistence();
+  Version operator [](String version) {
+    return _versions.putIfAbsent(version, () => InMemoryVersion(version));
   }
 
   @override
-  List<Chronicle> get slots => [];
+  List<Version> get versions => [];
 
-}
-
-abstract class Chronicle {
-  // TODO maybe should be getSavedInteractions(String scriptName, int version)
-  // Today persistence must be instantiated to know how to read persisted events
-  // for a particular script
-  // String get name;
-  List<SavedAction> get actions;
-  void saveAction(Duration offset, Object action);
-}
-
-class NoPersistence implements Chronicle {
   @override
-  List<SavedAction> get actions => [];
+  bool remove(String version) {
+    return _versions.remove(version) != null;
+  }
 
-  void saveAction(Duration offset, Object action) {
+  @override
+  Version newVersion() {
+    return this['unnamed-${Random().nextInt(4294967296)}'];
+  }
+}
+
+abstract class Version {
+  String get name;
+
+  // Version fork(String name);
+
+  List<RecordedAction> get actions;
+
+  void record(Duration offset, Object action);
+}
+
+class InMemoryVersion implements Version {
+  final _actions = <RecordedAction>[];
+
+  @override
+  final String name;
+
+  InMemoryVersion(this.name);
+
+  @override
+  List<RecordedAction> get actions => List.unmodifiable(_actions);
+
+  void record(Duration offset, Object action) {
     print('persist: $offset $action');
+    _actions.add(RecordedAction(offset, action));
   }
 }
 
-class SavedAction {
+class RecordedAction {
   final Duration offset;
   final Object action;
 
-  SavedAction(this.offset, this.action);
+  RecordedAction(this.offset, this.action);
 
-  SavedAction.fromJson(Map<String, Object> json)
+  RecordedAction.fromJson(Map<String, Object> json)
       : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
@@ -221,6 +246,7 @@ class _FastForwarderTimer implements Timer {
 
 class _TrackingTimer implements Timer {
   bool isActive = true;
+
   cancel() {
     isActive = false;
   }

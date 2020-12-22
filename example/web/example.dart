@@ -15,14 +15,11 @@ import 'package:august/ui/html/html_ui.dart';
 // Instantiate modules top level for easy accessibility from script methods
 
 void main() {
-  // Need a persistence strategy
-  var persistence = HtmlPersistence('example');
-
   // Present the user interface(s) with HTML
   var ui = SimpleHtmlUi(querySelector('#example'));
 
   // play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
-  Narrator(example, NoopSaver(), Stopwatch(), Random(),
+  Narrator(example, HtmlArchive('example'), Stopwatch(), Random(),
       // TODO: instantiate new
       () {
     var scenes = Scenes();

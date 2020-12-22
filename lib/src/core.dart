@@ -8,7 +8,7 @@ abstract class Event {}
 
 /// A reified action taken that is performed by some [Ink].
 abstract class Action<I extends Ink> {
-  Type get ink => I;
+  Type get inkType => I;
 
   void perform(I ink);
 }

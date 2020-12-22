@@ -31,8 +31,8 @@ void main() {
         p<Dialog>().narrate('test');
       }
 
-      n = Narrator(
-          script, NoopSaver(), Stopwatch(), Random(), clearPalette, testUi);
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
+          clearPalette, testUi);
 
       await n.start();
       await eventLoop;
@@ -48,8 +48,8 @@ void main() {
         });
       }
 
-      n = Narrator(
-          script, NoopSaver(), Stopwatch(), Random(), clearPalette, testUi);
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
+          clearPalette, testUi);
       await n.start();
       await eventLoop;
       testUi.attempt(UseOption('test it'));
@@ -65,8 +65,8 @@ void main() {
         });
       }
 
-      n = Narrator(
-          script, NoopSaver(), Stopwatch(), Random(), clearPalette, testUi);
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
+          clearPalette, testUi);
       await n.start();
       await eventLoop;
       testUi.attempt(UseOption('test it'));
@@ -93,7 +93,8 @@ void main() {
 
       var palette = clearPalette();
       testUi.play(palette.events);
-      var s = Story('id', script, palette, Stopwatch(), testUi.actions);
+      var s = Story('id', script, palette, Stopwatch(), testUi.actions,
+          InMemoryVersion('tes'));
       await eventLoop;
       expect(s.close(), completes);
     });

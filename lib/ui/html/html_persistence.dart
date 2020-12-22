@@ -3,40 +3,70 @@
 
 import 'dart:convert';
 import 'dart:html';
+import 'dart:math';
 
 import 'package:august/ui.dart';
 
-class HtmlPersistence implements Chronicle {
+class HtmlArchive extends Archive {
   final String _scriptHandle;
-  final _savedActions = <SavedAction>[];
-  Storage _storage;
+  final Storage _storage;
+
+  HtmlArchive(this._scriptHandle, {Storage storage})
+      : _storage = storage ?? window.localStorage;
+
+  final _versions = <String, Version>{};
+
+  @override
+  Version operator [](String version) => _versions.putIfAbsent(
+      version, () => HtmlVersion(_storage, _scriptHandle, version));
+
+  @override
+  List<Version> get versions => _versions.values.toList(growable: false);
+
+  @override
+  bool remove(String version) {
+    return _storage.remove(_versionKey(_scriptHandle, version)) != null;
+  }
+
+  @override
+  Version newVersion() {
+    return this['unnamed-${Random().nextInt(4294967296)}'];
+  }
+}
+
+class HtmlVersion implements Version {
+  final String _scriptHandle;
+  final _savedActions = <RecordedAction>[];
+  final Storage _storage;
+  final String name;
+
+  String get _key => _versionKey(_scriptHandle, name);
 
   static const _json = JsonCodec();
 
-  HtmlPersistence(this._scriptHandle, [Storage _storage]) {
-    this._storage = _storage ?? window.localStorage;
+  HtmlVersion(this._storage, this._scriptHandle, this.name) {
+    _loadFromStorage();
+  }
 
-    if (this._storage.containsKey(_scriptHandle)) {
-      var saved = _json.decode(this._storage[_scriptHandle]) as List<dynamic>;
-      _savedActions.addAll(
-          saved.map((o) => SavedAction.fromJson(o as Map<String, Object>)));
+  void _loadFromStorage() {
+    if (!_storage.containsKey(_key)) {
+      return;
     }
 
-//    window.onBeforeUnload.listen((e) {
-//      this._storage[_scriptHandle] = _json.encode(_savedActions);
-//    });
-  }
-
-  void clear() {
-    _storage.remove(_scriptHandle);
+    var saved = _json.decode(_storage[_key]) as List<dynamic>;
+    _savedActions.addAll(
+        saved.map((o) => RecordedAction.fromJson(o as Map<String, Object>)));
   }
 
   @override
-  List<SavedAction> get actions => List<SavedAction>.from(_savedActions);
+  List<RecordedAction> get actions => List<RecordedAction>.from(_savedActions);
 
   @override
-  void saveAction(Duration offset, Object action) {
-    _savedActions.add(SavedAction(offset, action));
-    _storage[_scriptHandle] = _json.encode(_savedActions);
+  void record(Duration offset, Object action) {
+    _savedActions.add(RecordedAction(offset, action));
+    _storage[_key] = _json.encode(_savedActions);
   }
 }
+
+String _versionKey(String scriptHandle, String version) =>
+    '$scriptHandle:$version';

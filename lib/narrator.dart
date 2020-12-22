@@ -13,7 +13,7 @@ import 'ui.dart';
 // Narrator?
 class Narrator {
   final Script _script;
-  final Scribe _scribe;
+  final Archive _archive;
 
   // TODO: need to be Stopwatch f() if we want to manage multiple stories
   final Stopwatch _stopwatch;
@@ -31,7 +31,7 @@ class Narrator {
   // This is handled a bit ugly. Maybe it makes sense a part of Story?
   StreamController<Event> _directorEvents;
 
-  Narrator(this._script, this._scribe, this._stopwatch, this._random,
+  Narrator(this._script, this._archive, this._stopwatch, this._random,
       this._clearPalette, this._ui) {
     _ui.interrupts.listen((event) {
       event.run(this);
@@ -42,9 +42,10 @@ class Narrator {
     await stop();
 
     var palette = _clearPalette();
+    var version = _archive.newVersion();
     _directorEvents = StreamController<Event>();
     _ui.play(Rx.merge([_directorEvents.stream, palette.events]));
-    _story = Story('1', _script, palette, _stopwatch, _ui.actions);
+    _story = Story('1', _script, palette, _stopwatch, _ui.actions, version);
   }
 
   Future load(String save) {}
@@ -72,15 +73,16 @@ class Story {
 
   StreamSubscription _actionsSubscription;
 
-  Story(
-      this.storyId, this._script, this._palette, this._stopwatch, this._actions)
+  Story(this.storyId, this._script, this._palette, this._stopwatch,
+      this._actions, Version version)
       : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
     // TODO: look into saveslot/saver model more
     _stopwatch.start();
-    _start(NoPersistence());
+    _start(version);
+    ;
   }
 
-  void _start(Chronicle save) {
+  void _start(Version version) {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
     var replayedActions = StreamController<Action>(sync: true);
 
@@ -103,7 +105,7 @@ class Story {
         // At this offset this may persist, but not actually succeed to run by the
         // time it's run (is this possible?)
         // What about if it succeeds inn the run, but not when replayed?
-        save.saveAction(fastForwarder.currentOffset, serialized);
+        version.record(fastForwarder.currentOffset, serialized);
       })
     ]);
 
@@ -113,37 +115,30 @@ class Story {
           print('action: ${fastForwarder.currentOffset} $action');
           // TODO: move saving here; detect if ff-ing and don't save in that
           //  case?
-          action.perform(_palette[action.ink]);
+          action.perform(_palette[action.inkType]);
         });
 
         _script(_palette);
 
-        var savedActions = save.actions;
+        // TODO: could publish a "loading" event here so UI can react to all the
+        // rapid-fire events accordingly
+        var record = version.actions;
+        var lastOffset = Duration.zero;
 
-        if (savedActions.isEmpty) {
-          replayedActions.close();
-        } else {
-          // TODO: could publish a "loading" event here so UI can react to all the
-          // rapid-fire events accordingly
-          for (var i = 0; i < savedActions.length; i++) {
-            var saved = savedActions[i];
-            Future.delayed(saved.offset, () {
-              var action =
-                  _palette.serializers.deserialize(saved.action) as Action;
-              replayedActions.add(action);
-              if (i == savedActions.length - 1) {
-                replayedActions.close();
-              }
-            });
-          }
-
-          ff.fastForward(savedActions.last.offset);
+        for (var recorded in record) {
+          Future.delayed(lastOffset = recorded.offset, () {
+            var action =
+                _palette.serializers.deserialize(recorded.action) as Action;
+            replayedActions.add(action);
+          });
         }
+
+        Future.delayed(lastOffset, () => replayedActions.close());
+
+        ff.fastForward(lastOffset);
       });
     });
   }
-
-  void checkpoint() {}
 
   void changeSlot(String save) {
     // would have to copy all actions to new save slot
@@ -180,31 +175,36 @@ abstract class Interrupt {
 
 class StartStory extends Interrupt {
   @override
-  void run(Narrator t) {
-    t.start();
+  void run(Narrator n) {
+    n.start();
   }
 }
 
 class PauseStory extends Interrupt {
   @override
-  void run(Narrator t) {
-    if (t._story == null) {
-      t._directorEvents.addError(
+  void run(Narrator n) {
+    if (n._story == null) {
+      n._directorEvents.addError(
           StateError("can't pause story; no story is currently being told."));
       return;
     }
-    t._story.pause();
+    n._story.pause();
   }
 }
 
 class ResumeStory extends Interrupt {
   @override
-  void run(Narrator t) {
-    if (t._story == null) {
-      t._directorEvents.addError(
+  void run(Narrator n) {
+    if (n._story == null) {
+      n._directorEvents.addError(
           StateError("can't resume story; no story is currently being told."));
       return;
     }
-    t._story.resume();
+    n._story.resume();
   }
+}
+
+class ForkVersion extends Interrupt {
+  @override
+  void run(Narrator n) {}
 }
