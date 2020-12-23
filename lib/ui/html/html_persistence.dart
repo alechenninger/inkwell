@@ -11,17 +11,19 @@ class HtmlArchive extends Archive {
   final String _scriptHandle;
   final Storage _storage;
 
+  static const _json = JsonCodec();
+
   HtmlArchive(this._scriptHandle, {Storage storage})
       : _storage = storage ?? window.localStorage;
 
-  final _versions = <String, Version>{};
+  @override
+  Version operator [](String version) => _loadFromStorage(version);
 
   @override
-  Version operator [](String version) => _versions.putIfAbsent(
-      version, () => HtmlVersion(_storage, _scriptHandle, version));
-
-  @override
-  List<Version> get versions => _versions.values.toList(growable: false);
+  List<Version> get versions => _storage.keys
+      .where((element) => element.startsWith('$_scriptHandle:'))
+      .map((e) => _loadFromStorage(e.substring('$_scriptHandle:'.length)))
+      .toList(growable: false);
 
   @override
   bool remove(String version) {
@@ -30,41 +32,32 @@ class HtmlArchive extends Archive {
 
   @override
   Version newVersion() {
-    return this['unnamed-${Random().nextInt(4294967296)}'];
-  }
-}
-
-class HtmlVersion implements Version {
-  final String _scriptHandle;
-  final _savedActions = <RecordedAction>[];
-  final Storage _storage;
-  final String name;
-
-  String get _key => _versionKey(_scriptHandle, name);
-
-  static const _json = JsonCodec();
-
-  HtmlVersion(this._storage, this._scriptHandle, this.name) {
-    _loadFromStorage();
+    return Version('unnamed-${Random().nextInt(4294967296)}');
   }
 
-  void _loadFromStorage() {
-    if (!_storage.containsKey(_key)) {
-      return;
+  @override
+  void save(Version version) {
+    _storage[_versionKey(_scriptHandle, version.name)] =
+        _json.encode(version.actions);
+  }
+
+  @override
+  void append(List<RecordedAction> actions, String version) {
+    // TODO: implement append
+  }
+
+  Version _loadFromStorage(String version) {
+    var key = _versionKey(_scriptHandle, version);
+    if (!_storage.containsKey(key)) {
+      return null;
     }
 
-    var saved = _json.decode(_storage[_key]) as List<dynamic>;
-    _savedActions.addAll(
-        saved.map((o) => RecordedAction.fromJson(o as Map<String, Object>)));
-  }
-
-  @override
-  List<RecordedAction> get actions => List<RecordedAction>.from(_savedActions);
-
-  @override
-  void record(Duration offset, Object action) {
-    _savedActions.add(RecordedAction(offset, action));
-    _storage[_key] = _json.encode(_savedActions);
+    var saved = _json.decode(_storage[key]) as List<dynamic>;
+    return Version.started(
+        version,
+        saved
+            .map((o) => RecordedAction.fromJson(o as Map<String, Object>))
+            .toList());
   }
 }
 

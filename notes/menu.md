@@ -65,3 +65,11 @@ So some kind of streams on UserInterface I guess separate from actions.
 Should UI keep track of multiple stories? I don't think so.
 
 Server-side, yes probably.
+
+## save logic
+
+...is a little clumsy right now.
+
+Would like to push this to Narrator more.
+
+Right now some of loading events has to be in Story within the FastForwarder. 

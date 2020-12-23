@@ -93,8 +93,8 @@ void main() {
 
       var palette = clearPalette();
       testUi.play(palette.events);
-      var s = Story('id', script, palette, Stopwatch(), testUi.actions,
-          InMemoryVersion('tes'));
+      var s = Story(
+          'id', script, palette, Stopwatch(), testUi.actions, Version('test'));
       await eventLoop;
       expect(s.close(), completes);
     });

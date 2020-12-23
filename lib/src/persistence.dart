@@ -5,11 +5,12 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 
 abstract class Archive {
+  // TODO: remove this in current model
   Version newVersion();
 
   Version operator [](String version);
 
-  // void save(Version version);
+  void save(Version version);
 
   List<Version> get versions;
 
@@ -17,15 +18,16 @@ abstract class Archive {
 }
 
 class InMemoryArchive extends Archive {
-  final _versions = <String, InMemoryVersion>{};
+  final _versions = <String, Version>{};
 
   @override
   Version operator [](String version) {
-    return _versions.putIfAbsent(version, () => InMemoryVersion(version));
+    return Version.copy(_versions.putIfAbsent(version, () => Version(version)));
   }
 
   @override
-  List<Version> get versions => [];
+  List<Version> get versions =>
+      _versions.values.map((e) => Version.copy(e)).toList(growable: false);
 
   @override
   bool remove(String version) {
@@ -34,35 +36,41 @@ class InMemoryArchive extends Archive {
 
   @override
   Version newVersion() {
-    return this['unnamed-${Random().nextInt(4294967296)}'];
+    return Version('unnamed-${Random().nextInt(4294967296)}');
+  }
+
+  @override
+  void save(Version version) {
+    _versions[version.name] = Version.copy(version);
+  }
+
+  @override
+  void append(List<RecordedAction> actions, String version) {
+    // TODO: implement append
   }
 }
 
-abstract class Version {
-  String get name;
+class Version {
+  final List<RecordedAction> _actions;
 
-  // Version fork(String name);
-
-  List<RecordedAction> get actions;
-
-  void record(Duration offset, Object action);
-}
-
-class InMemoryVersion implements Version {
-  final _actions = <RecordedAction>[];
-
-  @override
   final String name;
 
-  InMemoryVersion(this.name);
+  Version(this.name) : _actions = <RecordedAction>[];
 
-  @override
+  Version.copy(Version v, {String name}): this.started(v.name, v.actions);
+
+  Version.started(this.name, List<RecordedAction> actions)
+      : _actions = List.from(actions);
+
   List<RecordedAction> get actions => List.unmodifiable(_actions);
 
   void record(Duration offset, Object action) {
     print('persist: $offset $action');
+    // TODO: could validate offset > last offset?
     _actions.add(RecordedAction(offset, action));
   }
+
+  Stream<RecordedAction> get onRecord => null;
 }
 
 class RecordedAction {
@@ -97,6 +105,8 @@ class FastForwarder {
   Duration get currentOffset => _useParentZone
       ? _elapsed + _parentOffset() - _switchedToParent
       : _elapsed;
+
+  bool get isFastForwarding => !_useParentZone;
 
   void runFastForwardable(Function(FastForwarder) callback) {
     _useParentZone = false;

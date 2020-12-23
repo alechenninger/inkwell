@@ -29,7 +29,11 @@ class Narrator {
   Story _story;
 
   // This is handled a bit ugly. Maybe it makes sense a part of Story?
-  StreamController<Event> _directorEvents;
+  // Actually might make more sense for separate UI listener not coupled to a
+  // story, as a narrator is not coupled to a story. But it is nice to send
+  // errors in the stream the UI already gets, and in that case we have to do
+  // this lifecycle handling. Unless we make it a broadcast stream...
+  StreamController<Event> _narratorEvents;
 
   Narrator(this._script, this._archive, this._stopwatch, this._random,
       this._clearPalette, this._ui) {
@@ -43,8 +47,9 @@ class Narrator {
 
     var palette = _clearPalette();
     var version = _archive.newVersion();
-    _directorEvents = StreamController<Event>();
-    _ui.play(Rx.merge([_directorEvents.stream, palette.events]));
+    _narratorEvents = StreamController<Event>();
+    _ui.play(Rx.merge([_narratorEvents.stream, palette.events]));
+
     _story = Story('1', _script, palette, _stopwatch, _ui.actions, version);
   }
 
@@ -56,7 +61,7 @@ class Narrator {
     }
 
     await _story.close();
-    await _directorEvents?.close();
+    await _narratorEvents?.close();
     await _ui.stopped;
   }
 
@@ -72,17 +77,16 @@ class Story {
   final Stopwatch _stopwatch;
 
   StreamSubscription _actionsSubscription;
+  Version _version;
 
   Story(this.storyId, this._script, this._palette, this._stopwatch,
-      this._actions, Version version)
+      this._actions, Stream<RecordedAction> record)
       : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
-    // TODO: look into saveslot/saver model more
     _stopwatch.start();
-    _start(version);
-    ;
+    _start(record);
   }
 
-  void _start(Version version) {
+  void _start(Stream<RecordedAction> record) {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
     var replayedActions = StreamController<Action>(sync: true);
 
@@ -90,39 +94,30 @@ class Story {
     _palette.events.listen(
         (event) => print('event: ${fastForwarder.currentOffset} $event'));
 
-    var actions = Rx.concat([
-      replayedActions.stream,
-      _actions.where((action) {
-        if (_pausableZone.isPaused) {
-          // TODO: emit error somehow?
-          print('caught action while paused, ignoring. action=$action');
-          return false;
-        }
-        return true;
-      }).doOnData((action) {
-        var serialized = _palette.serializers.serialize(action);
-        // TODO: are there race conditions here?
-        // At this offset this may persist, but not actually succeed to run by the
-        // time it's run (is this possible?)
-        // What about if it succeeds inn the run, but not when replayed?
-        version.record(fastForwarder.currentOffset, serialized);
-      })
-    ]);
+    var actions = Rx.concat([replayedActions.stream, _actions]);
 
     _pausableZone.run((c) {
       fastForwarder.runFastForwardable((ff) {
         _actionsSubscription = actions.listen((action) {
-          print('action: ${fastForwarder.currentOffset} $action');
-          // TODO: move saving here; detect if ff-ing and don't save in that
-          //  case?
+          var offset = fastForwarder.currentOffset;
+
+          if (_pausableZone.isPaused) {
+            // TODO: emit error somehow?
+            print('caught action while paused, ignoring: $offset $action');
+            return;
+          }
+
+          print('action: $offset $action');
           action.perform(_palette[action.inkType]);
+
+
         });
 
         _script(_palette);
 
         // TODO: could publish a "loading" event here so UI can react to all the
         // rapid-fire events accordingly
-        var record = version.actions;
+        var record = _version.actions;
         var lastOffset = Duration.zero;
 
         for (var recorded in record) {
@@ -138,11 +133,6 @@ class Story {
         ff.fastForward(lastOffset);
       });
     });
-  }
-
-  void changeSlot(String save) {
-    // would have to copy all actions to new save slot
-    // probably needs to happen at Saver level somewhat
   }
 
   void pause() {
@@ -168,7 +158,7 @@ class Story {
 /// As opposed to an [Action], it is not a user interaction that is part of the
 /// story; it is about the telling or playing of the story itself.
 abstract class Interrupt {
-  void run(Narrator t);
+  void run(Narrator n);
 }
 
 // TODO: serializable
@@ -184,7 +174,7 @@ class PauseStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._directorEvents.addError(
+      n._narratorEvents.addError(
           StateError("can't pause story; no story is currently being told."));
       return;
     }
@@ -196,7 +186,7 @@ class ResumeStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._directorEvents.addError(
+      n._narratorEvents.addError(
           StateError("can't resume story; no story is currently being told."));
       return;
     }
@@ -204,7 +194,21 @@ class ResumeStory extends Interrupt {
   }
 }
 
+class SaveVersion extends Interrupt {
+  @override
+  void run(Narrator n) {
+    // n.save(id);
+  }
+}
+
 class ForkVersion extends Interrupt {
   @override
   void run(Narrator n) {}
+}
+
+class PerformedAction {
+  final Duration offset;
+  final Action action;
+
+  PerformedAction(this.offset, this.action);
 }
