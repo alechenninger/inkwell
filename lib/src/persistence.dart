@@ -5,8 +5,6 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 
 abstract class Archive {
-  // TODO: remove this in current model
-  Version newVersion();
 
   Version operator [](String version);
 
@@ -32,11 +30,6 @@ class InMemoryArchive extends Archive {
   @override
   bool remove(String version) {
     return _versions.remove(version) != null;
-  }
-
-  @override
-  Version newVersion() {
-    return Version('unnamed-${Random().nextInt(4294967296)}');
   }
 
   @override

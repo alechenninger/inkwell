@@ -29,6 +29,8 @@ class Narrator {
   // Or does it matter that microtasks and events would interleave?
   // I don't believe it should, technically, since each story itself would still
   // be ordered.
+  // Would that be a separate narrator for each story anyway? Because multiple
+  // users would imply multiple UIs?
   _Story _story;
 
   Narrator(this._script, this._archive, this._stopwatch, this._random,

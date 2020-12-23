@@ -3,7 +3,6 @@
 
 import 'dart:convert';
 import 'dart:html';
-import 'dart:math';
 
 import 'package:august/ui.dart';
 
@@ -28,11 +27,6 @@ class HtmlArchive extends Archive {
   @override
   bool remove(String version) {
     return _storage.remove(_versionKey(_scriptHandle, version)) != null;
-  }
-
-  @override
-  Version newVersion() {
-    return Version('unnamed-${Random().nextInt(4294967296)}');
   }
 
   @override

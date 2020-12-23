@@ -20,8 +20,6 @@ abstract class UserInterface {
   /// yet done.
   void play(Stream<Event> events);
 
-  // EventSink get notices;
-
   Future get stopped;
 }
 
