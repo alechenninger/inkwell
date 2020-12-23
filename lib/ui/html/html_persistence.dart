@@ -42,7 +42,7 @@ class HtmlArchive extends Archive {
   }
 
   @override
-  void append(List<RecordedAction> actions, String version) {
+  void append(List<OffsetAction> actions, String version) {
     // TODO: implement append
   }
 
@@ -56,7 +56,7 @@ class HtmlArchive extends Archive {
     return Version.started(
         version,
         saved
-            .map((o) => RecordedAction.fromJson(o as Map<String, Object>))
+            .map((o) => OffsetAction.fromJson(o as Map<String, Object>))
             .toList());
   }
 }

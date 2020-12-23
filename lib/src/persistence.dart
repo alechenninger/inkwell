@@ -45,41 +45,41 @@ class InMemoryArchive extends Archive {
   }
 
   @override
-  void append(List<RecordedAction> actions, String version) {
+  void append(List<OffsetAction> actions, String version) {
     // TODO: implement append
   }
 }
 
 class Version {
-  final List<RecordedAction> _actions;
+  final List<OffsetAction> _actions;
 
   final String name;
 
-  Version(this.name) : _actions = <RecordedAction>[];
+  Version(this.name) : _actions = <OffsetAction>[];
 
   Version.copy(Version v, {String name}): this.started(v.name, v.actions);
 
-  Version.started(this.name, List<RecordedAction> actions)
+  Version.started(this.name, List<OffsetAction> actions)
       : _actions = List.from(actions);
 
-  List<RecordedAction> get actions => List.unmodifiable(_actions);
+  List<OffsetAction> get actions => List.unmodifiable(_actions);
 
   void record(Duration offset, Object action) {
     print('persist: $offset $action');
     // TODO: could validate offset > last offset?
-    _actions.add(RecordedAction(offset, action));
+    _actions.add(OffsetAction(offset, action));
   }
 
-  Stream<RecordedAction> get onRecord => null;
+  Stream<OffsetAction> get onRecord => null;
 }
 
-class RecordedAction {
+class OffsetAction {
   final Duration offset;
   final Object action;
 
-  RecordedAction(this.offset, this.action);
+  OffsetAction(this.offset, this.action);
 
-  RecordedAction.fromJson(Map<String, Object> json)
+  OffsetAction.fromJson(Map<String, Object> json)
       : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 

@@ -26,14 +26,7 @@ class Narrator {
   // Or does it matter that microtasks and events would interleave?
   // I don't believe it should, technically, since each story itself would still
   // be ordered.
-  Story _story;
-
-  // This is handled a bit ugly. Maybe it makes sense a part of Story?
-  // Actually might make more sense for separate UI listener not coupled to a
-  // story, as a narrator is not coupled to a story. But it is nice to send
-  // errors in the stream the UI already gets, and in that case we have to do
-  // this lifecycle handling. Unless we make it a broadcast stream...
-  StreamController<Event> _narratorEvents;
+  _Story _story;
 
   Narrator(this._script, this._archive, this._stopwatch, this._random,
       this._clearPalette, this._ui) {
@@ -45,13 +38,9 @@ class Narrator {
   Future start() async {
     await stop();
 
-    var palette = _clearPalette();
     var version = Version('unnamed');
 
-    _playToUi(palette);
-    _story = Story(
-        '1', _script, palette, _stopwatch, _ui.actions, () => Duration.zero);
-    _record(palette, version);
+    _story = _Story.start('1', this, version);
   }
 
   Future continueFrom(String versionName) async {
@@ -64,32 +53,7 @@ class Narrator {
           versionName, 'versionName', 'not found in archive');
     }
 
-    var palette = _clearPalette();
-    var replayedActions = StreamController<Action>();
-    var actions = Rx.concat([replayedActions.stream, _ui.actions]);
-
-    _playToUi(palette);
-
-    _story = Story('1', _script, palette, _stopwatch, actions, () {
-      // TODO: could publish a "loading" event somewhere so UI can react to all
-      //  the rapid-fire events accordingly
-      var record = version.actions;
-      var lastOffset = Duration.zero;
-
-      for (var recorded in record) {
-        Future.delayed(lastOffset = recorded.offset, () {
-          var action =
-              palette.serializers.deserialize(recorded.action) as Action;
-          replayedActions.add(action);
-        });
-      }
-
-      Future.delayed(lastOffset, () => replayedActions.close());
-
-      return lastOffset;
-    });
-
-    _record(palette, version);
+    _story = _Story.start('1', this, version);
   }
 
   Future stop() async {
@@ -98,47 +62,53 @@ class Narrator {
     }
 
     await _story.close();
-    await _narratorEvents?.close();
     await _ui.stopped;
   }
 
   List<String> saves() {}
-
-  void _playToUi(Palette palette) {
-    _narratorEvents = StreamController<Event>();
-    _ui.play(Rx.merge([_narratorEvents.stream, palette.events]));
-  }
-
-  void _record(Palette palette, Version version) {
-    _story.offsetActions.listen((action) {
-      var serialized = palette.serializers.serialize(action.action);
-      version.record(action.offset, serialized);
-      _archive.save(version);
-    });
-  }
 }
 
-class Story {
+class _Story {
   final String storyId;
-  final PausableZone _pausableZone;
+  final Narrator _narrator;
   final Palette _palette;
   final Stopwatch _stopwatch;
-  final _offsetActions = StreamController<OffsetAction>();
+
+  // TODO: UI gets this in same event stream as story events ... should it?
+  final _narratorEvents = StreamController<Event>();
+  final _recordedActions = StreamController<OffsetAction>();
+
+  PausableZone _pausableZone;
+  SaveStrategy _saveStrategy = (s) => s.bufferCount(1);
 
   StreamSubscription _actionsSubscription;
 
-  Story(this.storyId, Script script, this._palette, this._stopwatch,
-      Stream<Action> actions, Duration Function() load)
-      : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
-    _start(script, load, actions);
+  _Story.start(this.storyId, this._narrator, Version version)
+      : _stopwatch = _narrator._stopwatch,
+        _palette = _narrator._clearPalette() {
+    _pausableZone = PausableZone(() => _stopwatch.elapsed);
+    _start(version);
   }
 
-  void _start(Script script, Duration Function() load, Stream<Action> actions) {
+  void _start(Version version) {
+    var script = _narrator._script;
+    var ui = _narrator._ui;
+    var replayedActions = StreamController<Action>();
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
+
+    var events = Rx.merge([_narratorEvents.stream, _palette.events]);
+    var actions = Rx.concat([replayedActions.stream, ui.actions]);
+
+    ui.play(events);
 
     // TODO: move this?
     _palette.events.listen(
         (event) => print('event: ${fastForwarder.currentOffset} $event'));
+
+    _saveStrategy(_recordedActions.stream).listen((actions) {
+      actions.forEach((action) => version.record(action.offset, action.action));
+      _narrator._archive.save(version);
+    });
 
     _pausableZone.run((c) {
       fastForwarder.runFastForwardable((ff) {
@@ -156,20 +126,33 @@ class Story {
 
           // TODO: should this check be here?
           if (!ff.isFastForwarding) {
-            _offsetActions.add(OffsetAction(offset, action));
+            var serialized = _palette.serializers.serialize(action);
+            _recordedActions.add(OffsetAction(offset, serialized));
           }
         });
 
         _stopwatch.start();
         script(_palette);
-        var lastOffset = load();
+
+        // TODO: could publish a "loading" event somewhere so UI can react to all
+        //  the rapid-fire events accordingly
+        var record = version.actions;
+        var lastOffset = Duration.zero;
+
+        for (var recorded in record) {
+          Future.delayed(lastOffset = recorded.offset, () {
+            var action =
+                _palette.serializers.deserialize(recorded.action) as Action;
+            replayedActions.add(action);
+          });
+        }
+
+        Future.delayed(lastOffset, () => replayedActions.close());
 
         ff.fastForward(lastOffset);
       });
     });
   }
-
-  Stream<OffsetAction> get offsetActions => _offsetActions.stream;
 
   void pause() {
     _pausableZone.pause();
@@ -184,9 +167,16 @@ class Story {
   Future close() {
     _stopwatch.stop();
     _stopwatch.reset();
-    return Future.wait([_palette.close(), _actionsSubscription.cancel()]);
+    return Future.wait([
+      _palette.close(),
+      _narratorEvents.close(),
+      _actionsSubscription.cancel()
+    ]);
   }
 }
+
+typedef SaveStrategy = Stream<List<OffsetAction>> Function(
+    Stream<OffsetAction>);
 
 /// A request to alter the flow or lifecycle of the narration (e.g. to start or
 /// stop).
@@ -240,11 +230,4 @@ class SaveVersion extends Interrupt {
 class ForkVersion extends Interrupt {
   @override
   void run(Narrator n) {}
-}
-
-class OffsetAction {
-  final Duration offset;
-  final Action action;
-
-  OffsetAction(this.offset, this.action);
 }

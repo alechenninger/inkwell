@@ -84,21 +84,6 @@ void main() {
           ]));
     });
   }, timeout: Timeout(Duration(seconds: 1)));
-
-  group('story', () {
-    test('closes', () async {
-      void script(Palette p) {
-        p<Dialog>().narrate('test');
-      }
-
-      var palette = clearPalette();
-      testUi.play(palette.events);
-      var s = Story(
-          'id', script, palette, Stopwatch(), testUi.actions, Version('test'));
-      await eventLoop;
-      expect(s.close(), completes);
-    });
-  }, timeout: Timeout(Duration(seconds: 1)));
 }
 
 Future get eventLoop => Future(() {});
