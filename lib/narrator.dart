@@ -21,6 +21,9 @@ class Narrator {
   final UserInterface _ui;
   final Palette Function() _clearPalette;
 
+  // TODO: have to rethink this a bit
+  final _narratorEvents = StreamController<Event>();
+
   // TODO: Could have server support multiple?
   // Would this require separate isolates for each?
   // Or does it matter that microtasks and events would interleave?
@@ -65,7 +68,10 @@ class Narrator {
     await _ui.stopped;
   }
 
-  List<String> saves() {}
+  List<String> saves() {
+    // TODO: add versionNames to archive
+    return _archive.versions.map((v) => v.name).toList(growable: false);
+  }
 }
 
 class _Story {
@@ -74,8 +80,6 @@ class _Story {
   final Palette _palette;
   final Stopwatch _stopwatch;
 
-  // TODO: UI gets this in same event stream as story events ... should it?
-  final _narratorEvents = StreamController<Event>();
   final _recordedActions = StreamController<OffsetAction>();
 
   PausableZone _pausableZone;
@@ -96,7 +100,7 @@ class _Story {
     var replayedActions = StreamController<Action>();
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
 
-    var events = Rx.merge([_narratorEvents.stream, _palette.events]);
+    var events = _palette.events;
     var actions = Rx.concat([replayedActions.stream, ui.actions]);
 
     ui.play(events);
@@ -169,7 +173,7 @@ class _Story {
     _stopwatch.reset();
     return Future.wait([
       _palette.close(),
-      _narratorEvents.close(),
+      // _narratorEvents.close(),
       _actionsSubscription.cancel()
     ]);
   }
@@ -196,12 +200,19 @@ class StartStory extends Interrupt {
   }
 }
 
+class ContinueStory extends Interrupt {
+  @override
+  void run(Narrator n) {
+    n.continueFrom(n.saves().first);
+  }
+}
+
 class PauseStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._narratorEvents.addError(
-          StateError("can't pause story; no story is currently being told."));
+      // n._narratorEvents.addError(
+      //     StateError("can't pause story; no story is currently being told."));
       return;
     }
     n._story.pause();
@@ -212,8 +223,8 @@ class ResumeStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._narratorEvents.addError(
-          StateError("can't resume story; no story is currently being told."));
+      // n._narratorEvents.addError(
+      //     StateError("can't resume story; no story is currently being told."));
       return;
     }
     n._story.resume();

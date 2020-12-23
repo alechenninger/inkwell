@@ -23,6 +23,10 @@ class SimpleHtmlUi implements UserInterface {
     ..id = 'restart'
     ..classes.add('material-icons')
     ..text = 'replay';
+  final _continue = ButtonElement()
+    ..id = 'continue'
+    ..classes.add('material-icons')
+    ..text = 'playlist_play';
 
   final _domQueue = Queue<Function>();
   Stream<Action> get actions => _actions.stream.where((event) => !_paused);
@@ -37,7 +41,8 @@ class SimpleHtmlUi implements UserInterface {
   Completer _stopped;
 
   SimpleHtmlUi(Element _container) {
-    _container.children.addAll([_start, _restart, _optionsContainer, _dialogContainer]);
+    _container.children.addAll(
+        [_start, _restart, _continue, _optionsContainer, _dialogContainer]);
 
     _start.onClick.listen((event) {
       // TODO: manage state change based on events?
@@ -57,6 +62,10 @@ class SimpleHtmlUi implements UserInterface {
 
     _restart.onClick.listen((event) {
       _interrupts.add(StartStory());
+    });
+
+    _continue.onClick.listen((event) {
+      _interrupts.add(ContinueStory());
     });
   }
 
@@ -131,13 +140,17 @@ class SimpleHtmlUi implements UserInterface {
           0,
           DivElement()
             ..classes.add('speaker')
-            ..innerHtml = speech.target == null ? speech.speaker : '${speech.speaker} to...');
+            ..innerHtml = speech.target == null
+                ? speech.speaker
+                : '${speech.speaker} to...');
     }
 
     UListElement repliesElement;
 
-    var onReply =
-        _events.whereType<ReplyAvailable>().where((r) => r.speech == speech.key).listen((reply) {
+    var onReply = _events
+        .whereType<ReplyAvailable>()
+        .where((r) => r.speech == speech.key)
+        .listen((reply) {
       var replyElement = LIElement()
         ..children.add(SpanElement()
           ..classes.addAll(['reply', 'reply-available'])
@@ -156,13 +169,20 @@ class SimpleHtmlUi implements UserInterface {
           ..scrollIntoView(ScrollAlignment.BOTTOM));
       }
 
-      _events.whereType<ReplyUnavailable>().firstWhere((r) => r.reply == reply.key).then(
-          // TODO consider alternate behavior vs used and removed vs just removed
-          // vs unavailable due to exclusive reply use
-          (_) => _beforeNextPaint(replyElement.remove), onError: (e) {});
+      _events
+          .whereType<ReplyUnavailable>()
+          .firstWhere((r) => r.reply == reply.key)
+          .then(
+              // TODO consider alternate behavior vs used and removed vs just removed
+              // vs unavailable due to exclusive reply use
+              (_) => _beforeNextPaint(replyElement.remove),
+              onError: (e) {});
     });
 
-    _events.whereType<SpeechUnavailable>().firstWhere((s) => s.key == speech.key).then((_) {
+    _events
+        .whereType<SpeechUnavailable>()
+        .firstWhere((s) => s.key == speech.key)
+        .then((_) {
       _beforeNextPaint(speechElement.remove);
       onReply.cancel();
     }, onError: (e) {});
