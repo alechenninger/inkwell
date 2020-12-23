@@ -124,4 +124,9 @@ class TestUi extends UserInterface {
 
   @override
   Future get stopped => _stopped?.future ?? Future.sync(() {});
+
+  @override
+  void notice(Stream<Notice> notices) {
+    // TODO: implement notice
+  }
 }

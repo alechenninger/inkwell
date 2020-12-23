@@ -10,7 +10,6 @@ import 'src/pausable.dart';
 import 'src/persistence.dart';
 import 'ui.dart';
 
-// Narrator?
 class Narrator {
   final Script _script;
   final Archive _archive;
@@ -21,8 +20,8 @@ class Narrator {
   final UserInterface _ui;
   final Palette Function() _clearPalette;
 
-  // TODO: have to rethink this a bit
-  final _narratorEvents = StreamController<Event>();
+  // TODO: not sure if this is right
+  final _notices = StreamController<Notice>();
 
   // TODO: Could have server support multiple?
   // Would this require separate isolates for each?
@@ -38,6 +37,7 @@ class Narrator {
     _ui.interrupts.listen((event) {
       event.run(this);
     });
+    _ui.notice(_notices.stream);
   }
 
   Future start() async {
@@ -213,8 +213,8 @@ class PauseStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      // n._narratorEvents.addError(
-      //     StateError("can't pause story; no story is currently being told."));
+      n._notices.add(
+          Notice("can't pause story; no story is currently being told."));
       return;
     }
     n._story.pause();
@@ -225,8 +225,8 @@ class ResumeStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      // n._narratorEvents.addError(
-      //     StateError("can't resume story; no story is currently being told."));
+      n._notices.add(
+          Notice("can't resume story; no story is currently being told."));
       return;
     }
     n._story.resume();
@@ -243,4 +243,12 @@ class SaveVersion extends Interrupt {
 class ForkVersion extends Interrupt {
   @override
   void run(Narrator n) {}
+}
+
+// TODO: serializable
+// TODO: subtypes?
+class Notice {
+  final String message;
+
+  Notice(this.message);
 }

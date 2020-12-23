@@ -73,6 +73,13 @@ class SimpleHtmlUi implements UserInterface {
   Stream<Interrupt> get interrupts => _interrupts.stream;
 
   @override
+  void notice(Stream<Notice> notices) {
+    notices.listen((n) {
+      print('notice: ${n.message}');
+    });
+  }
+
+  @override
   void play(Stream<Event> events) {
     if (_events != null) {
       throw StateError('Cannot listen to multiple event streams '
