@@ -46,14 +46,51 @@ class Narrator {
     await stop();
 
     var palette = _clearPalette();
-    var version = _archive.newVersion();
-    _narratorEvents = StreamController<Event>();
-    _ui.play(Rx.merge([_narratorEvents.stream, palette.events]));
+    var version = Version('unnamed');
 
-    _story = Story('1', _script, palette, _stopwatch, _ui.actions, version);
+    _playToUi(palette);
+    _story = Story(
+        '1', _script, palette, _stopwatch, _ui.actions, () => Duration.zero);
+    _record(palette, version);
   }
 
-  Future load(String save) {}
+  Future continueFrom(String versionName) async {
+    await stop();
+
+    var version = _archive[versionName];
+
+    if (version == null) {
+      throw ArgumentError.value(
+          versionName, 'versionName', 'not found in archive');
+    }
+
+    var palette = _clearPalette();
+    var replayedActions = StreamController<Action>();
+    var actions = Rx.concat([replayedActions.stream, _ui.actions]);
+
+    _playToUi(palette);
+
+    _story = Story('1', _script, palette, _stopwatch, actions, () {
+      // TODO: could publish a "loading" event somewhere so UI can react to all
+      //  the rapid-fire events accordingly
+      var record = version.actions;
+      var lastOffset = Duration.zero;
+
+      for (var recorded in record) {
+        Future.delayed(lastOffset = recorded.offset, () {
+          var action =
+              palette.serializers.deserialize(recorded.action) as Action;
+          replayedActions.add(action);
+        });
+      }
+
+      Future.delayed(lastOffset, () => replayedActions.close());
+
+      return lastOffset;
+    });
+
+    _record(palette, version);
+  }
 
   Future stop() async {
     if (_story == null) {
@@ -66,35 +103,42 @@ class Narrator {
   }
 
   List<String> saves() {}
+
+  void _playToUi(Palette palette) {
+    _narratorEvents = StreamController<Event>();
+    _ui.play(Rx.merge([_narratorEvents.stream, palette.events]));
+  }
+
+  void _record(Palette palette, Version version) {
+    _story.offsetActions.listen((action) {
+      var serialized = palette.serializers.serialize(action.action);
+      version.record(action.offset, serialized);
+      _archive.save(version);
+    });
+  }
 }
 
 class Story {
   final String storyId;
-  final Script _script;
   final PausableZone _pausableZone;
   final Palette _palette;
-  final Stream<Action> _actions;
   final Stopwatch _stopwatch;
+  final _offsetActions = StreamController<OffsetAction>();
 
   StreamSubscription _actionsSubscription;
-  Version _version;
 
-  Story(this.storyId, this._script, this._palette, this._stopwatch,
-      this._actions, Stream<RecordedAction> record)
+  Story(this.storyId, Script script, this._palette, this._stopwatch,
+      Stream<Action> actions, Duration Function() load)
       : _pausableZone = PausableZone(() => _stopwatch.elapsed) {
-    _stopwatch.start();
-    _start(record);
+    _start(script, load, actions);
   }
 
-  void _start(Stream<RecordedAction> record) {
+  void _start(Script script, Duration Function() load, Stream<Action> actions) {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
-    var replayedActions = StreamController<Action>(sync: true);
 
     // TODO: move this?
     _palette.events.listen(
         (event) => print('event: ${fastForwarder.currentOffset} $event'));
-
-    var actions = Rx.concat([replayedActions.stream, _actions]);
 
     _pausableZone.run((c) {
       fastForwarder.runFastForwardable((ff) {
@@ -110,30 +154,22 @@ class Story {
           print('action: $offset $action');
           action.perform(_palette[action.inkType]);
 
-
+          // TODO: should this check be here?
+          if (!ff.isFastForwarding) {
+            _offsetActions.add(OffsetAction(offset, action));
+          }
         });
 
-        _script(_palette);
-
-        // TODO: could publish a "loading" event here so UI can react to all the
-        // rapid-fire events accordingly
-        var record = _version.actions;
-        var lastOffset = Duration.zero;
-
-        for (var recorded in record) {
-          Future.delayed(lastOffset = recorded.offset, () {
-            var action =
-                _palette.serializers.deserialize(recorded.action) as Action;
-            replayedActions.add(action);
-          });
-        }
-
-        Future.delayed(lastOffset, () => replayedActions.close());
+        _stopwatch.start();
+        script(_palette);
+        var lastOffset = load();
 
         ff.fastForward(lastOffset);
       });
     });
   }
+
+  Stream<OffsetAction> get offsetActions => _offsetActions.stream;
 
   void pause() {
     _pausableZone.pause();
@@ -206,9 +242,9 @@ class ForkVersion extends Interrupt {
   void run(Narrator n) {}
 }
 
-class PerformedAction {
+class OffsetAction {
   final Duration offset;
   final Action action;
 
-  PerformedAction(this.offset, this.action);
+  OffsetAction(this.offset, this.action);
 }
