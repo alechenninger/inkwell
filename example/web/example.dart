@@ -12,14 +12,8 @@ import 'package:august/scenes.dart';
 import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
 
-// Instantiate modules top level for easy accessibility from script methods
-
 void main() {
-  // Present the user interface(s) with HTML
-  var ui = SimpleHtmlUi(querySelector('#example'));
-
-  // play(() => example(ModuleSet({options, dialog})), persistence, ui, {options, dialog});
-  Narrator(example, HtmlArchive('example'), Stopwatch(), Random(),
+  var n = Narrator(example, HtmlArchive('example'), Stopwatch(),
       // TODO: instantiate new
       () {
     var scenes = Scenes();
@@ -29,7 +23,10 @@ void main() {
         defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
     var prompts = Prompts();
     return Palette({scenes, options, dialog});
-  }, ui);
+  });
+
+  // Present the story with HTML
+  HtmlUi2(n, querySelector('#example'));
 }
 
 void example(Palette p) async {

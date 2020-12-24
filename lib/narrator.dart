@@ -16,8 +16,6 @@ class Narrator {
 
   // TODO: need to be Stopwatch f() if we want to manage multiple stories
   final Stopwatch _stopwatch;
-  final Random _random;
-  final UserInterface _ui;
   final Palette Function() _clearPalette;
 
   // TODO: not sure if this is right
@@ -30,25 +28,19 @@ class Narrator {
   // be ordered.
   // Would that be a separate narrator for each story anyway? Because multiple
   // users would imply multiple UIs?
-  _Story _story;
+  Story _story;
 
-  Narrator(this._script, this._archive, this._stopwatch, this._random,
-      this._clearPalette, this._ui) {
-    _ui.interrupts.listen((event) {
-      event.run(this);
-    });
-    _ui.notice(_notices.stream);
-  }
+  Narrator(this._script, this._archive, this._stopwatch, this._clearPalette);
 
-  Future start() async {
+  Future<Story> start() async {
     await stop();
 
     var version = Version('unnamed');
 
-    _story = _Story.start('1', this, version);
+    return _story = Story._start(this, version);
   }
 
-  Future continueFrom(String versionName) async {
+  Future<Story> continueFrom(String versionName) async {
     await stop();
 
     var version = _archive[versionName];
@@ -58,7 +50,7 @@ class Narrator {
           versionName, 'versionName', 'not found in archive');
     }
 
-    _story = _Story.start('1', this, version);
+    return _story = Story._start(this, version);
   }
 
   Future stop() async {
@@ -67,7 +59,6 @@ class Narrator {
     }
 
     await _story.close();
-    await _ui.stopped;
   }
 
   List<String> saves() {
@@ -76,40 +67,39 @@ class Narrator {
   }
 }
 
-class _Story {
-  final String storyId;
+class Story {
   final Narrator _narrator;
   final Palette _palette;
   final Stopwatch _stopwatch;
 
+  final _events = StreamController<Event>(sync: true);
+  final _userActions = StreamController<Action>();
   final _recordedActions = StreamController<OffsetAction>();
 
   PausableZone _pausableZone;
-  SaveStrategy _saveStrategy = (s) => s.bufferCount(1);
+  // TODO: make configurable, persistable as user options/settings
+  final SaveStrategy _saveStrategy = _saveEveryAction;
 
   StreamSubscription _actionsSubscription;
 
-  _Story.start(this.storyId, this._narrator, Version version)
+  Story._start(this._narrator, Version version)
       : _stopwatch = _narrator._stopwatch,
         _palette = _narrator._clearPalette() {
     _pausableZone = PausableZone(() => _stopwatch.elapsed);
-    _start(version);
+    _doStart(version);
   }
 
-  void _start(Version version) {
+  void _doStart(Version version) {
     var script = _narrator._script;
-    var ui = _narrator._ui;
     var replayedActions = StreamController<Action>();
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
-
-    var events = _palette.events;
-    var actions = Rx.concat([replayedActions.stream, ui.actions]);
-
-    ui.play(events);
+    var actions = Rx.concat([replayedActions.stream, _userActions.stream]);
 
     // TODO: move this?
-    _palette.events.listen(
-        (event) => print('event: ${fastForwarder.currentOffset} $event'));
+    _palette.events
+        .doOnData(
+            (event) => print('event: ${fastForwarder.currentOffset} $event'))
+        .pipe(_events);
 
     _saveStrategy(_recordedActions.stream).listen((actions) {
       actions.forEach((action) => version.record(action.offset, action.action));
@@ -160,6 +150,15 @@ class _Story {
     });
   }
 
+  Stream<Event> get events => _events.stream;
+
+  bool get isPaused => _pausableZone.isPaused;
+
+  // Or add stream of actions?
+  void attempt(Action action) {
+    _userActions.add(action);
+  }
+
   void pause() {
     _pausableZone.pause();
     print('paused');
@@ -175,7 +174,7 @@ class _Story {
     _stopwatch.reset();
     return Future.wait([
       _palette.close(),
-      // _narratorEvents.close(),
+      _userActions.close(),
       _actionsSubscription.cancel()
     ]);
   }
@@ -183,6 +182,8 @@ class _Story {
 
 typedef SaveStrategy = Stream<List<OffsetAction>> Function(
     Stream<OffsetAction>);
+
+final SaveStrategy _saveEveryAction = (s) => s.bufferCount(1);
 
 /// A request to alter the flow or lifecycle of the narration (e.g. to start or
 /// stop).
@@ -213,8 +214,8 @@ class PauseStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._notices.add(
-          Notice("can't pause story; no story is currently being told."));
+      n._notices
+          .add(Notice("can't pause story; no story is currently being told."));
       return;
     }
     n._story.pause();
@@ -225,8 +226,8 @@ class ResumeStory extends Interrupt {
   @override
   void run(Narrator n) {
     if (n._story == null) {
-      n._notices.add(
-          Notice("can't resume story; no story is currently being told."));
+      n._notices
+          .add(Notice("can't resume story; no story is currently being told."));
       return;
     }
     n._story.resume();

@@ -1,14 +1,12 @@
-import 'dart:math';
-
 import 'package:august/august.dart';
 import 'package:august/dialog.dart';
 import 'package:august/options.dart';
 import 'package:test/test.dart';
-import 'package:rxdart/rxdart.dart';
 
 void main() {
   Palette Function() clearPalette;
-  TestUi testUi;
+  List log;
+  var storyNum = 0;
 
   setUp(() {
     clearPalette = () {
@@ -16,8 +14,18 @@ void main() {
       var options = Options();
       return Palette([dialog, options]);
     };
-    testUi = TestUi();
+    log = [];
+    storyNum = 0;
   });
+
+  Story logEvents(Story story) {
+    var _storyNum = storyNum++;
+    log.add('started $_storyNum');
+    story.events
+        .forEach((e) => log.add(e))
+        .then((_) => log.add('stopped $_storyNum'));
+    return story;
+  }
 
   group('narrator', () {
     Narrator n;
@@ -26,21 +34,20 @@ void main() {
       return n?.stop()?.timeout(Duration(seconds: 1));
     });
 
-    test('emits events to UI', () async {
+    test('emits events from story', () async {
       void script(Palette p) {
         p<Dialog>().narrate('test');
       }
 
-      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
-          clearPalette, testUi);
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
 
-      await n.start();
+      logEvents(await n.start());
       await eventLoop;
 
-      expect(testUi.eventLog, contains(SpeechAvailable(null, 'test', null)));
+      expect(log, contains(SpeechAvailable(null, 'test', null)));
     });
 
-    test('performs actions from UI', () async {
+    test('performs actions', () async {
       void script(Palette p) {
         p<Dialog>().narrate('test');
         p<Options>().oneTime('test it').onUse.listen((_) {
@@ -48,13 +55,12 @@ void main() {
         });
       }
 
-      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
-          clearPalette, testUi);
-      await n.start();
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
+      var story = logEvents(await n.start());
       await eventLoop;
-      testUi.attempt(UseOption('test it'));
+      story.attempt(UseOption('test it'));
       await eventLoop;
-      expect(testUi.eventLog, contains(SpeechAvailable(null, 'tested', null)));
+      expect(log, contains(SpeechAvailable(null, 'tested', null)));
     });
 
     test('restarts stories', () async {
@@ -65,17 +71,16 @@ void main() {
         });
       }
 
-      n = Narrator(script, InMemoryArchive(), Stopwatch(), Random(),
-          clearPalette, testUi);
-      await n.start();
+      n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
+      var story = logEvents(await n.start());
       await eventLoop;
-      testUi.attempt(UseOption('test it'));
+      story.attempt(UseOption('test it'));
       await eventLoop;
       await n.stop();
-      await n.start();
+      story = logEvents(await n.start());
       await eventLoop;
       expect(
-          testUi.eventLog.sublist(testUi.eventLog.indexOf('stopped 0')),
+          log.sublist(log.indexOf('stopped 0')),
           equals([
             'stopped 0',
             'started 1',

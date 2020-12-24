@@ -1,8 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:math';
-
-import 'package:meta/meta.dart';
 
 abstract class Archive {
 
@@ -35,11 +32,6 @@ class InMemoryArchive extends Archive {
   @override
   void save(Version version) {
     _versions[version.name] = Version.copy(version);
-  }
-
-  @override
-  void append(List<OffsetAction> actions, String version) {
-    // TODO: implement append
   }
 }
 

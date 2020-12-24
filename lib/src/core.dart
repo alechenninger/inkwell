@@ -51,7 +51,7 @@ class Palette {
     // TODO: validate that no two inks share the same type
     _inks = m.fold<Map<Type, Ink>>(<Type, Ink>{},
             (map, ink) => map..[ink.runtimeType] = ink);
-    _events = Rx.merge(inks.map((m) => m.events)).asBroadcastStream();
+    _events = Rx.merge(inks.map((m) => m.events));
     _serializers = Serializers.merge(inks.map((m) => m.serializers));
   }
 

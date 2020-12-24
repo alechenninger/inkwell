@@ -186,8 +186,11 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
   void resume() {
     if (!isPaused || _isCanceled) return;
     _pauses--;
-    // TODO: reschedule events
-    throw UnimplementedError();
+    if (!isPaused) {
+      while (_buffer.isNotEmpty) {
+        _add(_buffer.removeFirst());
+      }
+    }
   }
 
   void _addError(dynamic error) {
