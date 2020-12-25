@@ -171,6 +171,7 @@ class Story {
     _stopwatch.stop();
     _stopwatch.reset();
     await _palette.close();
+    await _events.done;
     await _userActions.close();
     await _actionsSubscription.cancel();
     // return Future.wait([
