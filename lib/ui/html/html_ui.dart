@@ -238,7 +238,9 @@ class HtmlUi2 {
   final _domQueue = Queue<Function>();
   StreamController<Event> _events;
   Completer _cleanedUp = Completer.sync()..complete();
-  Stream<Event> get _eventsStream => _events?.stream;
+
+  StreamSubscription<Event> _subscription;
+  Stream<Event> _eventsStream;
 
   Story _story;
 
@@ -281,12 +283,13 @@ class HtmlUi2 {
     // _stopped = Completer.sync();
     await _events?.close();
     await _cleanedUp.future;
+    await _subscription?.cancel();
 
     _events = StreamController<Event>.broadcast(sync: true);
     _cleanedUp = Completer();
     _start.text = 'pause';
 
-    _eventsStream.doOnDone(() {
+    _eventsStream = _events.stream.doOnDone(() {
       _beforeNextPaint(() {
         _optionsContainer.children.clear();
         _dialogContainer.children.clear();
@@ -300,7 +303,7 @@ class HtmlUi2 {
     _eventsStream.whereType<SpeechAvailable>().listen(_onSpeechAvailable);
     _eventsStream.whereType<OptionAvailable>().listen(_onOptionAvailable);
 
-    events.listen((event) {
+    _subscription = events.listen((event) {
       _events.add(event);
     }, onError: (e) => _events.addError(e), onDone: () => _events.close());
   }

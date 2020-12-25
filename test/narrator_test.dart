@@ -1,12 +1,14 @@
 import 'package:august/august.dart';
 import 'package:august/dialog.dart';
 import 'package:august/options.dart';
+import 'package:pedantic/pedantic.dart';
 import 'package:test/test.dart';
 
 void main() {
   Palette Function() clearPalette;
   List log;
   var storyNum = 0;
+  Completer storyDone;
 
   setUp(() {
     clearPalette = () {
@@ -16,14 +18,20 @@ void main() {
     };
     log = [];
     storyNum = 0;
+    storyDone = Completer()..complete();
   });
 
-  Story logEvents(Story story) {
+  Future<Story> logEvents(Story story) async {
+    await storyDone.future;
+    storyDone = Completer();
     var _storyNum = storyNum++;
     log.add('started $_storyNum');
-    story.events
+    unawaited(story.events
         .forEach((e) => log.add(e))
-        .then((_) => log.add('stopped $_storyNum'));
+        .then((_) {
+          log.add('stopped $_storyNum');
+          storyDone.complete();
+        }));
     return story;
   }
 
@@ -41,7 +49,7 @@ void main() {
 
       n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
 
-      logEvents(await n.start());
+      await logEvents(await n.start());
       await eventLoop;
 
       expect(log, contains(SpeechAvailable(null, 'test', null)));
@@ -56,7 +64,7 @@ void main() {
       }
 
       n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
-      var story = logEvents(await n.start());
+      var story = await logEvents(await n.start());
       await eventLoop;
       story.attempt(UseOption('test it'));
       await eventLoop;
@@ -72,12 +80,12 @@ void main() {
       }
 
       n = Narrator(script, InMemoryArchive(), Stopwatch(), clearPalette);
-      var story = logEvents(await n.start());
+      var story = await logEvents(await n.start());
       await eventLoop;
       story.attempt(UseOption('test it'));
       await eventLoop;
       await n.stop();
-      story = logEvents(await n.start());
+      story = await logEvents(await n.start());
       await eventLoop;
       expect(
           log.sublist(log.indexOf('stopped 0')),

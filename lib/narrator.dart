@@ -95,7 +95,6 @@ class Story {
     var fastForwarder = FastForwarder(() => _pausableZone.offset);
     var actions = Rx.concat([replayedActions.stream, _userActions.stream]);
 
-    // TODO: move this?
     _palette.events
         .doOnData(
             (event) => print('event: ${fastForwarder.currentOffset} $event'))
@@ -132,10 +131,9 @@ class Story {
 
         // TODO: could publish a "loading" event somewhere so UI can react to all
         //  the rapid-fire events accordingly
-        var record = version.actions;
         var lastOffset = Duration.zero;
 
-        for (var recorded in record) {
+        for (var recorded in version.actions) {
           Future.delayed(lastOffset = recorded.offset, () {
             var action =
                 _palette.serializers.deserialize(recorded.action) as Action;
@@ -169,14 +167,17 @@ class Story {
     print('resumed');
   }
 
-  Future close() {
+  Future close() async {
     _stopwatch.stop();
     _stopwatch.reset();
-    return Future.wait([
-      _palette.close(),
-      _userActions.close(),
-      _actionsSubscription.cancel()
-    ]);
+    await _palette.close();
+    await _userActions.close();
+    await _actionsSubscription.cancel();
+    // return Future.wait([
+    //   _palette.close(),
+    //   _userActions.close(),
+    //   _actionsSubscription.cancel()
+    // ]);
   }
 }
 
