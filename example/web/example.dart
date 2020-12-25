@@ -26,7 +26,7 @@ void main() {
   });
 
   // Present the story with HTML
-  HtmlUi2(n, querySelector('#example'));
+  SimpleHtmlUi(n, querySelector('#example'));
 }
 
 void example(Palette p) async {
