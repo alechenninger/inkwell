@@ -17,9 +17,6 @@ class Narrator {
   final Stopwatch _stopwatch;
   final Palette Function() _clearPalette;
 
-  // TODO: not sure if this is right
-  final _notices = StreamController<Notice>();
-
   // TODO: Could have server support multiple?
   // Would this require separate isolates for each?
   // Or does it matter that microtasks and events would interleave?
@@ -180,72 +177,3 @@ typedef SaveStrategy = Stream<List<OffsetAction>> Function(
     Stream<OffsetAction>);
 
 final SaveStrategy _saveEveryAction = (s) => s.bufferCount(1);
-
-/// A request to alter the flow or lifecycle of the narration (e.g. to start or
-/// stop).
-///
-/// As opposed to an [Action], it is not a user interaction that is part of the
-/// story; it is about the telling or playing of the story itself.
-abstract class Interrupt {
-  void run(Narrator n);
-}
-
-// TODO: serializable
-
-class StartStory extends Interrupt {
-  @override
-  void run(Narrator n) {
-    n.start();
-  }
-}
-
-class ContinueStory extends Interrupt {
-  @override
-  void run(Narrator n) {
-    n.continueFrom(n.saves().first);
-  }
-}
-
-class PauseStory extends Interrupt {
-  @override
-  void run(Narrator n) {
-    if (n._story == null) {
-      n._notices
-          .add(Notice("can't pause story; no story is currently being told."));
-      return;
-    }
-    n._story.pause();
-  }
-}
-
-class ResumeStory extends Interrupt {
-  @override
-  void run(Narrator n) {
-    if (n._story == null) {
-      n._notices
-          .add(Notice("can't resume story; no story is currently being told."));
-      return;
-    }
-    n._story.resume();
-  }
-}
-
-class SaveVersion extends Interrupt {
-  @override
-  void run(Narrator n) {
-    // n.save(id);
-  }
-}
-
-class ForkVersion extends Interrupt {
-  @override
-  void run(Narrator n) {}
-}
-
-// TODO: serializable
-// TODO: subtypes?
-class Notice {
-  final String message;
-
-  Notice(this.message);
-}
