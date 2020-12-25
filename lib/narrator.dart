@@ -8,7 +8,6 @@ import 'package:rxdart/rxdart.dart';
 import 'src/core.dart';
 import 'src/pausable.dart';
 import 'src/persistence.dart';
-import 'ui.dart';
 
 class Narrator {
   final Script _script;
@@ -174,11 +173,6 @@ class Story {
     await _events.done;
     await _userActions.close();
     await _actionsSubscription.cancel();
-    // return Future.wait([
-    //   _palette.close(),
-    //   _userActions.close(),
-    //   _actionsSubscription.cancel()
-    // ]);
   }
 }
 

@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'dart:html';
 
-import 'package:august/ui.dart';
+import 'package:august/august.dart';
 
 class HtmlArchive extends Archive {
   final String _scriptHandle;

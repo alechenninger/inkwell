@@ -14,7 +14,6 @@ export 'src/core.dart';
 export 'src/observable.dart';
 export 'src/persistence.dart';
 export 'src/scope.dart';
-export 'ui.dart';
 
 Future delay({int seconds}) {
   return Future.delayed(Duration(seconds: seconds));

@@ -68,12 +68,6 @@ class SimpleHtmlUi {
   }
 
   void _play(Stream<Event> events) async {
-    // if (_story != null) {
-    //   throw StateError('Cannot listen to multiple event streams '
-    //       'simultaneously. Ensure prior event stream is closed first.');
-    // }
-
-    // _stopped = Completer.sync();
     await _events?.close();
     await _cleanedUp.future;
     await _subscription?.cancel();
