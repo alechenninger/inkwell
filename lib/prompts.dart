@@ -2,9 +2,9 @@ import 'package:august/src/event_stream.dart';
 import 'package:built_value/serializer.dart';
 
 import 'august.dart';
-import 'modules.dart';
+import 'inks.dart';
 
-class Prompts extends StoryModule {
+class Prompts extends Ink {
   final GetScope _defaultScope;
   final _prompts = ScopedElements<Prompt, String>();
 
@@ -25,6 +25,9 @@ class Prompts extends StoryModule {
 
     return prompt;
   }
+
+  @override
+  Future close() => _prompts.close();
 }
 
 class Prompt with Available implements StoryElement {
@@ -77,7 +80,7 @@ class EnterPrompt extends Action<Prompts> {
 
   Map<String, dynamic> get parameters => {'input': input};
 
-  void run(Prompts controller) {
+  void perform(Prompts controller) {
     var it = controller._prompts.available[prompt];
     if (it == null) {
       throw StateError('prompt not available');

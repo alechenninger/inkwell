@@ -1,34 +1,70 @@
-import 'package:quiver/time.dart';
-
 import 'dart:async';
 import 'dart:collection';
 
-// TODO: maybe combine this lib with input.dart?
+abstract class Archive {
 
-abstract class Persistence {
-  // TODO maybe should be getSavedInteractions(String scriptName, int version)
-  // Today persistence must be instantiated to know how to read persisted events
-  // for a particular script
-  List<SavedAction> get actions;
-  void saveAction(Duration offset, Object action);
+  Version operator [](String version);
+
+  void save(Version version);
+
+  List<Version> get versions;
+
+  bool remove(String version);
 }
 
-class NoPersistence implements Persistence {
-  @override
-  List<SavedAction> get actions => [];
+class InMemoryArchive extends Archive {
+  final _versions = <String, Version>{};
 
-  void saveAction(Duration offset, Object action) {
-    print('persist: $offset $action');
+  @override
+  Version operator [](String version) {
+    return Version.copy(_versions.putIfAbsent(version, () => Version(version)));
+  }
+
+  @override
+  List<Version> get versions =>
+      _versions.values.map((e) => Version.copy(e)).toList(growable: false);
+
+  @override
+  bool remove(String version) {
+    return _versions.remove(version) != null;
+  }
+
+  @override
+  void save(Version version) {
+    _versions[version.name] = Version.copy(version);
   }
 }
 
-class SavedAction {
+class Version {
+  final List<OffsetAction> _actions;
+
+  final String name;
+
+  Version(this.name) : _actions = <OffsetAction>[];
+
+  Version.copy(Version v, {String name}): this.started(v.name, v.actions);
+
+  Version.started(this.name, List<OffsetAction> actions)
+      : _actions = List.from(actions);
+
+  List<OffsetAction> get actions => List.unmodifiable(_actions);
+
+  void record(Duration offset, Object action) {
+    print('persist: $offset $action');
+    // TODO: could validate offset > last offset?
+    _actions.add(OffsetAction(offset, action));
+  }
+
+  Stream<OffsetAction> get onRecord => null;
+}
+
+class OffsetAction {
   final Duration offset;
   final Object action;
 
-  SavedAction(this.offset, this.action);
+  OffsetAction(this.offset, this.action);
 
-  SavedAction.fromJson(Map<String, Object> json)
+  OffsetAction.fromJson(Map<String, Object> json)
       : action = json['action'],
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
@@ -44,17 +80,18 @@ class FastForwarder {
   final Queue<Function> _microtasks = Queue();
   final Set<_FastForwarderTimer> _timers = <_FastForwarderTimer>{};
   bool _useParentZone = true;
-  DateTime _switchedToParent;
-  final Clock _realClock;
+  Duration _switchedToParent;
+  final Duration Function() _parentOffset;
 
-  FastForwarder(this._realClock) {
-    _switchedToParent = _realClock.now();
+  FastForwarder(this._parentOffset) {
+    _switchedToParent = _parentOffset();
   }
 
-  // FIXME: non-monotonic offset
   Duration get currentOffset => _useParentZone
-      ? _elapsed + _realClock.now().difference(_switchedToParent)
+      ? _elapsed + _parentOffset() - _switchedToParent
       : _elapsed;
+
+  bool get isFastForwarding => !_useParentZone;
 
   void runFastForwardable(Function(FastForwarder) callback) {
     _useParentZone = false;
@@ -82,7 +119,7 @@ class FastForwarder {
 
   void switchToParentZone() {
     _useParentZone = true;
-    _switchedToParent = _realClock.now();
+    _switchedToParent = _parentOffset();
 
     while (_microtasks.isNotEmpty) {
       _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
@@ -204,6 +241,7 @@ class _FastForwarderTimer implements Timer {
 
 class _TrackingTimer implements Timer {
   bool isActive = true;
+
   cancel() {
     isActive = false;
   }

@@ -2,6 +2,7 @@
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
 import 'dart:html';
+import 'dart:math';
 
 import 'package:august/august.dart';
 import 'package:august/dialog.dart';
@@ -11,33 +12,32 @@ import 'package:august/scenes.dart';
 import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
 
-// Instantiate modules top level for easy accessibility from script methods
-final scenes = Scenes();
-final options = Options(
-    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final dialog = Dialog(
-    defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
-final prompts = Prompts();
-
 void main() {
-  // Need a persistence strategy
-  var persistence = HtmlPersistence('example');
+  var n = Narrator(example, HtmlArchive('example'), Stopwatch(), () {
+    var scenes = Scenes();
+    var options = Options(
+        defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+    var dialog = Dialog(
+        defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
+    var prompts = Prompts();
+    return Palette({scenes, options, dialog});
+  });
 
-  // Present the user interface(s) with HTML
-  var ui = SimpleHtmlUi(querySelector('#example'));
-
-  play(example, persistence, ui, {options, dialog});
+  // Present the story with HTML
+  SimpleHtmlUi(n, querySelector('#example'));
 }
 
-void example() async {
-  dragonStandoff();
+void example(Palette p) async {
+  dragonStandoff(p);
 }
 
-void dragonStandoff() async {
-  var dragonStandoff = await scenes.reentrant().enter();
+void dragonStandoff(Palette p) async {
+  var options = p<Options>();
+
+  var dragonStandoff = await p<Scenes>().reentrant().enter();
   var sword = Sword();
 
-  dialog.narrate('A dragon stands before you!');
+  p<Dialog>().narrate('A dragon stands before you!');
 
   await delay(seconds: 1);
 
@@ -45,16 +45,20 @@ void dragonStandoff() async {
   var runAway = options.limitedUse('Run away!', exclusiveWith: attack.uses);
 
   attack.onUse.when(() {
-    attackDragon(dragonStandoff, sword);
+    attackDragon(p, dragonStandoff, sword);
   });
 
   runAway.onUse.when(() async {
     dragonStandoff.done();
-    runAwayFromDragon(sword);
+    runAwayFromDragon(p, sword);
   });
 }
 
-void attackDragon(Scene dragonStandoff, Sword sword) async {
+void attackDragon(Palette p, Scene dragonStandoff, Sword sword) async {
+  var scenes = p<Scenes>();
+  var options = p<Options>();
+  var dialog = p<Dialog>();
+
   await scenes.oneTime().enter();
 
   dialog.narrate('The dragon readies its flame...');
@@ -85,7 +89,11 @@ void attackDragon(Scene dragonStandoff, Sword sword) async {
   });
 }
 
-void runAwayFromDragon(Sword sword) async {
+void runAwayFromDragon(Palette p, Sword sword) async {
+  var scenes = p<Scenes>();
+  var options = p<Options>();
+  var dialog = p<Dialog>();
+
   await scenes.oneTime().enter();
 
   dialog.narrate('Running away.');

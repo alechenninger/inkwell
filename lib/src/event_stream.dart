@@ -8,6 +8,11 @@ export 'dart:async';
 export 'core.dart' show Event;
 
 // TODO: do we really care that T extends Event?
+/// A broadcast [Stream] which
+///
+/// * May have both standard async or sync listeners simultaneously
+/// * Guarantees ordered delivery to all listeners (unless some listeners are
+/// paused) of like type (sync or async)
 class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // Maintain separate listener lists, as it is important that async listeners
   // are scheduled before sync listeners are run. This is because sync listeners
@@ -16,6 +21,9 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // synchronous "reactions" – the listeners to this shouldn't skip ahead.
   var _asyncListeners = <_AsyncEventSubscription>[];
   var _syncListeners = <_SyncEventSubscription>[];
+  var _subscriptions = <StreamSubscription>[];
+  // Sync should be safe due to completion from other futures (see [close])
+  final _done = Completer.sync();
 
   final bool isBroadcast = true;
 
@@ -24,12 +32,17 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   @override
   StreamSubscription<T> listen(void Function(T event) onData,
       {Function onError, void Function() onDone, bool cancelOnError}) {
+    // TODO: implement other args
     var sub = _AsyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
-    if (_asyncListeners != null) {
+
+    if (isClosed) {
+      sub._close();
+    } else {
       _asyncListeners.add(sub);
     }
+
     return sub;
   }
 
@@ -47,16 +60,16 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   }
 
   void add(T event) {
-    if (_asyncListeners == null) {
-      throw StateError('Cannot add event to done stream');
+    if (isClosed) {
+      throw StateError('stream is closed; cannot add event');
     }
     _asyncListeners.forEach((sub) => sub._add(event));
     _syncListeners.forEach((sub) => sub._add(event));
   }
 
   void addError(Object error, [StackTrace trace]) {
-    if (_asyncListeners == null) {
-      throw StateError('Cannot add error to done stream');
+    if (isClosed) {
+      throw StateError('stream is closed; cannot add error');
     }
     _asyncListeners.forEach((sub) => sub._addError(error));
     _syncListeners.forEach((sub) => sub._addError(error));
@@ -71,21 +84,35 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   }
 
   void includeStream(Stream<T> stream) {
-    // TODO subscriptions leaked
-    stream.listen((t) => add(t), onError: (e) => addError(e));
+    if (isClosed) {
+      throw StateError('stream is closed; cannot include stream');
+    }
+    var sub = stream.listen((t) => add(t), onError: (e) => addError(e));
+    _subscriptions.add(sub);
   }
 
-  void close() => done();
+  Future close() {
+    if (!isClosed) {
+      // TODO: not sure if logic around here is right
+      var cancellations = <Future>[];
+      _subscriptions.forEach(((sub) => cancellations.add(sub.cancel())));
+      _asyncListeners.forEach((sub) => sub._close());
+      _syncListeners.forEach((sub) => sub._close());
 
-  void done() {
-    // TODO: not sure if done logic around here is right
-    _asyncListeners.forEach((sub) => sub._done());
-    _syncListeners.forEach((sub) => sub._done());
-    _asyncListeners = null;
-    _syncListeners = null;
+      // Does setting to null have any value?
+      _asyncListeners = null;
+      _syncListeners = null;
+      _subscriptions = null;
+
+      Future.wait(cancellations).then((_) => _done.complete());
+    }
+
+    return done;
   }
 
-  bool get isDone => _asyncListeners == null;
+  Future get done => _done.future;
+
+  bool get isClosed => _asyncListeners == null;
 }
 
 class _SynchronousEventStream<T> extends Stream<T> {
@@ -151,16 +178,19 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   void pause([Future resumeSignal]) {
-    if (_isCanceled) return;
+    if (_isCanceled || _isDone) return;
     _pauses++;
   }
 
   @override
   void resume() {
-    if (!isPaused || _isCanceled) return;
+    if (!isPaused || _isCanceled || _isDone) return;
     _pauses--;
-    // TODO: reschedule events
-    throw UnimplementedError();
+    if (!isPaused) {
+      while (_buffer.isNotEmpty) {
+        _add(_buffer.removeFirst());
+      }
+    }
   }
 
   void _addError(dynamic error) {
@@ -182,12 +212,19 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
     }
   }
 
-  void _done() {
+  void _close() {
     // TODO: is this logic right?
     if (_isDone) return;
+
+    _onData = null;
+    _buffer = null;
+    _pauses = 0;
     _isDone = true;
+
     if (_onDone == null) return;
+
     _dispatch(_onDone);
+    _onDone = null;
   }
 
   void _dispatch(void Function() fn);

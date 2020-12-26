@@ -12,3 +12,4 @@ mockup.md
 *.swp
 .dart_tool
 *.g.dart
+.vscode

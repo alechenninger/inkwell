@@ -1,13 +1,14 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
+import 'package:built_value/serializer.dart';
 import 'package:optional/optional.dart';
 import 'package:pedantic/pedantic.dart';
 
 import 'august.dart';
 
 // TODO: Probably rethink this later
-class Scenes {
+class Scenes extends Ink {
   /// Internally used to keep track of scene changes, to prevent multiple scenes
   /// from being in scope at once. These effects must be immediate–that is, it
   /// can never be observed that two scenes are active at once–so this is why
@@ -37,6 +38,16 @@ class Scenes {
 
   // TODO: If there is a "root" scene, this is not optional
   Optional<Scene> get currentScene => Optional.ofNullable(_current);
+
+  // TODO: could emit scene events if UIs cared...?
+  @override
+  Stream<Event> get events => Stream.empty();
+
+  @override
+  Serializers get serializers => Serializers();
+
+  @override
+  Future close() => _newScenes.close();
 }
 
 abstract class Scene<T extends Scene<T>> extends Scope<T> {

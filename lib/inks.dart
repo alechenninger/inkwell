@@ -1,5 +1,5 @@
-/// Abstractions for assisting in the development of [StoryModules].
-library august.modules;
+/// Abstractions for assisting in the development of [Ink]s.
+library august.inks;
 
 import 'dart:collection';
 
@@ -56,6 +56,9 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
 
     return object;
   }
+
+  // TODO: i think we need to close all elements listened to, too. but maybe not?
+  Future close() => Future.wait([_events.close()]);
 
   void _add(K key, O object) {
     if (_available.containsKey(key)) {
@@ -135,4 +138,7 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
     _onUse.add(_use(this as E));
     uses.increment();
   }
+
+  // TODO: do we need this?
+  // Future close() => Future.wait([_events.close(), _onUse.close()]);
 }

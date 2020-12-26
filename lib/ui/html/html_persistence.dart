@@ -4,39 +4,56 @@
 import 'dart:convert';
 import 'dart:html';
 
-import 'package:august/ui.dart';
+import 'package:august/august.dart';
 
-class HtmlPersistence implements Persistence {
+class HtmlArchive extends Archive {
   final String _scriptHandle;
-  final _savedActions = <SavedAction>[];
-  Storage _storage;
+  final Storage _storage;
 
   static const _json = JsonCodec();
 
-  HtmlPersistence(this._scriptHandle, [Storage _storage]) {
-    this._storage = _storage ?? window.localStorage;
+  HtmlArchive(this._scriptHandle, {Storage storage})
+      : _storage = storage ?? window.localStorage;
 
-    if (this._storage.containsKey(_scriptHandle)) {
-      var saved = _json.decode(this._storage[_scriptHandle]) as List<dynamic>;
-      _savedActions.addAll(
-          saved.map((o) => SavedAction.fromJson(o as Map<String, Object>)));
+  @override
+  Version operator [](String version) => _loadFromStorage(version);
+
+  @override
+  List<Version> get versions => _storage.keys
+      .where((element) => element.startsWith('$_scriptHandle:'))
+      .map((e) => _loadFromStorage(e.substring('$_scriptHandle:'.length)))
+      .toList(growable: false);
+
+  @override
+  bool remove(String version) {
+    return _storage.remove(_versionKey(_scriptHandle, version)) != null;
+  }
+
+  @override
+  void save(Version version) {
+    _storage[_versionKey(_scriptHandle, version.name)] =
+        _json.encode(version.actions);
+  }
+
+  @override
+  void append(List<OffsetAction> actions, String version) {
+    // TODO: implement append
+  }
+
+  Version _loadFromStorage(String version) {
+    var key = _versionKey(_scriptHandle, version);
+    if (!_storage.containsKey(key)) {
+      return null;
     }
 
-//    window.onBeforeUnload.listen((e) {
-//      this._storage[_scriptHandle] = _json.encode(_savedActions);
-//    });
-  }
-
-  void clear() {
-    _storage.remove(_scriptHandle);
-  }
-
-  @override
-  List<SavedAction> get actions => List<SavedAction>.from(_savedActions);
-
-  @override
-  void saveAction(Duration offset, Object action) {
-    _savedActions.add(SavedAction(offset, action));
-    _storage[_scriptHandle] = _json.encode(_savedActions);
+    var saved = _json.decode(_storage[key]) as List<dynamic>;
+    return Version.started(
+        version,
+        saved
+            .map((o) => OffsetAction.fromJson(o as Map<String, Object>))
+            .toList());
   }
 }
+
+String _versionKey(String scriptHandle, String version) =>
+    '$scriptHandle:$version';

@@ -9,7 +9,7 @@ import 'package:built_value/serializer.dart';
 import 'package:meta/meta.dart';
 
 import 'august.dart';
-import 'modules.dart';
+import 'inks.dart';
 import 'src/event_stream.dart';
 
 part 'dialog.g.dart';
@@ -26,7 +26,7 @@ part 'dialog.g.dart';
 ])
 final Serializers dialogSerializers = _$dialogSerializers;
 
-class Dialog extends StoryModule {
+class Dialog extends Ink {
   final _speech = ScopedElements<Speech, SpeechKey>();
   final GetScope _default;
 
@@ -66,6 +66,8 @@ class Dialog extends StoryModule {
   }
 
   Voice voice({String name}) => Voice(name, this);
+
+  Future close() => _speech.close();
 }
 
 abstract class Speaks {
@@ -180,7 +182,7 @@ abstract class UseReply
   factory UseReply(ReplyKey key) => _$UseReply._(reply: key);
   UseReply._();
 
-  void run(Dialog dialog) {
+  void perform(Dialog dialog) {
     var matchedSpeech = dialog._speech.available[reply.speech];
 
     if (matchedSpeech == null) {

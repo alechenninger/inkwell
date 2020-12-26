@@ -5,6 +5,10 @@ export 'dart:async' show Zone;
 
 // TODO: Consider a "StoryZone" which aggregates all capabilities for stories
 //   another one that would be useful might be scaling times e.g 1 second is actually 2
+// "TimeTravelingZone" ?
+// This would probably fix bugs in FF zone.
+// resume() is already very similar to switchToParentZone()
+// to ff, pause, do ff, then resume.
 abstract class PausableZone {
   factory PausableZone(Duration Function() parentOffset, {Zone parent}) =
       _CallbackQueueZone;
@@ -203,6 +207,7 @@ class _OrderedTimerZone implements PausableZone {
 
   void _pausableMicrotask(
       Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    // TODO: microtasks!
     parent.scheduleMicrotask(zone, f);
   }
 
@@ -455,6 +460,8 @@ class _CallbackQueueZone implements PausableZone {
   }
 
   void resume() {
+    if (!isPaused) return;
+
     _pausedFor += parentOffset - _pausedAt;
     _pausedAt = null;
 
@@ -547,6 +554,7 @@ class _CallbackQueueZone implements PausableZone {
 
   void _pausableMicrotask(
       Zone self, ZoneDelegate parent, Zone zone, void Function() f) {
+    // TODO: microtasks!
     parent.scheduleMicrotask(zone, f);
   }
 }

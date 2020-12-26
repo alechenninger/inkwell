@@ -648,6 +648,18 @@ void main() {
     });
   });
 
+  test('resuming when never paused does nothing', () {
+    expect(zone.resume, returnsNormally);
+  });
+
+  test('resuming when no longer paused does nothing', () async {
+    zone.pause();
+    await Future.delayed(Duration.zero);
+    zone.resume();
+
+    expect(zone.resume, returnsNormally);
+  });
+
   // TODO: test cancellations
   // TODO: test timers which create other timers
 }

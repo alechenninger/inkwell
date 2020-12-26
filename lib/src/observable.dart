@@ -25,7 +25,7 @@ abstract class Observable<T> extends Observed<T> {
   /// to the [onChange] stream.
   set value(T value);
 
-  void close();
+  Future close();
 
   bool get isClosed;
 
@@ -124,11 +124,9 @@ class _ObservableOfImmutable<T> extends Observable<T> {
     return merged;
   }
 
-  void close() {
-    _changes.done();
-  }
+  Future close() => _changes.close();
 
-  bool get isClosed => _changes.isDone;
+  bool get isClosed => _changes.isClosed;
 }
 
 class Change<T> extends Event {
