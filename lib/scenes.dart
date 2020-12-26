@@ -47,7 +47,7 @@ class Scenes extends Ink {
   Serializers get serializers => Serializers();
 
   @override
-  Future close() => Future.value();
+  Future close() => _newScenes.close();
 }
 
 abstract class Scene<T extends Scene<T>> extends Scope<T> {

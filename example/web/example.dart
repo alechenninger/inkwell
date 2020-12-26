@@ -13,9 +13,7 @@ import 'package:august/ui/html/html_persistence.dart';
 import 'package:august/ui/html/html_ui.dart';
 
 void main() {
-  var n = Narrator(example, HtmlArchive('example'), Stopwatch(),
-      // TODO: instantiate new
-      () {
+  var n = Narrator(example, HtmlArchive('example'), Stopwatch(), () {
     var scenes = Scenes();
     var options = Options(
         defaultScope: () => scenes.currentScene.cast<Scope>().orElse(always));
