@@ -184,7 +184,7 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
 
   @override
   void resume() {
-    if (!isPaused || _isCanceled) return;
+    if (!isPaused || _isCanceled || _isDone) return;
     _pauses--;
     if (!isPaused) {
       while (_buffer.isNotEmpty) {
