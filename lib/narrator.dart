@@ -1,7 +1,6 @@
 library august.narrator;
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:rxdart/rxdart.dart';
 
@@ -11,6 +10,7 @@ import 'src/persistence.dart';
 
 class Narrator {
   final Script _script;
+  // TODO: archive might make sense as client-side / decoupled from narrator
   final Archive _archive;
 
   // TODO: need to be Stopwatch f() if we want to manage multiple stories
