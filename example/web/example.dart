@@ -4,13 +4,13 @@
 import 'dart:html';
 import 'dart:math';
 
-import 'package:august/august.dart';
-import 'package:august/dialog.dart';
-import 'package:august/options.dart';
-import 'package:august/prompts.dart';
-import 'package:august/scenes.dart';
-import 'package:august/ui/html/html_persistence.dart';
-import 'package:august/ui/html/html_ui.dart';
+import 'package:inkwell/inkwell.dart';
+import 'package:inkwell/dialog.dart';
+import 'package:inkwell/options.dart';
+import 'package:inkwell/prompts.dart';
+import 'package:inkwell/scenes.dart';
+import 'package:inkwell/ui/html/html_persistence.dart';
+import 'package:inkwell/ui/html/html_ui.dart';
 
 void main() {
   var n = Narrator(example, HtmlArchive('example'), Stopwatch(), () {

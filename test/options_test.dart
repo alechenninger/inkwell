@@ -1,5 +1,5 @@
-import 'package:august/august.dart';
-import 'package:august/options.dart';
+import 'package:inkwell/inkwell.dart';
+import 'package:inkwell/options.dart';
 import 'package:test/test.dart';
 
 void main() {

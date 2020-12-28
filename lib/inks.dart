@@ -1,11 +1,11 @@
 /// Abstractions for assisting in the development of [Ink]s.
-library august.inks;
+library inkwell.inks;
 
 import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
-import 'august.dart';
+import 'inkwell.dart';
 import 'src/event_stream.dart';
 
 export 'src/event_stream.dart' show EventStream;

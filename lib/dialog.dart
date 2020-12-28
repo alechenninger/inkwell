@@ -2,13 +2,13 @@
 
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-library august.dialog;
+library inkwell.dialog;
 
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 import 'package:meta/meta.dart';
 
-import 'august.dart';
+import 'inkwell.dart';
 import 'inks.dart';
 import 'src/event_stream.dart';
 

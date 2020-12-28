@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:august/src/pausable.dart';
+import 'package:inkwell/src/pausable.dart';
 import 'package:quiver/testing/async.dart';
 import 'package:test/test.dart';
 

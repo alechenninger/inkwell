@@ -5,7 +5,7 @@ import 'package:built_value/serializer.dart';
 import 'package:optional/optional.dart';
 import 'package:pedantic/pedantic.dart';
 
-import 'august.dart';
+import 'inkwell.dart';
 
 // TODO: Probably rethink this later
 class Scenes extends Ink {

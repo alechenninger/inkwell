@@ -1,4 +1,4 @@
-library august.narrator;
+library inkwell.narrator;
 
 import 'dart:async';
 

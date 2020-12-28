@@ -5,9 +5,9 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:html' hide Event;
 
-import 'package:august/august.dart';
-import 'package:august/dialog.dart';
-import 'package:august/options.dart';
+import 'package:inkwell/inkwell.dart';
+import 'package:inkwell/dialog.dart';
+import 'package:inkwell/options.dart';
 import 'package:rxdart/rxdart.dart';
 
 class SimpleHtmlUi {

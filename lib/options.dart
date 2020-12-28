@@ -1,13 +1,13 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-library august.options;
+library inkwell.options;
 
-import 'package:august/src/event_stream.dart';
+import 'package:inkwell/src/event_stream.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-import 'august.dart';
+import 'inkwell.dart';
 import 'inks.dart';
 
 part 'options.g.dart';

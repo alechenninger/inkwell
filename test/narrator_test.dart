@@ -1,6 +1,6 @@
-import 'package:august/august.dart';
-import 'package:august/dialog.dart';
-import 'package:august/options.dart';
+import 'package:inkwell/inkwell.dart';
+import 'package:inkwell/dialog.dart';
+import 'package:inkwell/options.dart';
 import 'package:pedantic/pedantic.dart';
 import 'package:test/test.dart';
 

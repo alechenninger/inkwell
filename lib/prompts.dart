@@ -1,7 +1,7 @@
-import 'package:august/src/event_stream.dart';
+import 'package:inkwell/src/event_stream.dart';
 import 'package:built_value/serializer.dart';
 
-import 'august.dart';
+import 'inkwell.dart';
 import 'inks.dart';
 
 class Prompts extends Ink {
