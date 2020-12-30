@@ -42,7 +42,7 @@ class Version {
 
   Version(this.name) : _actions = <OffsetAction>[];
 
-  Version.copy(Version v, {String name}): this.started(v.name, v.actions);
+  Version.copy(Version v, {String? name}): this.started(name ?? v.name, v.actions);
 
   Version.started(this.name, List<OffsetAction> actions)
       : _actions = List.from(actions);
@@ -54,8 +54,6 @@ class Version {
     // TODO: could validate offset > last offset?
     _actions.add(OffsetAction(offset, action));
   }
-
-  Stream<OffsetAction> get onRecord => null;
 }
 
 class OffsetAction {
@@ -65,7 +63,7 @@ class OffsetAction {
   OffsetAction(this.offset, this.action);
 
   OffsetAction.fromJson(Map<String, Object> json)
-      : action = json['action'],
+      : action = json['action']!,
         offset = Duration(milliseconds: json['offsetMillis'] as int);
 
   Map<String, Object> toJson() =>
@@ -74,13 +72,13 @@ class OffsetAction {
 
 // Adapted from quiver's FakeAsync
 class FastForwarder {
-  Zone _zone;
+  Zone? _zone;
   Duration _elapsed = Duration.zero;
-  Duration _elapsingTo;
+  Duration? _elapsingTo;
   final Queue<Function> _microtasks = Queue();
   final Set<_FastForwarderTimer> _timers = <_FastForwarderTimer>{};
   bool _useParentZone = true;
-  Duration _switchedToParent;
+  late Duration _switchedToParent;
   final Duration Function() _parentOffset;
 
   FastForwarder(this._parentOffset) {
@@ -96,7 +94,7 @@ class FastForwarder {
   void runFastForwardable(Function(FastForwarder) callback) {
     _useParentZone = false;
     _zone ??= Zone.current.fork(specification: _zoneSpec);
-    _zone.run(() => callback(this));
+    _zone!.run(() => callback(this));
     switchToParentZone();
   }
 
@@ -112,8 +110,8 @@ class FastForwarder {
           'Cannot fast forward until previous fast forward is complete.');
     }
     _elapsingTo = _elapsed + offset;
-    _runTimersUntil(_elapsingTo);
-    _elapseTo(_elapsingTo);
+    _runTimersUntil(_elapsingTo!);
+    _elapseTo(_elapsingTo!);
     _elapsingTo = null;
   }
 
@@ -122,7 +120,7 @@ class FastForwarder {
     _switchedToParent = _parentOffset();
 
     while (_microtasks.isNotEmpty) {
-      _zone.parent.scheduleMicrotask(_microtasks.removeFirst() as Callback);
+      _zone!.parent!.scheduleMicrotask(_microtasks.removeFirst() as Callback);
     }
 
     while (_timers.isNotEmpty) {
@@ -131,16 +129,16 @@ class FastForwarder {
         // TODO: I think this has side effect of reordering timers, because a
         //   non-periodic timer at same time will run before a periodic timer
         //   where it might not have otherwise
-        _zone.parent.createTimer(t.nextCall - _elapsed, () {
+        _zone!.parent!.createTimer(t.nextCall - _elapsed, () {
           var trackingTimer = _TrackingTimer();
           t.callback(trackingTimer);
           if (trackingTimer.isActive) {
-            _zone.parent
+            _zone!.parent!
                 .createPeriodicTimer(t.duration, t.callback as TimerCallback);
           }
         });
       } else {
-        _zone.parent.createTimer(t.nextCall - _elapsed, t.callback as Callback);
+        _zone!.parent!.createTimer(t.nextCall - _elapsed, t.callback as Callback);
       }
       _timers.remove(t);
     }
@@ -157,8 +155,8 @@ class FastForwarder {
           : _microtasks.add(microtask));
 
   void _runTimersUntil(Duration elapsingTo) {
-    _FastForwarderTimer next;
-    while ((next = _getNextTimer()) != null && next.nextCall <= elapsingTo) {
+    _FastForwarderTimer? next;
+    while ((next = _getNextTimer()) != null && next!.nextCall <= elapsingTo) {
       _elapseTo(next.nextCall);
       _runTimer(next);
       _drainMicrotasks();
@@ -184,7 +182,7 @@ class FastForwarder {
     return timer;
   }
 
-  _FastForwarderTimer _getNextTimer() => _timers.isEmpty
+  _FastForwarderTimer? _getNextTimer() => _timers.isEmpty
       ? null
       : _timers.reduce((t1, t2) => t1.nextCall <= t2.nextCall ? t1 : t2);
 
@@ -215,7 +213,7 @@ class _FastForwarderTimer implements Timer {
   final Function callback;
   final bool isPeriodic;
   final FastForwarder ff;
-  Duration nextCall;
+  late Duration nextCall;
 
   static const _minDuration = Duration.zero;
 
