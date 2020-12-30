@@ -3,7 +3,7 @@ import 'dart:collection';
 
 abstract class Archive {
 
-  Version operator [](String version);
+  Version? operator [](String version);
 
   void save(Version version);
 

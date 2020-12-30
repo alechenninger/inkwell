@@ -1,8 +1,6 @@
 // Copyright (c) 2015, Alec Henninger. All rights reserved. Use of this source
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'package:meta/meta.dart';
-
 import 'event_stream.dart';
 import 'observable.dart';
 
@@ -102,19 +100,19 @@ abstract class Scope<T> {
   /// Calls [onEnter] with `null` if the scope is already entered and
   /// [callIfAlreadyEntered] is `true`.
   void listen(
-      {void Function(T) onEnter,
-      void Function(T) onExit,
+      {void Function(T?)? onEnter,
+      void Function(T?)? onExit,
       bool callIfAlreadyEntered = true}) {
     this.onEnter.listen(onEnter);
     this.onExit.listen(onExit);
     if (isEntered && callIfAlreadyEntered) {
       // TODO: should be in microtask?
-      onEnter(null);
+      if (onEnter != null) onEnter(null);
     }
   }
 
   Stream<E> toStream<E>(
-      {@required E Function() onEnter, @required E Function() onExit}) {
+      {required E Function() onEnter, required E Function() onExit}) {
     return asObserved.onChange
         .map((change) => change.newValue ? onEnter() : onExit());
   }
@@ -204,7 +202,7 @@ class CountScope extends Scope<int> {
   final int max;
 
   final Observable<int> _count;
-  Observed<bool> _asObserved;
+  late Observed<bool> _asObserved;
   Observed<bool> get asObserved => _asObserved;
 
   int get count => _count.value;
@@ -217,7 +215,7 @@ class CountScope extends Scope<int> {
   Stream<int> get onExit =>
       _asObserved.onChange.where((c) => !c.newValue).map((_) => _count.value);
 
-  CountScope(int max, [Observable<int> count])
+  CountScope(int max, [Observable<int>? count])
       : max = max,
         _count = count ?? Observable.ofImmutable(0) {
     if (max < 0) {
@@ -266,7 +264,7 @@ class CountScope extends Scope<int> {
 /// through changes in backing scope.
 class MutableScope extends Scope {
   final Observable<bool> _observable;
-  StreamSubscription _current;
+  StreamSubscription? _current;
 
   void changeTo(Scope next) {
     _current?.cancel();
@@ -290,7 +288,7 @@ class MutableScope extends Scope {
   Stream get onExit => _observable.onChange.where((c) => !c.newValue);
 }
 
-extension AddScoped<T> on List<T> {
+extension AddScoped<T> on List<T?> {
   void addWhile(T t, Scope scope) {
     scope.listen(onEnter: (_) => add(t), onExit: (_) => remove(t));
   }

@@ -12,16 +12,16 @@ class HtmlArchive extends Archive {
 
   static const _json = JsonCodec();
 
-  HtmlArchive(this._scriptHandle, {Storage storage})
+  HtmlArchive(this._scriptHandle, {Storage? storage})
       : _storage = storage ?? window.localStorage;
 
   @override
-  Version operator [](String version) => _loadFromStorage(version);
+  Version? operator [](String version) => _loadFromStorage(version);
 
   @override
   List<Version> get versions => _storage.keys
       .where((element) => element.startsWith('$_scriptHandle:'))
-      .map((e) => _loadFromStorage(e.substring('$_scriptHandle:'.length)))
+      .map((e) => _loadFromStorage(e.substring('$_scriptHandle:'.length))!)
       .toList(growable: false);
 
   @override
@@ -40,13 +40,13 @@ class HtmlArchive extends Archive {
     // TODO: implement append
   }
 
-  Version _loadFromStorage(String version) {
+  Version? _loadFromStorage(String version) {
     var key = _versionKey(_scriptHandle, version);
     if (!_storage.containsKey(key)) {
       return null;
     }
 
-    var saved = _json.decode(_storage[key]) as List<dynamic>;
+    var saved = _json.decode(_storage[key]!) as List<dynamic>;
     return Version.started(
         version,
         saved

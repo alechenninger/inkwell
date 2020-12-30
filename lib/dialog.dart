@@ -47,14 +47,14 @@ class Dialog extends Ink {
   //       - On the other hand, we could consider markup to be Dialog specific
   //         here, not UI specific. Then UI decides what to do with the module.
   //         I guess this is what the current architecture is.
-  Speech narrate(String markup, {Scope scope}) {
+  Speech narrate(String markup, {Scope? scope}) {
     return add(markup, scope: scope);
   }
 
   // TODO: figure out default
   //  This might be figured out now...
   Speech add(String markup,
-      {String speaker, String target, Scope<dynamic> scope}) {
+      {String? speaker, String? target, Scope<dynamic>? scope}) {
     scope = scope ?? _default();
 
     var speech = _speech.add(
@@ -65,7 +65,7 @@ class Dialog extends Ink {
     return speech;
   }
 
-  Voice voice({String name}) => Voice(name, this);
+  Voice voice({String? name}) => Voice(name, this);
 
   Future close() => _speech.close();
 }
@@ -75,13 +75,13 @@ abstract class Speaks {
 }
 
 class Voice implements Speaks {
-  String name;
+  String? name;
 
   final Dialog _dialog;
 
   Voice(this.name, this._dialog);
 
-  Speech say(String markup, {String target, Scope scope}) =>
+  Speech say(String markup, {String? target, Scope? scope}) =>
       _dialog.add(markup, speaker: name, target: target, scope: scope);
 }
 
@@ -90,9 +90,9 @@ abstract class SpeechKey implements Built<SpeechKey, SpeechKeyBuilder> {
 
   String get markup;
   @nullable
-  String get speaker;
+  String? get speaker;
 
-  factory SpeechKey({@required String markup, String speaker}) =>
+  factory SpeechKey({required String markup, String? speaker}) =>
       _$SpeechKey._(markup: markup, speaker: speaker);
   SpeechKey._();
 }
