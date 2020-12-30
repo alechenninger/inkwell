@@ -43,9 +43,9 @@ typedef Script = void Function(Palette);
 /// The events produced by [Ink]s are accessible from the [events] broadcast
 /// stream.
 class Palette {
-  Map<Type, Ink> _inks;
-  Stream<Event> _events;
-  Serializers _serializers;
+  late Map<Type, Ink> _inks;
+  late Stream<Event> _events;
+  late Serializers _serializers;
 
   Palette(Iterable<Ink> m) {
     // TODO: validate that no two inks share the same type
@@ -57,7 +57,7 @@ class Palette {
 
   T call<T>() => _inks[T] as T;
 
-  Ink operator [](Type t) => _inks[t];
+  Ink? operator [](Type t) => _inks[t];
 
   Iterable<Ink> get inks => _inks.values;
 

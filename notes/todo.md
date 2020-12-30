@@ -5,5 +5,5 @@ TODO:
 - [ ] Flutter-based UI ... or use react/patternfly? (would that be weird?)
 - [ ] Ink development (finish prompt, inventory, locations, ...)
 - [ ] Remote UI (client-server)
-- [ ] null safety
+- [ ] null safety – dependencies not all ready
 - [ ] proper logging

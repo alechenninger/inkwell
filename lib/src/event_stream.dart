@@ -19,9 +19,10 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   // may themselves schedule tasks, which should not become before the original
   // scheduled tasks. Think of this stream itself as the first of the
   // synchronous "reactions" – the listeners to this shouldn't skip ahead.
-  var _asyncListeners = <_AsyncEventSubscription>[];
-  var _syncListeners = <_SyncEventSubscription>[];
-  var _subscriptions = <StreamSubscription>[];
+  List<_AsyncEventSubscription>? _asyncListeners = <_AsyncEventSubscription>[];
+  List<_SyncEventSubscription>? _syncListeners = <_SyncEventSubscription>[];
+  List<StreamSubscription>? _subscriptions = <StreamSubscription>[];
+
   // Sync should be safe due to completion from other futures (see [close])
   final _done = Completer.sync();
 
@@ -30,8 +31,8 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
   Stream<T> get asSynchronousStream => _SynchronousEventStream<T>(this);
 
   @override
-  StreamSubscription<T> listen(void Function(T event) onData,
-      {Function onError, void Function() onDone, bool cancelOnError}) {
+  StreamSubscription<T> listen(void Function(T event)? onData,
+      {Function? onError, void Function()? onDone, bool? cancelOnError}) {
     // TODO: implement other args
     var sub = _AsyncEventSubscription<T>()
       ..onData(onData)
@@ -40,7 +41,7 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
     if (isClosed) {
       sub._close();
     } else {
-      _asyncListeners.add(sub);
+      _asyncListeners!.add(sub);
     }
 
     return sub;
@@ -63,16 +64,16 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
     if (isClosed) {
       throw StateError('stream is closed; cannot add event');
     }
-    _asyncListeners.forEach((sub) => sub._add(event));
-    _syncListeners.forEach((sub) => sub._add(event));
+    _asyncListeners!.forEach((sub) => sub._add(event));
+    _syncListeners!.forEach((sub) => sub._add(event));
   }
 
-  void addError(Object error, [StackTrace trace]) {
+  void addError(dynamic error, [StackTrace? trace]) {
     if (isClosed) {
       throw StateError('stream is closed; cannot add error');
     }
-    _asyncListeners.forEach((sub) => sub._addError(error));
-    _syncListeners.forEach((sub) => sub._addError(error));
+    _asyncListeners!.forEach((sub) => sub._addError(error));
+    _syncListeners!.forEach((sub) => sub._addError(error));
   }
 
   void includeStoryElement(StoryElement<T> emitter) {
@@ -88,16 +89,16 @@ class EventStream<T extends Event> extends Stream<T> implements EventSink<T> {
       throw StateError('stream is closed; cannot include stream');
     }
     var sub = stream.listen((t) => add(t), onError: (e) => addError(e));
-    _subscriptions.add(sub);
+    _subscriptions!.add(sub);
   }
 
   Future close() {
     if (!isClosed) {
       // TODO: not sure if logic around here is right
       var cancellations = <Future>[];
-      _subscriptions.forEach(((sub) => cancellations.add(sub.cancel())));
-      _asyncListeners.forEach((sub) => sub._close());
-      _syncListeners.forEach((sub) => sub._close());
+      _subscriptions!.forEach(((sub) => cancellations.add(sub.cancel())));
+      _asyncListeners!.forEach((sub) => sub._close());
+      _syncListeners!.forEach((sub) => sub._close());
 
       // Does setting to null have any value?
       _asyncListeners = null;
@@ -123,8 +124,8 @@ class _SynchronousEventStream<T> extends Stream<T> {
   _SynchronousEventStream(this._backing);
 
   @override
-  StreamSubscription<T> listen(void Function(T event) onData,
-      {Function onError, void Function() onDone, bool cancelOnError}) {
+  StreamSubscription<T> listen(void Function(T event)? onData,
+      {Function? onError, void Function()? onDone, bool? cancelOnError}) {
     var sub = _SyncEventSubscription<T>()
       ..onData(onData)
       ..onDone(onDone);
@@ -134,15 +135,15 @@ class _SynchronousEventStream<T> extends Stream<T> {
 }
 
 abstract class _EventSubscription<T> extends StreamSubscription<T> {
-  void Function(T) _onData;
-  void Function() _onDone;
+  void Function(T)? _onData;
+  void Function()? _onDone;
   var _pauses = 0;
-  var _buffer = Queue<T>();
+  Queue<T>? _buffer = Queue<T>();
   var _isCanceled = false;
   var _isDone = false;
 
   @override
-  Future<E> asFuture<E>([E futureValue]) {
+  Future<E> asFuture<E>([E? futureValue]) {
     // TODO: implement asFuture
     throw UnimplementedError();
   }
@@ -162,22 +163,22 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
   bool get isPaused => _pauses > 0;
 
   @override
-  void onData(void Function(T data) handleData) {
+  void onData(void Function(T data)? handleData) {
     _onData = handleData;
   }
 
   @override
-  void onDone(void Function() handleDone) {
+  void onDone(void Function()? handleDone) {
     _onDone = handleDone;
   }
 
   @override
-  void onError(Function handleError) {
+  void onError(Function? handleError) {
     throw UnimplementedError();
   }
 
   @override
-  void pause([Future resumeSignal]) {
+  void pause([Future? resumeSignal]) {
     if (_isCanceled || _isDone) return;
     _pauses++;
   }
@@ -187,8 +188,8 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
     if (!isPaused || _isCanceled || _isDone) return;
     _pauses--;
     if (!isPaused) {
-      while (_buffer.isNotEmpty) {
-        _add(_buffer.removeFirst());
+      while (_buffer!.isNotEmpty) {
+        _add(_buffer!.removeFirst());
       }
     }
   }
@@ -200,15 +201,15 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
   void _add(T event) {
     if (_isCanceled) return;
     if (_onData == null) return;
-    if (!isPaused) {
-      var cb = _onData;
+    if (!isPaused && _onData != null) {
+      var cb = _onData!;
       _dispatch(() {
         if (!isPaused && !_isCanceled) {
           cb(event);
         }
       });
     } else {
-      _buffer.add(event);
+      _buffer!.add(event);
     }
   }
 
@@ -223,7 +224,7 @@ abstract class _EventSubscription<T> extends StreamSubscription<T> {
 
     if (_onDone == null) return;
 
-    _dispatch(_onDone);
+    _dispatch(_onDone!);
     _onDone = null;
   }
 

@@ -21,7 +21,7 @@ class ScopedElements<O extends StoryElement, K> extends StoryElement {
   final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
-  ScopedElements([EventStream<Event> events])
+  ScopedElements([EventStream<Event>? events])
       : _events = events ?? EventStream<Event>();
 
   // TODO: use type which has all of these things already?
@@ -76,7 +76,7 @@ abstract class Available {
 
   // TODO: consider moving out into ScopedElement or top-level function
   void publishAvailability(EventStream events,
-      {@required Event Function() onEnter, @required Event Function() onExit}) {
+      {required Event Function() onEnter, required Event Function() onExit}) {
     events
         .includeStream(availability.toStream(onEnter: onEnter, onExit: onExit));
     if (isAvailable) events.add(onEnter());
@@ -91,30 +91,30 @@ class LimitedUseElement<E extends LimitedUseElement<E, U>, U extends Event>
   int get maxUses => uses.max;
   int get useCount => uses.count;
 
-  Scope _available;
+  late Scope _available;
 
   /// A scope that is entered whenever this element is available for use.
   Scope get availability => _available;
 
   final CountScope uses;
 
-  EventStream<U> _onUse;
+  late EventStream<U> _onUse;
   Stream<U> get onUse => _onUse;
 
   final EventStream<Event> _events;
   Stream<Event> get events => _events;
 
   final U Function(E) _use;
-  final dynamic Function(E) _notAvailableException;
+  final Object Function(E) _notAvailableException;
 
   LimitedUseElement({
-    CountScope uses,
+    CountScope? uses,
     Scope available = always,
-    @required EventStream<Event> events,
-    @required U Function(E) use,
-    @required Object Function(E) unavailableUse,
-    @required Event Function(E) onAvailable,
-    @required Event Function(E) onUnavailable,
+    required EventStream<Event> events,
+    required U Function(E) use,
+    required Object Function(E) unavailableUse,
+    required Event Function(E) onAvailable,
+    required Event Function(E) onUnavailable,
   })  : uses = uses ?? CountScope(1),
         _use = use,
         _notAvailableException = unavailableUse,

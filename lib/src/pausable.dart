@@ -65,7 +65,7 @@ class _OrderedTimerZone implements PausableZone {
   Duration get offset => _pausedAt ?? parentOffset - _pausedFor;
 
   /// The parent offset that we last paused at
-  Duration _pausedAt;
+  Duration? _pausedAt;
 
   bool get isPaused => _pausedAt != null;
 
@@ -80,9 +80,9 @@ class _OrderedTimerZone implements PausableZone {
   }
 
   /// Forked zone with pausable timers
-  Zone _zone;
+  late Zone _zone;
 
-  _OrderedTimerZone(this._parentOffset, {Zone parent}) {
+  _OrderedTimerZone(this._parentOffset, {Zone? parent}) {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
@@ -110,14 +110,15 @@ class _OrderedTimerZone implements PausableZone {
   }
 
   void resume() {
-    _pausedFor += _parentOffset() - _pausedAt;
+    if (_pausedAt == null) return;
+    _pausedFor += _parentOffset() - _pausedAt!;
     _pausedAt = null;
 
     // TODO: microtasks?
     _resumeUntilNextPeriodic();
   }
 
-  void _resumeUntilNextPeriodic({Duration nextPeriodic}) {
+  void _resumeUntilNextPeriodic({Duration? nextPeriodic}) {
     if (_paused.isEmpty) return;
 
     for (var scheduled in _paused.toList(growable: false)) {
@@ -151,13 +152,13 @@ class _OrderedTimerZone implements PausableZone {
   /// [scheduled].
   _PausableNonPeriodicTimer continueResumeWithPeriodicAt(
       _Scheduled scheduled, _PausablePeriodicTimer periodic,
-      {Duration nextPeriodic}) {
+      {Duration? nextPeriodic}) {
     _paused.remove(scheduled);
 
     var timer = _PausableNonPeriodicTimer.forPeriodic(
         this,
         scheduled.sequence,
-        (t, d) => _zone.parent.createTimer(d, () {
+        (t, d) => _zone.parent!.createTimer(d, () {
               _running.remove(t._scheduled);
 
               if (periodic.isActive) {
@@ -255,8 +256,8 @@ abstract class _PausableTimer implements Timer {
 class _PausableNonPeriodicTimer implements _PausableTimer {
   final _OrderedTimerZone _zone;
   final Timer Function(_PausableNonPeriodicTimer, Duration) _createTimer;
-  _Scheduled _scheduled;
-  Timer _delegate;
+  _Scheduled? _scheduled;
+  Timer? _delegate;
   bool _cancelled = false;
 
   _PausableNonPeriodicTimer(
@@ -272,9 +273,11 @@ class _PausableNonPeriodicTimer implements _PausableTimer {
   }
 
   void pause() {
-    _delegate?.cancel();
-    _zone._running.remove(_scheduled);
-    _zone._paused.add(_scheduled);
+    if (_scheduled != null) { // TODO: is this right?
+      _delegate?.cancel();
+      _zone._running.remove(_scheduled);
+      _zone._paused.add(_scheduled!);
+    }
   }
 
   void startFrom(Duration offset) {
@@ -282,13 +285,17 @@ class _PausableNonPeriodicTimer implements _PausableTimer {
       throw StateError('Timer is not active anymore');
     }
 
-    if (_scheduled.nextCall < offset) {
-      throw StateError('Cannot start timer at $offset; timer already should '
-          'have run at ${_scheduled.nextCall}');
+    if (_scheduled == null) {
+      throw StateError('cannot start timer that is not scheduled: $this');
     }
-    _zone._running.add(_scheduled);
-    _zone._paused.remove(_scheduled);
-    _delegate = _createTimer(this, _scheduled.nextCall - offset);
+
+    if (_scheduled!.nextCall < offset) {
+      throw StateError('Cannot start timer at $offset; timer already should '
+          'have run at ${_scheduled!.nextCall}');
+    }
+    _zone._running.add(_scheduled!);
+    _zone._paused.remove(_scheduled!);
+    _delegate = _createTimer(this, _scheduled!.nextCall - offset);
   }
 
   @override
@@ -317,8 +324,8 @@ class _PausablePeriodicTimer implements _PausableTimer {
   final int _sequence;
   final Duration _period;
   final Function(Timer) _callback;
-  _Scheduled _next;
-  Timer _delegate;
+  _Scheduled? _next;
+  Timer? _delegate;
   bool _cancelled = false;
   //int _offsetTicks;
 
@@ -332,16 +339,16 @@ class _PausablePeriodicTimer implements _PausableTimer {
 
     if (_next != null) {
       _zone._running.remove(_next);
-      _zone._paused.add(_next);
+      _zone._paused.add(_next!);
     } else {
       _next = _Scheduled(_zone.offset + _period, _sequence, this, true);
-      _zone._paused.add(_next);
+      _zone._paused.add(_next!);
     }
     // Not really sure this is right...
     //_offsetTicks = _offsetTicks + _delegate?.tick;
   }
 
-  void start({bool runNow = false, Duration until}) {
+  void start({bool runNow = false, Duration? until}) {
     if (!isActive) {
       throw StateError('Timer is not active anymore');
     }
@@ -356,18 +363,18 @@ class _PausablePeriodicTimer implements _PausableTimer {
 
     _next = _Scheduled(_zone.offset + _period, _sequence, this, true);
 
-    if (until != null && _next.nextCall >= until) {
+    if (until != null && _next!.nextCall >= until) {
       pause();
     } else {
-      _zone._running.add(_next);
+      _zone._running.add(_next!);
       _delegate = _createTimer(() {
         _zone._running.remove(_next);
-        _next = _Scheduled(_next.nextCall + _period, _sequence, this, true);
+        _next = _Scheduled(_next!.nextCall + _period, _sequence, this, true);
 
-        if (until != null && _next.nextCall >= until) {
+        if (until != null && _next!.nextCall >= until) {
           pause();
         } else {
-          _zone._running.add(_next);
+          _zone._running.add(_next!);
         }
 
         _callback(this);
@@ -423,7 +430,7 @@ class _CallbackQueueZone implements PausableZone {
   Duration get offset => _pausedAt ?? parentOffset - _pausedFor;
 
   /// The parent offset that we last paused at
-  Duration _pausedAt;
+  Duration? _pausedAt;
 
   bool get isPaused => _pausedAt != null;
 
@@ -438,9 +445,9 @@ class _CallbackQueueZone implements PausableZone {
   }
 
   /// Forked zone with pausable timers
-  Zone _zone;
+  late Zone _zone;
 
-  _CallbackQueueZone(this._parentOffset, {Zone parent}) {
+  _CallbackQueueZone(this._parentOffset, {Zone? parent}) {
     parent = parent ?? Zone.current;
     _zone = parent.fork(
         specification: ZoneSpecification(
@@ -462,7 +469,7 @@ class _CallbackQueueZone implements PausableZone {
   void resume() {
     if (!isPaused) return;
 
-    _pausedFor += parentOffset - _pausedAt;
+    _pausedFor += parentOffset - _pausedAt!;
     _pausedAt = null;
 
     for (var cb in _callbacks) {
@@ -472,15 +479,15 @@ class _CallbackQueueZone implements PausableZone {
       // Schedule timer(s) at the timing(s) for this callback.
 
       if (cb.isPeriodic) {
-        timer = _zone.parent.createTimer(remaining, () {
-          var periodic = _zone.parent
+        timer = _zone.parent!.createTimer(remaining, () {
+          var periodic = _zone.parent!
               .createPeriodicTimer(cb.duration, (_) => _runNextCallback());
           cb._timer = periodic;
 
           _runNextCallback();
         });
       } else {
-        timer = _zone.parent.createTimer(remaining, _runNextCallback);
+        timer = _zone.parent!.createTimer(remaining, _runNextCallback);
       }
 
       cb._timer = timer;
@@ -540,7 +547,7 @@ class _CallbackQueueZone implements PausableZone {
   Timer _pausablePeriodicTimer(Zone self, ZoneDelegate parent, Zone zone,
       Duration duration, void Function(Timer) f) {
     var scheduled = _ScheduledCallback(
-        _nextSequence(), duration, offset, ([t]) => f(t), true, this);
+        _nextSequence(), duration, offset, ([t]) => f(t!), true, this);
     _callbacks.add(scheduled);
 
     if (!isPaused) {
@@ -563,14 +570,14 @@ class _ScheduledCallback implements Comparable<_ScheduledCallback> {
   final int sequence;
   final Duration duration;
   final Duration started;
-  final void Function([Timer]) callback;
+  final void Function([Timer?]) callback;
   final bool isPeriodic;
 
   final _CallbackQueueZone _zone;
 
   /// A timer that will run at the same offset this callback is (next)
   /// scheduled.
-  Timer _timer;
+  Timer? _timer;
 
   _ScheduledCallback(this.sequence, this.duration, this.started, this.callback,
       this.isPeriodic, this._zone);
